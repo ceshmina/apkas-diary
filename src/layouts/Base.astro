@@ -1,0 +1,155 @@
+---
+interface Props {
+  title: string
+  description?: string
+}
+
+const { title, description } = Astro.props
+const siteTitle = 'apkas-diary'
+const fullTitle = title === siteTitle ? siteTitle : `${title} | ${siteTitle}`
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <header>
+      <a href="/" class="site-title">{siteTitle}</a>
+      <nav>
+        <!-- 「今日の分」だけは訪問時刻に依存するため、リンク先をクライアント側で解決する。 -->
+        <a href="/on-this-day/01-01" data-on-this-day>N年前の今日</a>
+      </nav>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer>
+      <p>この日記は静的に生成されています。</p>
+    </footer>
+
+    <script>
+      // 静的サイトでは「今日」がビルド時刻に固定されるため、月日ページは
+      // 366 通りすべてを事前生成してある。ここでは訪問時刻の月日を求め、
+      // 対応するページへリンクを差し替えるだけでよい。
+      const now = new Date()
+      const monthDay =
+        String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0')
+
+      for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-on-this-day]')) {
+        link.href = `/on-this-day/${monthDay}`
+      }
+    </script>
+
+    <style is:global>
+      :root {
+        --fg: #1a1a1a;
+        --fg-muted: #666;
+        --bg: #fdfdfc;
+        --accent: #375e8a;
+        --border: #e2e0dc;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fg: #e8e6e3;
+          --fg-muted: #9a9691;
+          --bg: #1b1a19;
+          --accent: #8ab4e8;
+          --border: #35332f;
+        }
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0 1.25rem;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+        line-height: 1.8;
+        font-size: 16px;
+      }
+
+      header,
+      main,
+      footer {
+        max-width: 42rem;
+        margin: 0 auto;
+      }
+
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: baseline;
+        justify-content: space-between;
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .site-title {
+        font-weight: 700;
+        font-size: 1.1rem;
+        text-decoration: none;
+        color: var(--fg);
+      }
+
+      main {
+        padding: 2rem 0 3rem;
+        min-height: 60vh;
+      }
+
+      footer {
+        padding: 1.5rem 0 2.5rem;
+        border-top: 1px solid var(--border);
+        color: var(--fg-muted);
+        font-size: 0.85rem;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        line-height: 1.5;
+        margin: 0 0 1.5rem;
+      }
+
+      h2 {
+        font-size: 1.2rem;
+        margin: 2rem 0 0.75rem;
+      }
+
+      img {
+        max-width: 100%;
+        height: auto;
+      }
+
+      pre {
+        overflow-x: auto;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        line-height: 1.6;
+      }
+
+      .muted {
+        color: var(--fg-muted);
+      }
+    </style>
+  </body>
+</html>

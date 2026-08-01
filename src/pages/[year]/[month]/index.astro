@@ -1,0 +1,40 @@
+---
+import EntryList from '../../../components/EntryList.astro'
+import Base from '../../../layouts/Base.astro'
+import { byDateAsc, entriesByYearMonth } from '../../../lib/site-data.js'
+import type { Entry } from '../../../lib/store/entry.js'
+
+// エントリが存在する年月だけを生成する。存在しない年月は 404 になる。
+export async function getStaticPaths() {
+  const grouped = await entriesByYearMonth()
+
+  return [...grouped.entries()].map(([yearMonth, entries]) => ({
+    params: { year: yearMonth.slice(0, 4), month: yearMonth.slice(5, 7) },
+    props: { entries: [...entries].sort(byDateAsc) },
+  }))
+}
+
+const { year, month } = Astro.params
+const { entries } = Astro.props as { entries: Entry[] }
+---
+
+<Base title={`${year}年${Number(month)}月の日記`}>
+  <h1>{year}年{Number(month)}月の日記</h1>
+
+  <p class="muted">{entries.length} 件</p>
+
+  <EntryList entries={entries} showYear={false} />
+
+  <nav class="links">
+    <a href={`/${year}`}>{year}年の一覧</a>
+  </nav>
+</Base>
+
+<style>
+  .links {
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+</style>

@@ -1,0 +1,73 @@
+---
+import { dayOf, formatDateJa, monthOf, yearOf } from '../lib/date.js'
+import type { Entry } from '../lib/store/entry.js'
+
+interface Props {
+  entries: Entry[]
+  /** 年をまたぐ一覧では年を、年内の一覧では省く。 */
+  showYear?: boolean
+  emptyMessage?: string
+}
+
+const { entries, showYear = true, emptyMessage = 'エントリはまだありません。' } = Astro.props
+
+function hrefOf(date: string): string {
+  return `/${yearOf(date)}/${monthOf(date)}/${dayOf(date)}`
+}
+---
+
+{
+  entries.length === 0 ? (
+    <p class="muted">{emptyMessage}</p>
+  ) : (
+    <ul class="entry-list">
+      {entries.map((entry) => (
+        <li>
+          <a href={hrefOf(entry.date)}>
+            <time datetime={entry.date}>
+              {showYear ? formatDateJa(entry.date) : formatDateJa(entry.date).replace(/^\d+年/, '')}
+            </time>
+            <span class="entry-title">{entry.title || '(無題)'}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+<style>
+  .entry-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .entry-list li {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .entry-list a {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    padding: 0.85rem 0;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .entry-list a:hover .entry-title {
+    text-decoration: underline;
+  }
+
+  time {
+    flex: 0 0 auto;
+    color: var(--fg-muted);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .entry-title {
+    flex: 1 1 12rem;
+    color: var(--accent);
+  }
+</style>
