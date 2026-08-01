@@ -1,1 +1,4 @@
 .DS_Store
+
+# Claude Code のローカル設定（権限の承認記録などが入る）
+.claude/settings.local.json
