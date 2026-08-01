@@ -8,7 +8,7 @@
             └─ 下書き含む全件 ──▶ Markdown 書き出し ──▶ export/（コミットしない）
 ```
 
-設計の詳細は [openspec/changes/setup-diary-foundation/design.md](openspec/changes/setup-diary-foundation/design.md) を参照。
+現在の仕様は [openspec/specs/](openspec/specs/)、基盤構築時の設計判断は [openspec/changes/archive/2026-08-01-setup-diary-foundation/design.md](openspec/changes/archive/2026-08-01-setup-diary-foundation/design.md) を参照。
 
 ## 必要なツール
 
