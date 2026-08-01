@@ -2,3 +2,33 @@
 
 # Claude Code のローカル設定（権限の承認記録などが入る）
 .claude/settings.local.json
+
+# Node.js
+node_modules/
+
+# Astro のビルド生成物
+dist/
+.astro/
+
+# 日記本文の書き出し先。バックアップ目的でありコミットしない
+# （design.md 決定12。CI 移行時は GitHub Release へ載せる）
+export/
+
+# 環境ごとの設定。実値はコミットしない
+# （`.env.<環境>` にしないのは Vite が自動ロードしてしまうため。load-env.sh 参照）
+config/*.env
+!config/*.env.example
+.env
+.env.*
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+# backend.hcl はバケット名にアカウント ID を含むため除外する
+backend.hcl
+!backend.hcl.example
+crash.log
+crash.*.log

@@ -1,0 +1,71 @@
+---
+import Base from '../../../layouts/Base.astro'
+import { dayOf, formatDateJa, monthDayOf, monthOf, yearOf } from '../../../lib/date.js'
+import { renderMarkdown } from '../../../lib/markdown.js'
+import { publishedEntries } from '../../../lib/site-data.js'
+import type { Entry } from '../../../lib/store/entry.js'
+
+// 入力は公開済みエントリのみ。下書きの日付はパスとして生成されないため、
+// アクセスすると 404 になり、下書きの存在も判別できない。
+export async function getStaticPaths() {
+  const entries = await publishedEntries()
+
+  return entries.map((entry) => ({
+    params: {
+      year: yearOf(entry.date),
+      month: monthOf(entry.date),
+      day: dayOf(entry.date),
+    },
+    props: { entry },
+  }))
+}
+
+const { entry } = Astro.props as { entry: Entry }
+const html = await renderMarkdown(entry.body)
+const monthDay = monthDayOf(entry.date)
+---
+
+<Base title={entry.title || formatDateJa(entry.date)}>
+  <article>
+    <p class="date">
+      <time datetime={entry.date}>{formatDateJa(entry.date)}</time>
+    </p>
+    <h1>{entry.title || '(無題)'}</h1>
+
+    <div class="body" set:html={html} />
+  </article>
+
+  <nav class="links">
+    <a href={`/${yearOf(entry.date)}/${monthOf(entry.date)}`}>
+      {Number(monthOf(entry.date))}月の一覧
+    </a>
+    <a href={`/${yearOf(entry.date)}`}>{yearOf(entry.date)}年の一覧</a>
+    <a href={`/on-this-day/${monthDay}`}>過去の同じ日</a>
+  </nav>
+</Base>
+
+<style>
+  .date {
+    margin: 0 0 0.25rem;
+    color: var(--fg-muted);
+    font-size: 0.9rem;
+  }
+
+  h1 {
+    margin-bottom: 2rem;
+  }
+
+  .body :global(> :first-child) {
+    margin-top: 0;
+  }
+
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+</style>

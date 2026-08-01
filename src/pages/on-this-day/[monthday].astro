@@ -1,0 +1,42 @@
+---
+import EntryList from '../../components/EntryList.astro'
+import Base from '../../layouts/Base.astro'
+import { allMonthDays, formatMonthDayJa } from '../../lib/date.js'
+import { byDateDesc, entriesByMonthDay } from '../../lib/site-data.js'
+import type { Entry } from '../../lib/store/entry.js'
+
+/**
+ * 閏日を含む366通りの月日すべてについてページを生成する。
+ *
+ * 静的サイトでは「今日」がビルド時刻に固定されてしまうため、全通りを用意して
+ * おき、訪問時刻の解決はクライアント側（Base.astro のスクリプト）に任せる。
+ * これにより、日次のリビルドなしで「N年前の今日」が常に正しく引ける。
+ *
+ * 該当するエントリがない月日でも 404 にはせず、ページを出す。
+ */
+export async function getStaticPaths() {
+  const grouped = await entriesByMonthDay()
+
+  return allMonthDays().map((monthDay) => ({
+    params: { monthday: monthDay },
+    props: {
+      entries: [...(grouped.get(monthDay) ?? [])].sort(byDateDesc),
+    },
+  }))
+}
+
+const { monthday } = Astro.params
+const { entries } = Astro.props as { entries: Entry[] }
+const label = formatMonthDayJa(monthday ?? '01-01')
+---
+
+<Base title={`${label}の記録`}>
+  <h1>{label}の記録</h1>
+
+  <p class="muted">過去のすべての{label}を新しい年から並べています。</p>
+
+  <EntryList
+    entries={entries}
+    emptyMessage={`${label}の日記はまだありません。`}
+  />
+</Base>

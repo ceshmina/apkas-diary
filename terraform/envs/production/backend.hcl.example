@@ -1,0 +1,15 @@
+# このファイルを backend.hcl にコピーして実値を埋める。
+#   terraform init -backend-config=backend.hcl
+#
+# バケットは scripts/bootstrap-state.sh が作成する。
+# 実行後に表示される内容をここに転記する。
+
+bucket  = "apkas-diary-tfstate-000000000000"
+key     = "production/terraform.tfstate"
+region  = "ap-northeast-1"
+profile = "apkas-production.admin"
+encrypt = true
+
+# Terraform 1.10 以降のネイティブロック。
+# ロック用の DynamoDB テーブルは不要。
+use_lockfile = true

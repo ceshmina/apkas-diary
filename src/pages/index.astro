@@ -1,0 +1,41 @@
+---
+import EntryList from '../components/EntryList.astro'
+import Base from '../layouts/Base.astro'
+import { recentEntries, years } from '../lib/site-data.js'
+
+// エントリが1件もなくてもビルドは通り、ページも表示される。
+const entries = await recentEntries()
+const yearList = await years()
+---
+
+<Base title="apkas-diary" description="個人の日記">
+  <h1>最近の日記</h1>
+
+  <EntryList entries={entries} />
+
+  {
+    yearList.length > 0 && (
+      <>
+        <h2>年別</h2>
+        <ul class="year-list">
+          {yearList.map((year) => (
+            <li>
+              <a href={`/${year}`}>{year}年</a>
+            </li>
+          ))}
+        </ul>
+      </>
+    )
+  }
+</Base>
+
+<style>
+  .year-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+</style>
