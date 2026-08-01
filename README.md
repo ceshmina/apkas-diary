@@ -18,17 +18,19 @@
 | Terraform | 1.10 以上 | S3 backend のネイティブロック（`use_lockfile`）を使うため |
 | AWS CLI | v2 | デプロイと bootstrap で使う |
 
-AWS は **staging と production で named profile を分ける**。リージョンはいずれも `ap-northeast-1`。
+AWS は **staging と production でアカウントを分け、named profile で切り替える**。
+リージョンはいずれも `ap-northeast-1`。
 
-```
-# ~/.aws/config の例
-[profile apkas-diary-staging]
-region = ap-northeast-1
-...
+| 環境 | profile |
+| --- | --- |
+| staging | `apkas-staging.admin` |
+| production | `apkas-production.admin` |
 
-[profile apkas-diary-production]
-region = ap-northeast-1
-...
+認証は IAM Identity Center（SSO）。期限が切れたらログインし直す。
+
+```bash
+aws sso login --profile apkas-staging.admin
+aws sso login --profile apkas-production.admin
 ```
 
 ## 初期セットアップ
@@ -44,8 +46,8 @@ npm ci
 state の保存先そのものは Terraform では作れない（自己参照になる）ため、手で1度だけ作成する。
 
 ```bash
-scripts/bootstrap-state.sh apkas-diary-staging
-scripts/bootstrap-state.sh apkas-diary-production
+scripts/bootstrap-state.sh apkas-staging.admin
+scripts/bootstrap-state.sh apkas-production.admin
 ```
 
 スクリプトは以下を設定したバケットを作成する。冪等なので再実行しても安全。

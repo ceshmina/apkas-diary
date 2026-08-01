@@ -29,7 +29,7 @@
 - [x] 4.3 staging から `storage` と `delivery` モジュールを呼び出す
 - [x] 4.4 `terraform/envs/production` を同じ構成で定義する（backend のキー・アカウント ID・環境名のみ差分）
 - [x] 4.5 Terraform のバージョン制約を 1.10 以降に固定する
-- [ ] 4.6 誤った profile で `terraform plan` を実行し、リソースを変更せずに失敗することを確認する
+- [x] 4.6 誤った profile で `terraform plan` を実行し、リソースを変更せずに失敗することを確認する
 
 ## 5. データアクセス層
 

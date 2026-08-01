@@ -25,5 +25,8 @@ export/
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+# backend.hcl はバケット名にアカウント ID を含むため除外する
+backend.hcl
+!backend.hcl.example
 crash.log
 crash.*.log

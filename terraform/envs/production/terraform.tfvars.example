@@ -2,9 +2,10 @@
 # terraform.tfvars は .gitignore によりコミットされない。
 
 aws_region  = "ap-northeast-1"
-aws_profile = "apkas-diary-production"
+aws_profile = "apkas-production.admin"
 
 # production の AWS アカウント ID（12桁）。
+# 公開リポジトリのため、この雛形には実値を書かない。
 # 間違えると staging を操作してしまうため、必ず確認してから入れる。
-#   aws sts get-caller-identity --profile apkas-diary-production
+#   aws sts get-caller-identity --profile apkas-production.admin --query Account --output text
 aws_account_id = "000000000000"

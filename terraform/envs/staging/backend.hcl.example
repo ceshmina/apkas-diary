@@ -7,7 +7,7 @@
 bucket  = "apkas-diary-tfstate-000000000000"
 key     = "staging/terraform.tfstate"
 region  = "ap-northeast-1"
-profile = "apkas-diary-staging"
+profile = "apkas-staging.admin"
 encrypt = true
 
 # Terraform 1.10 以降のネイティブロック。
