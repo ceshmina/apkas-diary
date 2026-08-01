@@ -86,8 +86,8 @@ CloudFront ディストリビューションの作成には数分かかる。
 ### 5. 環境設定ファイル
 
 ```bash
-cp .env.staging.example    .env.staging
-cp .env.production.example .env.production
+cp config/staging.env.example    config/staging.env
+cp config/production.env.example config/production.env
 ```
 
 `terraform output` の値を転記する。
@@ -95,6 +95,12 @@ cp .env.production.example .env.production
 ```bash
 cd terraform/envs/staging && terraform output
 ```
+
+設定を `config/<環境>.env` に置き `.env.<環境>` という名前にしていないのは、
+**Vite がプロジェクトルートの `.env` / `.env.<mode>` を自動で読み込む**ため。
+`astro build` のモードは対象環境によらず常に `production` なので、ルートに
+`.env.production` があると staging のビルドにもその内容が混入する。環境の
+取り違えを避けるため、Vite の名前空間の外に置いている。
 
 ## 日々の運用
 
@@ -162,7 +168,7 @@ AWS アカウントなしでビルドまで通せる。
 docker run -d --name apkas-ddb-local -p 8000:8000 amazon/dynamodb-local:latest
 ```
 
-`.env.staging` に以下を足す（実際の AWS を使うときは消す）。
+`config/staging.env` に以下を足す（実際の AWS を使うときは消す）。
 
 ```
 DYNAMODB_ENDPOINT=http://localhost:8000

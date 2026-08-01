@@ -15,9 +15,11 @@ dist/
 export/
 
 # 環境ごとの設定。実値はコミットしない
+# （`.env.<環境>` にしないのは Vite が自動ロードしてしまうため。load-env.sh 参照）
+config/*.env
+!config/*.env.example
 .env
-.env.staging
-.env.production
+.env.*
 
 # Terraform
 **/.terraform/

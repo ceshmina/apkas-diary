@@ -1,7 +1,7 @@
 /**
  * 環境変数の読み取り。
  *
- * 実値は `.env.<環境>` に置き、`scripts/build.sh` などが読み込んでから
+ * 実値は `config/<環境>.env` に置き、`scripts/build.sh` などが読み込んでから
  * プロセスに渡す。値が欠けている場合は、何をどこで設定すべきかを含めて失敗させる。
  */
 
@@ -10,7 +10,7 @@ function required(name: string): string {
   if (!value) {
     throw new Error(
       `環境変数 ${name} が設定されていません。` +
-        '.env.staging / .env.production を作成し、terraform output の値を転記してください。',
+        'config/staging.env / config/production.env を作成し、terraform output の値を転記してください。',
     )
   }
   return value

@@ -23,10 +23,14 @@ load_env() {
   local repo_root
   repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-  local env_file="$repo_root/.env.$env_name"
+  # 設定ファイルを `config/` に置き `.env.<環境>` という名前にしないのは、
+  # Vite が envDir（＝プロジェクトルート）の `.env` / `.env.<mode>` を
+  # 自動で読み込むため。`astro build` のモードは環境によらず production なので、
+  # ルートに `.env.production` があると staging のビルドにも読み込まれてしまう。
+  local env_file="$repo_root/config/$env_name.env"
   if [[ ! -f "$env_file" ]]; then
     echo "error: $env_file がありません。" >&2
-    echo "       cp .env.$env_name.example .env.$env_name して実値を埋めてください。" >&2
+    echo "       cp config/$env_name.env.example config/$env_name.env して実値を埋めてください。" >&2
     return 1
   fi
 
