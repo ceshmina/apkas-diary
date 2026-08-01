@@ -18,6 +18,25 @@ variable "aws_account_id" {
   }
 }
 
+variable "domain_name" {
+  description = "サイトを配信する独自ドメイン。証明書の名義であり、alias レコードの名前でもある。"
+  type        = string
+
+  validation {
+    condition     = endswith(var.domain_name, ".${var.hosted_zone_name}")
+    error_message = "domain_name は hosted_zone_name のサブドメインである必要があります。"
+  }
+}
+
+variable "hosted_zone_name" {
+  description = <<-EOT
+    domain_name が属する Route53 ホストゾーンの名前。
+    ゾーンはこのシステム専用の資産ではないため、作成せず data で参照する。
+    適用前に存在している必要がある。
+  EOT
+  type        = string
+}
+
 variable "price_class" {
   description = "CloudFront の価格クラス。個人サイトのため既定では最も安いものを使う。"
   type        = string

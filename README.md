@@ -21,10 +21,10 @@
 AWS は **staging と production でアカウントを分け、named profile で切り替える**。
 リージョンはいずれも `ap-northeast-1`。
 
-| 環境 | profile |
-| --- | --- |
-| staging | `apkas-staging.admin` |
-| production | `apkas-production.admin` |
+| 環境 | profile | サイトの URL |
+| --- | --- | --- |
+| staging | `apkas-staging.admin` | https://diary.dev.apkas.net |
+| production | `apkas-production.admin` | https://diary.apkas.net |
 
 認証は IAM Identity Center（SSO）。期限が切れたらログインし直す。
 
@@ -58,7 +58,32 @@ scripts/bootstrap-state.sh apkas-production.admin
 
 作成されるバケット名は `apkas-diary-tfstate-<アカウント ID>` の形式。完了時に `backend.hcl` に書く内容が表示される。
 
-### 3. Terraform の設定
+### 3. DNS ホストゾーンの用意（環境ごとに1度だけ）
+
+サイトは環境ごとの独自ドメインで配信する。Terraform は**ホストゾーンを作らず、`data` で参照するだけ**なので、適用の前にゾーンが存在している必要がある。
+
+| 環境 | ドメイン | 属するホストゾーン | ゾーンのあるアカウント |
+| --- | --- | --- | --- |
+| staging | `diary.dev.apkas.net` | `dev.apkas.net` | staging |
+| production | `diary.apkas.net` | `apkas.net` | production |
+
+```
+apkas.net                    [production account]
+├── MX / TXT                 メールなど他の用途。Terraform は触らない
+├── diary                    ← このリポジトリが作る
+└── dev.apkas.net  NS ──┐    staging アカウントへの委譲
+                        ▼
+        dev.apkas.net        [staging account]
+        └── diary            ← このリポジトリが作る
+```
+
+state の保存先と同じく、ホストゾーンはコード管理の外に置く例外である。`apkas.net` は日記サイト専用の資産ではなく、メールの MX など他の用途のレコードが同居しているため、このリポジトリの `terraform destroy` で消せる場所に置かない。
+
+環境を表す `dev` をサービス名の**内側**に置いている（`dev.diary` ではなく `diary.dev`）。こうすると staging のレコードは委譲済みの `dev.apkas.net` ゾーンに収まり、staging の構築・再構築が production のホストゾーンにいっさい触れずに済む。
+
+ゾーンがまだない場合は、親ゾーンからの NS 委譲を含めて手で用意する。既存の環境ではどちらも作成済み。
+
+### 4. Terraform の設定
 
 環境ごとに `terraform.tfvars` と `backend.hcl` を作る。実値はコミットしない。
 
@@ -70,7 +95,7 @@ cp backend.hcl.example      backend.hcl
 
 `aws_account_id` は provider の `allowed_account_ids` に渡され、**認証情報が別の環境を指していた場合はリソースを1つも変更せずに失敗する**。取り違えの防止機構なので必ず正しい値を入れる。
 
-### 4. インフラの作成
+### 5. インフラの作成
 
 **staging から適用し、動作を確認してから production に進むこと。**
 
@@ -81,9 +106,23 @@ terraform plan
 terraform apply
 ```
 
-CloudFront ディストリビューションの作成には数分かかる。
+CloudFront ディストリビューションの作成には数分かかる。ACM 証明書の DNS 検証も同じく数分待つ。証明書が発行されるまで CloudFront の更新は始まらない。
 
-### 5. 環境設定ファイル
+#### DNS 検証が終わらないとき
+
+`aws_acm_certificate_validation` で止まったまま進まない場合、検証用レコードが外部から解決できていない可能性が高い。ホストゾーンにレコードは作られているのに検証が通らないなら、**親ゾーンからの NS 委譲**を疑う。
+
+```bash
+# 委譲先ゾーンの NS が親から引けるか
+dig +short NS dev.apkas.net
+
+# 検証用レコードが外部から解決できるか（値は terraform の出力に出ている名前）
+dig +short _xxxxxxxx.diary.dev.apkas.net CNAME
+```
+
+前者が空、または後者が引けない場合は委譲が機能していない。ゾーンの NS レコードと、親ゾーンに登録された NS が一致しているかを確認する。
+
+### 6. 環境設定ファイル
 
 ```bash
 cp config/staging.env.example    config/staging.env

@@ -143,7 +143,9 @@ aws_route53_record (A / AAAA alias)
 
 ### 10. `site_url` の出力を独自ドメインに差し替える
 
-モジュールの `site_url` 出力を `https://${var.domain_name}` に変える。この値は `config/<環境>.env` の `SITE_URL` に転記され、Astro の `site` に渡り、canonical とサイトマップに現れる。既定ドメインは `distribution_domain_name` として別途出力し、切り分け用に参照できるようにする。
+モジュールの `site_url` 出力を `https://${var.domain_name}` に変える。この値は `config/<環境>.env` の `SITE_URL` に転記され、Astro の `site` に渡る。既定ドメインは `distribution_domain_name` として別途出力し、切り分け用に参照できるようにする。
+
+なお `SITE_URL` は現時点で**生成物に観測できる影響を持たない**。テンプレートは canonical タグを出力せず、sitemap の統合も入っていないため、自サイトを指す絶対 URL が `dist/` に1つも現れない。それでも正しい値を保つのは、canonical や sitemap、OGP のように絶対 URL を必要とするものを後から入れたときに、設定を触らずに正しい値が使われるようにするため。この change では「絶対 URL が独自ドメインを指す」ことを spec の要件に含めない。実装が存在しない以上、要件は空虚に真になり、振る舞いを記述しないため。
 
 ## Risks / Trade-offs
 

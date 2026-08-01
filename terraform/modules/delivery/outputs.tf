@@ -15,5 +15,13 @@ output "distribution_id" {
 
 output "site_url" {
   description = "サイトの URL。.env の SITE_URL に転記する。"
-  value       = "https://${aws_cloudfront_distribution.site.domain_name}"
+  value       = "https://${var.domain_name}"
+}
+
+output "distribution_domain_name" {
+  description = <<-EOT
+    CloudFront が払い出すドメイン名。
+    独自ドメインの手前で切り分けたいときに直接叩く。転記の必要はない。
+  EOT
+  value       = aws_cloudfront_distribution.site.domain_name
 }

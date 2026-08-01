@@ -5,6 +5,10 @@ terraform {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 6.0"
+
+      # CloudFront が使える証明書は us-east-1 のものに限られる。
+      # 呼び出し側から us-east-1 のプロバイダを受け取る。
+      configuration_aliases = [aws.us_east_1]
     }
   }
 }
@@ -81,6 +85,66 @@ resource "aws_s3_bucket_lifecycle_configuration" "site" {
 }
 
 # ---------------------------------------------------------------------------
+# ドメインと証明書
+#
+# ホストゾーンはこのシステム専用の資産ではない。メールの MX など他の用途の
+# レコードが同居するため、ゾーンそのものは管理下に置かず data で参照し、
+# このシステムが必要とするレコードだけを作る。
+# ---------------------------------------------------------------------------
+
+data "aws_route53_zone" "site" {
+  name         = var.hosted_zone_name
+  private_zone = false
+}
+
+# CloudFront が参照できる証明書は us-east-1 のものに限られる。
+resource "aws_acm_certificate" "site" {
+  provider = aws.us_east_1
+
+  domain_name       = var.domain_name
+  validation_method = "DNS"
+
+  # ドメイン名を変えるとき、使用中の証明書を先に消そうとして失敗するのを避ける。
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = merge(var.tags, {
+    Name = var.domain_name
+  })
+}
+
+# 検証用のレコード。Route53 はグローバルサービスなので既定のプロバイダで操作する。
+resource "aws_route53_record" "certificate_validation" {
+  for_each = {
+    for option in aws_acm_certificate.site.domain_validation_options :
+    option.domain_name => {
+      name   = option.resource_record_name
+      type   = option.resource_record_type
+      record = option.resource_record_value
+    }
+  }
+
+  zone_id = data.aws_route53_zone.site.zone_id
+  name    = each.value.name
+  type    = each.value.type
+  records = [each.value.record]
+  ttl     = 60
+
+  # 証明書を作り直すと同名のレコードが再び現れる。手動の削除を挟まずに済ませる。
+  allow_overwrite = true
+}
+
+# 証明書が ISSUED になる前にディストリビューションの更新が走ると失敗する。
+# ここで発行の完了まで待たせ、CloudFront をこのリソースに依存させる。
+resource "aws_acm_certificate_validation" "site" {
+  provider = aws.us_east_1
+
+  certificate_arn         = aws_acm_certificate.site.arn
+  validation_record_fqdns = [for record in aws_route53_record.certificate_validation : record.fqdn]
+}
+
+# ---------------------------------------------------------------------------
 # 配信
 # ---------------------------------------------------------------------------
 
@@ -109,6 +173,8 @@ resource "aws_cloudfront_distribution" "site" {
   comment             = "apkas-diary ${var.environment}"
   default_root_object = "index.html"
   price_class         = var.price_class
+
+  aliases = [var.domain_name]
 
   origin {
     origin_id                = "s3-site"
@@ -156,8 +222,16 @@ resource "aws_cloudfront_distribution" "site" {
     }
   }
 
+  # ARN は証明書そのものではなく検証リソースから取る。
+  # 発行が完了する前にこのディストリビューションが更新されるのを防ぐため。
   viewer_certificate {
-    cloudfront_default_certificate = true
+    acm_certificate_arn = aws_acm_certificate_validation.site.certificate_arn
+
+    # 専用 IP は月額が発生し、必要がない。
+    ssl_support_method = "sni-only"
+
+    # 既定証明書を使っている間は指定できなかった項目。
+    minimum_protocol_version = "TLSv1.2_2021"
   }
 
   tags = merge(var.tags, {
@@ -191,4 +265,22 @@ resource "aws_s3_bucket_policy" "site" {
   policy = data.aws_iam_policy_document.site.json
 
   depends_on = [aws_s3_bucket_public_access_block.site]
+}
+
+# ディストリビューションは IPv6 を有効にしているため、A だけでは IPv6 のみの
+# 経路から到達できない。両方を作る。
+resource "aws_route53_record" "site" {
+  for_each = toset(["A", "AAAA"])
+
+  zone_id = data.aws_route53_zone.site.zone_id
+  name    = var.domain_name
+  type    = each.value
+
+  alias {
+    name    = aws_cloudfront_distribution.site.domain_name
+    zone_id = aws_cloudfront_distribution.site.hosted_zone_id
+
+    # CloudFront はヘルスチェックの対象にできない。
+    evaluate_target_health = false
+  }
 }
