@@ -34,7 +34,14 @@
 
 ## 4. 実データでの確認
 
-- [ ] 4.1 `npm run build -- staging` が通り、`export/staging/` に書き出されることを確認する
-  - **未実施**。`config/staging.env`（gitignore 対象）と AWS の認証情報がこの環境にないため実行できない。
-- [ ] 4.2 続けてもう一度ビルドし、`export/staging/` に差分が出ないことを確認する
-  - **未実施**。4.1 と同じ理由。冪等性そのものは 3.3 / 3.4 で確認済み。
+`config/staging.env` は存在しなかったため、稼働中のリソースから値を引いて作成した（gitignore 対象でコミットされない）。staging には既存のダミーエントリが6件（公開5・下書き1）ある。
+
+- [x] 4.1 `npm run build -- staging` が通り、`export/staging/` に書き出されることを確認する
+  - 382ページを生成し、`日記本文を書き出しました: 6 件` まで到達。`export/staging/<年>/<YYYY-MM-DD>.md` に6件そろった。
+- [x] 4.2 続けてもう一度ビルドし、`export/staging/` に差分が出ないことを確認する
+  - 実データでも差分なし。
+- [x] 4.3 下書きが書き出しに含まれ、かつ配信物には含まれないことを確認する
+  - `export/staging/2025/2025-12-24.md` は `status: draft` で本文ごと保全されている。`dist/` にはタイトル・本文・目印のいずれも含まれず、`dist/2025/12/` 自体が生成されない。
+- [x] 4.4 staging にデプロイし、稼働中のサイトで確認する
+  - `npm run deploy -- staging` を実行（S3 の削除対象は0件）。invalidation `I4Q2RZ8F9ICHJ9U8KZTXY8B2WA` が Completed。
+  - https://diary.dev.apkas.net で、トップ・日別・年別・月別・月日ページが 200、下書きの `/2025/12/24` と `/2025/12` が 404、配信物に下書きの痕跡がないことを確認した。
