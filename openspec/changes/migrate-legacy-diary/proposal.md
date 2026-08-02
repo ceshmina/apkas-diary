@@ -62,6 +62,7 @@ staging に代表16件（検出した全32パターンを網羅する最小の�
 - `src/cli/import-legacy.ts`・`scripts/import-legacy.sh`（新規）: 取り込み CLI。移行後に削除する。
 - `src/lib/markdown.ts`: 画像を `figure` / `figcaption` へ組み替える hast プラグインを processor に渡す。
 - `src/pages/[year]/[month]/[day].astro`: タイトルのないエントリの見出し、画像グリッドと `figcaption` のスタイル。
+- `src/components/EntryList.astro`: 一覧でもタイトルのないエントリを日付だけで示す。日別ページと扱いを揃えるため。
 
 日付の整形（`src/lib/date.ts` の `formatDateJa`）は変えない。見出しと日付行で同じ書式を使う。
 

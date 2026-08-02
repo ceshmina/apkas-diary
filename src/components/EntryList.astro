@@ -21,13 +21,18 @@ function hrefOf(date: string): string {
     <p class="muted">{emptyMessage}</p>
   ) : (
     <ul class="entry-list">
+      {/*
+       * タイトルのないエントリは日付だけを出す。日記に名前を付けない日のほうが多く、
+       * タイトルの不在は欠落ではないため、「(無題)」のような文言では示さない。
+       * 日別ページで日付そのものを見出しにするのと同じ扱いになる。
+       */}
       {entries.map((entry) => (
         <li>
           <a href={hrefOf(entry.date)}>
             <time datetime={entry.date}>
               {showYear ? formatDateJa(entry.date) : formatDateJa(entry.date).replace(/^\d+年/, '')}
             </time>
-            <span class="entry-title">{entry.title || '(無題)'}</span>
+            {entry.title && <span class="entry-title">{entry.title}</span>}
           </a>
         </li>
       ))}
@@ -55,7 +60,8 @@ function hrefOf(date: string): string {
     color: inherit;
   }
 
-  .entry-list a:hover .entry-title {
+  .entry-list a:hover .entry-title,
+  .entry-list a:hover time:only-child {
     text-decoration: underline;
   }
 
@@ -64,6 +70,14 @@ function hrefOf(date: string): string {
     color: var(--fg-muted);
     font-size: 0.85rem;
     font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * タイトルがなく日付だけの行。大きさと桁揃えはそのままに、色だけリンクに寄せる。
+   * この行では日付が唯一の手がかりなので、押せるものとして見えている必要がある。
+   */
+  time:only-child {
+    color: var(--accent);
   }
 
   .entry-title {
