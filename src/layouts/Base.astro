@@ -21,32 +21,14 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} | ${siteTitle}`
   <body>
     <header>
       <a href="/" class="site-title">{siteTitle}</a>
-      <nav>
-        <!-- 「今日の分」だけは訪問時刻に依存するため、リンク先をクライアント側で解決する。 -->
-        <a href="/on-this-day/01-01" data-on-this-day>N年前の今日</a>
-      </nav>
     </header>
 
     <main>
       <slot />
     </main>
 
-    <footer>
-      <p>この日記は静的に生成されています。</p>
-    </footer>
-
-    <script>
-      // 静的サイトでは「今日」がビルド時刻に固定されるため、月日ページは
-      // 366 通りすべてを事前生成してある。ここでは訪問時刻の月日を求め、
-      // 対応するページへリンクを差し替えるだけでよい。
-      const now = new Date()
-      const monthDay =
-        String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0')
-
-      for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-on-this-day]')) {
-        link.href = `/on-this-day/${monthDay}`
-      }
-    </script>
+    <!-- 中身は持たないが、本文の終わりを示す区切りとして置いている。 -->
+    <footer></footer>
 
     <style is:global>
       :root {
@@ -91,11 +73,6 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} | ${siteTitle}`
       }
 
       header {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        align-items: baseline;
-        justify-content: space-between;
         padding: 1.5rem 0;
         border-bottom: 1px solid var(--border);
       }
@@ -113,10 +90,8 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} | ${siteTitle}`
       }
 
       footer {
-        padding: 1.5rem 0 2.5rem;
+        padding-bottom: 3rem;
         border-top: 1px solid var(--border);
-        color: var(--fg-muted);
-        font-size: 0.85rem;
       }
 
       a {
