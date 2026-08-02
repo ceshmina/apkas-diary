@@ -30,7 +30,7 @@ staging に代表16件（検出した全32パターンを網羅する最小の�
 
 ## What Changes
 
-- 旧サイトの記事を DynamoDB に取り込む。取り込み用の CLI（`npm run import-legacy`）を追加する。移行のための一時的なコマンドであり、移行後に削除する。
+- 旧サイトの記事を DynamoDB に取り込む。取り込み用の CLI（`npm run import-legacy`）を追加する。移行が済んだあとも、取り込んだ内容を元ファイルと突き合わせ直せるように残す（design.md の決定6）。
 - **タイトルを持たないエントリは、日付そのものを見出しにする**。`(無題)` は出さない。書式は日付行と同じ曜日つき（`2026年1月1日（木）`）で揃え、日付を見出しに出す場合は見出しの上の日付行を出さない。同じ日付が1ページに2度現れることはない。
 - **`![説明](…)` の説明を画像の下にキャプションとして表示する**。画像が段落に単独で置かれている場合に `figure` / `figcaption` へ組み替える。文章の途中に置かれた画像は組み替えない。
 - **本文中に直接書かれた `table` を画像グリッドとして整える**。列幅を等分し、セルの間隔を与え、行全体に及ぶセル（`td[colspan]`）を並びに対する説明として表示する。
@@ -58,8 +58,8 @@ staging に代表16件（検出した全32パターンを網羅する最小の�
 
 **アプリケーション**
 
-- `src/legacy/source.ts`（新規）: 旧サイトの記事ファイルの読み取りと解析。移行後に削除する。
-- `src/cli/import-legacy.ts`・`scripts/import-legacy.sh`（新規）: 取り込み CLI。移行後に削除する。
+- `src/legacy/source.ts`（新規）: 旧サイトの記事ファイルの読み取りと解析。
+- `src/cli/import-legacy.ts`・`scripts/import-legacy.sh`（新規）: 取り込み CLI。
 - `src/lib/markdown.ts`: 画像を `figure` / `figcaption` へ組み替える hast プラグインを processor に渡す。
 - `src/pages/[year]/[month]/[day].astro`: タイトルのないエントリの見出し、画像グリッドと `figcaption` のスタイル。
 - `src/components/EntryList.astro`: 一覧でもタイトルのないエントリを日付だけで示す。日別ページと扱いを揃えるため。

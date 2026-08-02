@@ -4,7 +4,7 @@
  * 旧サイト（eskarun）の記事を DynamoDB に取り込む CLI。
  *
  * `scripts/import-legacy.sh <環境>` 経由で呼ばれ、環境変数は呼び出し側が読み込む。
- * 移行のための一時的なコマンドである。
+ * 旧サイトからの移行のためのコマンド。移行後も突き合わせのために残してある。
  *
  *   npm run import-legacy -- staging --source ../../apkas/eskarun/_articles --dry-run
  *   npm run import-legacy -- staging --source ../../apkas/eskarun/_articles --only 2023-11-01,2024-09-29

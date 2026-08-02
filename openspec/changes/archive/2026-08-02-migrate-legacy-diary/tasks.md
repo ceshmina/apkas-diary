@@ -95,4 +95,6 @@ staging に入れるのは代表16件までとする（design.md の決定7）�
 
 ## 8. 後片付け
 
-- [ ] 8.1 移行完了後に `src/legacy/`・`src/cli/import-legacy.ts`・`scripts/import-legacy.sh`・`package.json` の `import-legacy` を削除する
+- [x] 8.1 取り込み CLI（`src/legacy/`・`src/cli/import-legacy.ts`・`scripts/import-legacy.sh`）の扱いを決める
+  - 削除せず残す。取り込んだ内容を元ファイルと突き合わせ直せる手段を保つため（design.md の決定6）。
+    コード中の「一時的」という記述を、残す前提の説明に直した。
