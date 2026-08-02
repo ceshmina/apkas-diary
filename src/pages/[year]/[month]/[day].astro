@@ -59,6 +59,11 @@ const monthDay = monthDayOf(entry.date)
     margin-top: 0;
   }
 
+  /* 本文中の `---`。前後の段落と紛れないよう、既定よりも広く空ける。 */
+  .body :global(hr) {
+    margin: 3rem 0;
+  }
+
   .links {
     display: flex;
     flex-wrap: wrap;
