@@ -23,14 +23,28 @@ export async function getStaticPaths() {
 const { entry } = Astro.props as { entry: Entry }
 const html = await renderMarkdown(entry.body)
 const monthDay = monthDayOf(entry.date)
+const dateJa = formatDateJa(entry.date)
+
+// 日記に名前を付けない日のほうが多い。タイトルの不在は欠落ではないので、
+// 「(無題)」のような文言では示さず、日付そのものを見出しにする。
+//
+// 日付を出す場所はタイトルの有無で排他になる（見出しか、その上の日付行か）。
+// 同じ日付が1ページに2度現れないため、書式を変えて見分けさせる必要がない。
+// タイトルの有無によらず `formatDateJa` の1つの書式で通す。
 ---
 
-<Base title={entry.title || formatDateJa(entry.date)}>
+<Base title={entry.title || dateJa}>
   <article>
-    <p class="date">
-      <time datetime={entry.date}>{formatDateJa(entry.date)}</time>
-    </p>
-    <h1>{entry.title || '(無題)'}</h1>
+    {
+      entry.title && (
+        <p class="date">
+          <time datetime={entry.date}>{dateJa}</time>
+        </p>
+      )
+    }
+    <h1>
+      {entry.title || <time datetime={entry.date}>{dateJa}</time>}
+    </h1>
 
     <div class="body" set:html={html} />
   </article>
@@ -55,6 +69,11 @@ const monthDay = monthDayOf(entry.date)
     margin-bottom: 2rem;
   }
 
+  .body {
+    /* 並べた画像どうしの間隔。表の外周にも同じだけ空くので、負のマージンで打ち消す。 */
+    --grid-gap: 0.4rem;
+  }
+
   .body :global(> :first-child) {
     margin-top: 0;
   }
@@ -62,6 +81,56 @@ const monthDay = monthDayOf(entry.date)
   /* 本文中の `---`。前後の段落と紛れないよう、既定よりも広く空ける。 */
   .body :global(hr) {
     margin: 3rem 0;
+  }
+
+  /*
+   * 本文中に直接書かれた画像の並び。
+   *
+   * 旧サイトから引き継いだ記事は、画像を横に並べるために `table` を本文に直接
+   * 書いている。Markdown では表せない配置のための記述であり、表ではない。
+   *
+   * `table-layout: fixed` にするのは列幅を等分するため。既定の自動レイアウトでは
+   * 画像の実寸の比で列幅が決まり、並べた画像の大きさが揃わない。
+   */
+  .body :global(table) {
+    width: calc(100% + 2 * var(--grid-gap));
+    margin: calc(2rem - var(--grid-gap)) calc(-1 * var(--grid-gap));
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: var(--grid-gap);
+  }
+
+  .body :global(td) {
+    padding: 0;
+    vertical-align: top;
+  }
+
+  .body :global(td img) {
+    display: block;
+  }
+
+  .body :global(figure) {
+    margin: 2rem 0;
+  }
+
+  .body :global(figure img) {
+    display: block;
+  }
+
+  /*
+   * 画像に添えられた説明。
+   *
+   * `figcaption` は画像1枚に対する説明、行全体に及ぶセルは並び全体に対する説明で、
+   * 読み手にとっては同じものなので体裁を揃える。画像の入るセルに `colspan` が
+   * 付くことはないため、`td[colspan]` で説明の行だけを選べる。
+   */
+  .body :global(figcaption),
+  .body :global(td[colspan]) {
+    padding-top: 0.35rem;
+    color: var(--fg-muted);
+    font-size: 0.85rem;
+    line-height: 1.6;
+    text-align: center;
   }
 
   .links {
