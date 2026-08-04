@@ -1,4 +1,5 @@
 ---
+import PhotoZoom from '../../../components/PhotoZoom.astro'
 import Base from '../../../layouts/Base.astro'
 import { dayOf, formatDateJa, monthDayOf, monthOf, yearOf } from '../../../lib/date.js'
 import { renderMarkdown } from '../../../lib/markdown.js'
@@ -106,6 +107,12 @@ function hrefOf(date: string): string {
     <a href={`/${yearOf(entry.date)}`}>{yearOf(entry.date)}年の一覧</a>
     <a href={`/on-this-day/${monthDay}`}>過去の同じ日</a>
   </nav>
+
+  {/*
+   * 本文の写真を拡大して見るための器。中身は空で、押された写真をスクリプトが
+   * 流し込む。日別ページにしか写真は出ないので、読み込むのもこのページだけ。
+   */}
+  <PhotoZoom />
 </Base>
 
 <style>

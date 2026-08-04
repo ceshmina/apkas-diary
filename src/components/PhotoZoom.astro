@@ -1,0 +1,169 @@
+---
+/**
+ * 本文中の写真を拡大して見るための器。
+ *
+ * 中身は空のまま配信し、押された写真をスクリプトが流し込む。写真は本文に既にあり、
+ * ここに同じものを生成時から入れておく理由はない。
+ *
+ * セルは3つ。真ん中が今見ている写真で、両隣に並びの前後が入る。横のドラッグで
+ * 指に追従して隣が見えている必要があるため、隣も実体として持つ。
+ *
+ * 暗幕は `::backdrop` ではなく自前の要素に置いている。ドラッグの量に応じて濃さを
+ * 変えるので、要素として掴めるほうが素直に書ける。
+ */
+---
+
+<dialog class="photo-zoom" tabindex="-1" aria-label="写真">
+  <div class="photo-zoom-scrim"></div>
+  <div class="photo-zoom-track">
+    <figure class="photo-zoom-cell is-prev">
+      <div class="photo-zoom-frame"><img alt="" draggable="false" /></div>
+      <figcaption class="photo-zoom-caption"></figcaption>
+    </figure>
+    <figure class="photo-zoom-cell is-current">
+      <div class="photo-zoom-frame"><img alt="" draggable="false" /></div>
+      <figcaption class="photo-zoom-caption"></figcaption>
+    </figure>
+    <figure class="photo-zoom-cell is-next">
+      <div class="photo-zoom-frame"><img alt="" draggable="false" /></div>
+      <figcaption class="photo-zoom-caption"></figcaption>
+    </figure>
+  </div>
+</dialog>
+
+<script>
+  import './photo-zoom'
+</script>
+
+<style>
+  .photo-zoom {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: hidden;
+    /* 縦横の動きは自前で解く。ブラウザのスクロール・引っぱって再読み込み・
+       横スワイプでの履歴移動に操作を取られないようにする。 */
+    touch-action: none;
+    overscroll-behavior: contain;
+  }
+
+  .photo-zoom::backdrop {
+    background: transparent;
+  }
+
+  .photo-zoom-scrim {
+    position: absolute;
+    inset: 0;
+    background: #000;
+    opacity: 0;
+  }
+
+  .photo-zoom-track {
+    position: absolute;
+    inset: 0;
+  }
+
+  /*
+   * セルは画面いっぱいの箱で、位置は役割で決まる。両隣は画面の外に、間隔を
+   * 空けて置く。トラックを動かすと、その隣が入ってくる。
+   */
+  .photo-zoom-cell {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 1.25rem 1rem;
+    /* ドラッグの途中で文字が選択されないように。説明は本文の側でも読める。 */
+    user-select: none;
+  }
+
+  /* 並びの端では隣が無い。空のセルが残らないよう、要素ごと消す。 */
+  .photo-zoom-cell[hidden] {
+    display: none;
+  }
+
+  .photo-zoom-cell.is-prev {
+    transform: translateX(calc(-100% - var(--photo-zoom-gap, 32px)));
+  }
+
+  .photo-zoom-cell.is-current {
+    transform: none;
+  }
+
+  .photo-zoom-cell.is-next {
+    transform: translateX(calc(100% + var(--photo-zoom-gap, 32px)));
+  }
+
+  /*
+   * 写真の入る枠。説明の高さを差し引いた残りが、この枠の高さになる。画像に
+   * 直接 `max-height: 100%` を与えると、説明の分を数えないまま画面の高さに
+   * 収めようとしてはみ出す。
+   */
+  .photo-zoom-frame {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    width: 100%;
+  }
+
+  .photo-zoom-frame img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    user-select: none;
+  }
+
+  /* 暗幕の上に載る文字。ページの配色によらず、常に暗い背景の上にある。 */
+  .photo-zoom-caption {
+    flex: 0 0 auto;
+    max-width: 42rem;
+    color: rgb(255 255 255 / 0.72);
+    font-size: 0.85rem;
+    line-height: 1.6;
+    text-align: center;
+  }
+
+  .photo-zoom-caption:empty {
+    display: none;
+  }
+</style>
+
+<style is:global>
+  /*
+   * 本文の写真を包むボタン。スクリプトが巻いたときにだけ現れる class なので、
+   * JS が動かないページにこの体裁が出ることはない。
+   *
+   * 既定の体裁を消したうえで、包まれる画像の display に合わせて箱を選ぶ。
+   * 段落の途中に置かれた画像を block で包むと、そこで段落が割れてしまう。
+   */
+  .body .photo-zoom-open {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    cursor: zoom-in;
+  }
+
+  .body .photo-zoom-open.is-inline {
+    display: inline-block;
+    width: auto;
+    max-width: 100%;
+  }
+</style>
