@@ -2,28 +2,39 @@
 import Base from '../../../layouts/Base.astro'
 import { dayOf, formatDateJa, monthDayOf, monthOf, yearOf } from '../../../lib/date.js'
 import { renderMarkdown } from '../../../lib/markdown.js'
-import { publishedEntries } from '../../../lib/site-data.js'
+import { type EntryLink, entriesWithNeighbors } from '../../../lib/site-data.js'
 import type { Entry } from '../../../lib/store/entry.js'
 
 // 入力は公開済みエントリのみ。下書きの日付はパスとして生成されないため、
 // アクセスすると 404 になり、下書きの存在も判別できない。
+//
+// 両隣も同じ入力から解決される。下書きは隣として現れず、飛ばされたことも
+// 外からは分からない。
 export async function getStaticPaths() {
-  const entries = await publishedEntries()
+  const entries = await entriesWithNeighbors()
 
-  return entries.map((entry) => ({
+  return entries.map(({ entry, newer, older }) => ({
     params: {
       year: yearOf(entry.date),
       month: monthOf(entry.date),
       day: dayOf(entry.date),
     },
-    props: { entry },
+    props: { entry, newer, older },
   }))
 }
 
-const { entry } = Astro.props as { entry: Entry }
+const { entry, newer, older } = Astro.props as {
+  entry: Entry
+  newer?: EntryLink
+  older?: EntryLink
+}
 const html = await renderMarkdown(entry.body)
 const monthDay = monthDayOf(entry.date)
 const dateJa = formatDateJa(entry.date)
+
+function hrefOf(date: string): string {
+  return `/${yearOf(date)}/${monthOf(date)}/${dayOf(date)}`
+}
 
 // 日記に名前を付けない日のほうが多い。タイトルの不在は欠落ではないので、
 // 「(無題)」のような文言では示さず、日付そのものを見出しにする。
@@ -48,6 +59,45 @@ const dateJa = formatDateJa(entry.date)
 
     <div class="body" set:html={html} />
   </article>
+
+  {/*
+   * 前後の導線。`←` が新しい日付、`→` が古い日付を指す。一覧が新しい順に並ぶのと
+   * 同じ向きで、一覧を下へ読むことと `→` を辿ることが、どちらも過去へ遡る動きになる。
+   *
+   * 隣が存在しない側は要素ごと出さない。タイトルのないエントリに「(無題)」と書かない
+   * のと同じで、そこに何かが欠けているわけではない。
+   *
+   * 矢印は向きの手がかりであって、唯一の手がかりではない。どちらが新しいかは
+   * 添えた日付を読めば分かるため、矢印そのものは読み上げの対象から外す。
+   */}
+  <nav class="adjacent">
+    {
+      newer && (
+        <a class="newer" href={hrefOf(newer.date)}>
+          <span class="arrow" aria-hidden="true">
+            ←
+          </span>
+          <span class="label">
+            <time datetime={newer.date}>{formatDateJa(newer.date)}</time>
+            {newer.title && <span class="entry-title">{newer.title}</span>}
+          </span>
+        </a>
+      )
+    }
+    {
+      older && (
+        <a class="older" href={hrefOf(older.date)}>
+          <span class="label">
+            <time datetime={older.date}>{formatDateJa(older.date)}</time>
+            {older.title && <span class="entry-title">{older.title}</span>}
+          </span>
+          <span class="arrow" aria-hidden="true">
+            →
+          </span>
+        </a>
+      )
+    }
+  </nav>
 
   <nav class="links">
     <a href={`/${yearOf(entry.date)}/${monthOf(entry.date)}`}>
@@ -133,13 +183,88 @@ const dateJa = formatDateJa(entry.date)
     text-align: center;
   }
 
+  /* 前後の導線。左が新しい日付、右が古い日付。 */
+  .adjacent {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem 1.5rem;
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+
+  /*
+   * 幅は半分ずつ取り、基準幅を保てなくなる狭い画面では上下に折り返す。
+   * `flex: 0 1 auto` だと折り返さずに横で潰れ合い、長いタイトルが細い柱になる。
+   * `min-width: 0` は、その基準幅よりさらに狭いときにはみ出さないため。
+   */
+  .adjacent a {
+    display: flex;
+    flex: 1 1 14rem;
+    gap: 0.4rem;
+    min-width: 0;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  /*
+   * 古い側は常に右端に置く。片方しかない端のエントリでは幅いっぱいに広がるが、
+   * 中身は右に寄せたままにする。ここで左に流れると `→` が画面の左に現れて、
+   * 向きの手がかりが壊れる。
+   */
+  .adjacent .older {
+    justify-content: flex-end;
+  }
+
+  .adjacent .label {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .adjacent .older .label {
+    text-align: right;
+  }
+
+  .arrow {
+    flex: 0 0 auto;
+    color: var(--fg-muted);
+  }
+
+  .adjacent time {
+    color: var(--fg-muted);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * タイトルがなく日付だけの導線。一覧の日付だけの行と同じく、色をリンクに寄せる。
+   * この導線では日付が唯一の手がかりなので、押せるものとして見えている必要がある。
+   */
+  .adjacent time:only-child {
+    color: var(--accent);
+  }
+
+  .entry-title {
+    color: var(--accent);
+  }
+
+  .adjacent a:hover .entry-title,
+  .adjacent a:hover time:only-child {
+    text-decoration: underline;
+  }
+
+  /*
+   * 一覧への導線。前後の導線と合わせて1つのまとまりとして見せるため、
+   * 区切り線は上の `.adjacent` のものだけにし、ここでは間隔だけを空ける。
+   */
   .links {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem 1.5rem;
-    margin-top: 3rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--border);
+    margin-top: 1.5rem;
     font-size: 0.9rem;
   }
 </style>

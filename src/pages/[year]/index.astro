@@ -1,7 +1,7 @@
 ---
 import EntryList from '../../components/EntryList.astro'
 import Base from '../../layouts/Base.astro'
-import { byDateAsc, entriesByYear, entriesByYearMonth } from '../../lib/site-data.js'
+import { byDateDesc, entriesByYear, entriesByYearMonth } from '../../lib/site-data.js'
 import type { Entry } from '../../lib/store/entry.js'
 
 // エントリが存在する年だけを生成する。存在しない年は 404 になる。
@@ -10,18 +10,21 @@ export async function getStaticPaths() {
 
   return [...grouped.entries()].map(([year, entries]) => ({
     params: { year },
-    props: { entries: [...entries].sort(byDateAsc) },
+    props: { entries: [...entries].sort(byDateDesc) },
   }))
 }
 
 const { year } = Astro.params
 const { entries } = Astro.props as { entries: Entry[] }
 
+// 月も新しい順に並べる。一覧のエントリ、トップページの年、日別ページの
+// 前後の導線と同じ向きで、サイト全体を通して左と上が新しい側になる。
 const byMonth = await entriesByYearMonth()
 const months = [...byMonth.keys()]
   .filter((key) => key.startsWith(`${year}-`))
   .map((key) => key.slice(5))
   .sort()
+  .reverse()
 ---
 
 <Base title={`${year}年の日記`}>

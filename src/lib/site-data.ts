@@ -70,6 +70,50 @@ export async function entryByDate(): Promise<Map<string, Entry>> {
   return map
 }
 
+/** 隣接するエントリへの導線に出す最小限。本文は運ばない。 */
+export interface EntryLink {
+  date: string
+  title: string
+}
+
+/** エントリと、その両隣の公開済みエントリ。 */
+export interface EntryNeighbors {
+  entry: Entry
+  /** 1つ新しいエントリ。最新のエントリでは存在しない。 */
+  newer?: EntryLink
+  /** 1つ古いエントリ。最古のエントリでは存在しない。 */
+  older?: EntryLink
+}
+
+/**
+ * 公開済みエントリの全件を、両隣とともに返す。
+ *
+ * 隣接は暦上の前日・翌日ではなく、公開済みエントリの並びの上での隣とする。
+ * 日記の書かれない日のほうが多いため、暦で解くと導線の大半がエントリの
+ * 存在しない日付を指してしまう。月や年をまたいで隣接することがある。
+ *
+ * 下書きは `publishedEntries()` に最初から含まれないため、隣接の解決に
+ * 下書きが関与することはない。除外のためのフィルタもここには存在しない。
+ *
+ * 隣には日付とタイトルだけを持たせる。日別ページは1000件を超え、その1件ずつに
+ * 前後2件ぶんの本文を持たせる意味がない。手元になければ誤って描画することもない。
+ */
+export async function entriesWithNeighbors(): Promise<EntryNeighbors[]> {
+  const entries = await publishedEntries()
+
+  // `publishedEntries()` は日付の昇順。1つ後ろが新しく、1つ前が古い。
+  return entries.map((entry, i) => ({
+    entry,
+    newer: toEntryLink(entries[i + 1]),
+    older: toEntryLink(entries[i - 1]),
+  }))
+}
+
+function toEntryLink(entry: Entry | undefined): EntryLink | undefined {
+  if (!entry) return undefined
+  return { date: entry.date, title: entry.title }
+}
+
 /** トップページ用。新しい順。 */
 export async function recentEntries(): Promise<Entry[]> {
   const entries = [...(await publishedEntries())]
