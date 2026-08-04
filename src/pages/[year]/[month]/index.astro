@@ -1,7 +1,7 @@
 ---
 import EntryList from '../../../components/EntryList.astro'
 import Base from '../../../layouts/Base.astro'
-import { byDateAsc, entriesByYearMonth } from '../../../lib/site-data.js'
+import { byDateDesc, entriesByYearMonth } from '../../../lib/site-data.js'
 import type { Entry } from '../../../lib/store/entry.js'
 
 // エントリが存在する年月だけを生成する。存在しない年月は 404 になる。
@@ -10,7 +10,7 @@ export async function getStaticPaths() {
 
   return [...grouped.entries()].map(([yearMonth, entries]) => ({
     params: { year: yearMonth.slice(0, 4), month: yearMonth.slice(5, 7) },
-    props: { entries: [...entries].sort(byDateAsc) },
+    props: { entries: [...entries].sort(byDateDesc) },
   }))
 }
 
