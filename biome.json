@@ -1,7 +1,15 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["**", "!dist", "!node_modules", "!export", "!.astro", "!**/.terraform"]
+    "includes": [
+      "**",
+      "!dist",
+      "!**/node_modules",
+      "!export",
+      "!.astro",
+      "!**/.terraform",
+      "!lambda/*/build"
+    ]
   },
   "formatter": {
     "enabled": true,

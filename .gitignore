@@ -23,8 +23,13 @@ config/*.env
 .env
 .env.*
 
+# Lambda の配布物。lambroll deploy のたびに作り直す
+lambda/*/build/
+
 # Terraform
 **/.terraform/
+# Terraform が組み立てる placeholder の zip。中身はインラインで定義してある
+**/placeholder.zip
 *.tfstate
 *.tfstate.*
 *.tfvars

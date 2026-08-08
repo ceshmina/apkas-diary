@@ -13,8 +13,10 @@
     "preview": "astro preview",
     "deploy": "scripts/deploy.sh",
     "entry": "scripts/entry.sh",
+    "photo": "scripts/photo.sh",
     "import-legacy": "scripts/import-legacy.sh",
-    "check": "astro check && biome check .",
+    "deploy:lambda": "scripts/deploy-lambda.sh",
+    "check": "astro check && biome check . && scripts/check-lambda.sh",
     "format": "biome check --write ."
   },
   "repository": {
@@ -25,6 +27,7 @@
   "dependencies": {
     "@astrojs/markdown-satteri": "^0.3.5",
     "@aws-sdk/client-dynamodb": "^3.1101.0",
+    "@aws-sdk/client-s3": "^3.1106.0",
     "@aws-sdk/lib-dynamodb": "^3.1101.0",
     "astro": "^7.1.6"
   },

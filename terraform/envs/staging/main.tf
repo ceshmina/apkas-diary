@@ -31,3 +31,21 @@ module "delivery" {
   domain_name      = "diary.dev.apkas.net"
   hosted_zone_name = "dev.apkas.net"
 }
+
+# 写真の配信。日記サイトとはバケットもディストリビューションも分けてある。
+# サイトのデプロイは `aws s3 sync --delete` で配信元を丸ごと同期するため、
+# 同じバケットに写真を置くと1度のデプロイで全部消える。
+module "photos" {
+  source = "../../modules/photos"
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  environment    = local.environment
+  aws_account_id = var.aws_account_id
+
+  domain_name      = "photos.dev.apkas.net"
+  hosted_zone_name = "dev.apkas.net"
+}
