@@ -49,3 +49,24 @@ export function exportDir(): string {
 export function siteUrl(): string | undefined {
   return process.env.SITE_URL || undefined
 }
+
+/** 元写真を投入する S3 バケット。 */
+export function photoUploadBucket(): string {
+  return required('PHOTO_UPLOAD_BUCKET')
+}
+
+/**
+ * 派生画像が置かれる S3 バケット。
+ *
+ * 書き込むのは Lambda だけで、こちらは生成が終わったかを見るために読むだけ。
+ * 配信 URL を叩いて調べる形にすると、まだ無いあいだの 403 が CDN に載り、
+ * 自分の問い合わせが原因でしばらく読めないままになる。
+ */
+export function photoDeliveryBucket(): string {
+  return required('PHOTO_BUCKET')
+}
+
+/** 写真の配信 URL の基点。 */
+export function photoUrl(): string {
+  return required('PHOTO_URL')
+}

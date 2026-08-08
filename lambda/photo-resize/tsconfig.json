@@ -1,0 +1,17 @@
+{
+  "//": "ルートの tsconfig は Astro のものを継いでおり、こちらは Node の Lambda。継承関係を持たせず独立させる。",
+  "include": ["src/**/*.ts"],
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023"],
+    "module": "node16",
+    "moduleResolution": "node16",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "rootDir": "src",
+    "outDir": "build"
+  }
+}

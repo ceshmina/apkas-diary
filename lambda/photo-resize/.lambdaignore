@@ -1,0 +1,13 @@
+# 配布物に入れないもの。
+#
+# --src には build/ を渡しており、そこは毎回作り直しているので通常は何も
+# 引っかからない。ここに書いてあるのは、作り方を変えたときに元のソースや
+# 開発用のファイルが黙って混ざらないようにするための歯止めである。
+
+*.ts
+*.map
+*.tsbuildinfo
+tsconfig.json
+function.jsonnet
+package-lock.json
+.DS_Store
