@@ -49,3 +49,22 @@ module "photos" {
   domain_name      = "photos.dev.apkas.net"
   hosted_zone_name = "dev.apkas.net"
 }
+
+# 編集アプリケーション。ブラウザから日記を書くための入口。
+#
+# 公開サイトや写真と違い、配信するのは静的なオブジェクトではなく動的な応答で
+# あり、POST を受ける。前段は CloudFront ではなく API Gateway の HTTP API に
+# なっており、us-east-1 のプロバイダを受け取らない（design.md 決定2）。
+#
+# 書き込む先は storage と同じテーブル。CLI と同じエントリを読み書きする。
+module "editor" {
+  source = "../../modules/editor"
+
+  environment = local.environment
+
+  domain_name      = "admin.dev.apkas.net"
+  hosted_zone_name = "dev.apkas.net"
+
+  table_name = module.storage.table_name
+  table_arn  = module.storage.table_arn
+}

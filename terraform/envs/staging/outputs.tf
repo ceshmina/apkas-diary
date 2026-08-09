@@ -59,3 +59,37 @@ output "photo_function_name" {
   description = "変換 Lambda の関数名。lambroll は state を直接読むので転記は不要"
   value       = module.photos.function_name
 }
+
+# --- 編集アプリケーション ---
+
+output "editor_url" {
+  description = "編集アプリケーションの URL"
+  value       = module.editor.editor_url
+}
+
+output "editor_param_prefix" {
+  description = "OAuth クライアントと署名鍵を入れる SSM のパス"
+  value       = module.editor.param_prefix
+}
+
+# 以下は転記しない。
+
+output "editor_function_name" {
+  description = "編集アプリケーションの関数名。lambroll は state を直接読むので転記は不要"
+  value       = module.editor.function_name
+}
+
+output "editor_role_arn" {
+  description = "編集アプリケーションの実行ロール。権限の確認で引き受ける先"
+  value       = module.editor.role_arn
+}
+
+output "editor_api_id" {
+  description = "編集アプリケーションの API Gateway の ID"
+  value       = module.editor.api_id
+}
+
+output "editor_api_endpoint" {
+  description = "独自ドメインの手前で切り分けたいときに叩くエンドポイント"
+  value       = module.editor.api_endpoint
+}

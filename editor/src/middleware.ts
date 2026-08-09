@@ -24,6 +24,9 @@ const PUBLIC_PATHS = new Set(['/login', '/auth/login', '/auth/callback'])
  */
 const PUBLIC_PREFIXES = ['/_astro/']
 
+/** 手元での開発に使うホスト。HSTS を付けてはいけない相手。 */
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
+
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.has(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))
 }
@@ -83,6 +86,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // 認証を通らないと何も見えないので検索エンジンに載ることはないが、
   // ログイン画面だけは誰でも到達できる。載せる意味がないので断っておく。
   response.headers.set('X-Robots-Tag', 'noindex, nofollow')
+
+  // API Gateway のカスタムドメインは 443 しか受けないため、平文の要求は
+  // そもそも届かない。これはその手前の話で、**利用者のブラウザに二度と
+  // HTTP で試させない**ための指示である。手元の開発には付けない。
+  // localhost に付けると、以後 http://localhost が繋がらなくなる。
+  if (!LOCAL_HOSTS.has(context.url.hostname)) {
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  }
 
   return response
 })

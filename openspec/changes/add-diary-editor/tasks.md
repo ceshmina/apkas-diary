@@ -109,19 +109,39 @@
 
 ## 5. Terraform: editor モジュール
 
-- [ ] 5.1 `terraform/modules/editor/` を作る。`ap-northeast-1` で完結させ、`aws.us_east_1` プロバイダは受け取らない
-- [ ] 5.2 CloudWatch Logs のロググループを保持 30 日で作る。関数より先に作られるようにする
-- [ ] 5.3 Lambda 関数の枠を作る。`runtime` / `handler` / `architectures`（arm64）は Terraform を唯一の宣言元とし、`filename` / `source_code_hash` / `memory_size` / `timeout` / `environment` / `layers` / `ephemeral_storage` を `ignore_changes` に並べる
-- [ ] 5.4 実行ロールを作る。DynamoDB への権限は `GetItem` / `PutItem` / `UpdateItem` / `Query` に限り、`DeleteItem` と `BatchWriteItem` を**与えない**。対象はテーブルとその GSI の ARN のみにする
-- [ ] 5.5 SSM のパラメータ（クライアント ID・secret・署名鍵・許可アカウント）を `/apkas-diary/<環境>/editor/` 以下に作る。値は仮値とし、`ignore_changes = [value]` を付ける。secret と署名鍵は SecureString にする
-- [ ] 5.6 実行ロールに、自環境のパラメータのパス配下のみを読む権限と、その復号に必要な権限を与える。S3・CloudFront への権限は与えない
-- [ ] 5.7 API Gateway HTTP API と既定ステージを作る。Lambda を payload format 2.0 で統合し、`$default` ルートを置く。`aws_lambda_permission` で API からの呼び出しだけを許可する
-- [ ] 5.8 Lambda の Function URL を**作らない**ことを確認する（関数へ届く経路が API Gateway だけであること）
-- [ ] 5.9 既定ステージにスロットリング（rate / burst）を設定する。あわせて関数に予約同時実行を設定する
-- [ ] 5.10 ACM 証明書（`ap-northeast-1`）と DNS 検証、API Gateway のカスタムドメイン、API マッピング、Route53 の A / AAAA alias を作る。ドメインは staging が `admin.dev.apkas.net`、production が `admin.apkas.net`
-- [ ] 5.11 `terraform/envs/staging` と `terraform/envs/production` から `module "editor"` を呼ぶ。ドメイン名とホストゾーン名は既存の呼び出しと同じ流儀で env 側に直接書く
-- [ ] 5.12 `outputs.tf` に、編集アプリケーションの URL・関数名・API の ID・パラメータのプレフィックスを出す
+- [x] 5.1 `terraform/modules/editor/` を作る。`ap-northeast-1` で完結させ、`aws.us_east_1` プロバイダは受け取らない
+  - `configuration_aliases` を持たない。証明書がこの環境と同じリージョンで済むのが、CloudFront を挟まないことの具体的な利得のひとつ。
+- [x] 5.2 CloudWatch Logs のロググループを保持 30 日で作る。関数より先に作られるようにする
+- [x] 5.3 Lambda 関数の枠を作る。`runtime` / `handler` / `architectures`（arm64）は Terraform を唯一の宣言元とし、`filename` / `source_code_hash` / `memory_size` / `timeout` / `environment` / `layers` / `ephemeral_storage` を `ignore_changes` に並べる
+  - `handler` は `run.sh`。Lambda Web Adapter の作法で、レイヤーと `AWS_LAMBDA_EXEC_WRAPPER` は lambroll が持つ。**仮の中身のままでは関数は起動しない**が、それでよい。この段階で 5xx が返るのは「まだデプロイしていない」の合図である。
+  - `reserved_concurrent_executions` は **`ignore_changes` に入れない**。lambroll はこれを設定しないので、Terraform が唯一の宣言元でよい。
+- [x] 5.4 実行ロールを作る。DynamoDB への権限は `GetItem` / `PutItem` / `UpdateItem` / `Query` に限り、`DeleteItem` と `BatchWriteItem` を**与えない**。対象はテーブルとその GSI の ARN のみにする
+  - **タスクの一覧から2つ減らし、1つ足した。** 与えたのは `GetItem` / `PutItem` / `Scan` の3つ。
+    - `UpdateItem` は `putEntry` が `PutItem` しか使わないので不要。
+    - `Query` は一覧がベーステーブルの走査で足りている（1.4）ので不要。同じ理由で GSI の ARN も要らず、テーブルの ARN だけに絞れた。
+    - 代わりに `Scan` が要る。1.4 で `scanAllIncludingDrafts()` を使うと決めたため。
+  - 使っていない権限を「将来のため」に置かない。必要になったらそこで失敗して気づけばよい。**`DeleteItem` と `BatchWriteItem` を与えないという肝心の部分は変えていない。**
+- [x] 5.5 SSM のパラメータ（クライアント ID・secret・署名鍵・許可アカウント）を `/apkas-diary/<環境>/editor/` 以下に作る。値は仮値とし、`ignore_changes = [value]` を付ける。secret と署名鍵は SecureString にする
+- [x] 5.6 実行ロールに、自環境のパラメータのパス配下のみを読む権限と、その復号に必要な権限を与える。S3・CloudFront への権限は与えない
+  - `GetParametersByPath` は**パスそのものに対する許可も要求する**。`.../editor/*` だけでは足りないので、パスと配下の両方を並べた。
+  - 復号は `kms:ViaService` を `ssm.<リージョン>.amazonaws.com` に限る条件付き。AWS 管理の `alias/aws/ssm` は ARN が環境ごとに変わり、data で引くにも権限が要るため、資源側ではなく経路側で絞る定石の形にした。
+- [x] 5.7 API Gateway HTTP API と既定ステージを作る。Lambda を payload format 2.0 で統合し、`$default` ルートを置く。`aws_lambda_permission` で API からの呼び出しだけを許可する
+  - `timeout_milliseconds = 30000`。`editor-hosting` の「30 秒以内に応答」の上限が、ここでプラットフォーム側から担保される。
+  - ルートは `$default` の1つだけ。どのパスが存在するかは API Gateway 側に持たせず、アプリケーションだけが知る。
+  - アクセスログは入れていない。失敗を追う要求は Lambda のログで満たせており、入れるならロググループがもう1つ増える。必要になったら足す。
+- [x] 5.8 Lambda の Function URL を**作らない**ことを確認する（関数へ届く経路が API Gateway だけであること）
+  - `aws_lambda_function_url` をモジュールのどこにも書いていない。OAC で塞ぐより強い形になる。
+- [x] 5.9 既定ステージにスロットリング（rate / burst）を設定する。あわせて関数に予約同時実行を設定する
+  - 既定は 20 req/s・burst 40、予約同時実行 5。関数に届く前に API Gateway で落とすのが1段目、届いてしまった場合の上限が2段目。
+- [x] 5.10 ACM 証明書（`ap-northeast-1`）と DNS 検証、API Gateway のカスタムドメイン、API マッピング、Route53 の A / AAAA alias を作る。ドメインは staging が `admin.dev.apkas.net`、production が `admin.apkas.net`
+  - カスタムドメインは `ip_address_type = "dualstack"`。AAAA を作る以上、エンドポイント側も IPv6 で応答できる必要がある。
+  - **仕様をひとつ直した。** `editor-hosting` の「HTTP でのアクセス → HTTPS にリダイレクトされる」は API Gateway では満たせない。カスタムドメインは 443 しか受け付けず、80 番の listener が存在しないため、リダイレクトを返す相手がいない。**「暗号化されていない経路で要求を受け付けない」に改めた**（design.md 決定2 に経緯を書いた）。導く時点でその要求の宛先と Cookie は既に平文で流れている以上、接続を成立させないほうが強い。あわせて `Strict-Transport-Security` を応答に付けた（localhost には付けない。付けると以後 `http://localhost` が繋がらなくなる。実際に手元で両方の挙動を確認した）。
+- [x] 5.11 `terraform/envs/staging` と `terraform/envs/production` から `module "editor"` を呼ぶ。ドメイン名とホストゾーン名は既存の呼び出しと同じ流儀で env 側に直接書く
+- [x] 5.12 `outputs.tf` に、編集アプリケーションの URL・関数名・API の ID・パラメータのプレフィックスを出す
+  - 権限の確認（8.5 / 8.6）で引き受ける先として実行ロールの ARN も出した。
 - [ ] 5.13 staging に `terraform apply` し、リソースが作られること、`https://admin.dev.apkas.net` が証明書の警告なく応答することを確認する（この時点の中身は仮のアーカイブでよい）
+  - **AWS の認証情報が要るため未了。** `aws sso login --profile apkas-staging.admin` のうえで実行する。
+  - ここまでで確認済みなのは `terraform init -backend=false` と `terraform validate` が両環境で通ること、`terraform fmt -check` に差分がないこと。
 
 ## 6. Google Cloud: OAuth クライアント
 
@@ -149,7 +169,7 @@
 - [ ] 8.1 許可されたアカウントでログインでき、一覧・作成・編集・公開の切り替え・プレビュー・ログアウトがひととおり動くことを確認する
 - [ ] 8.2 許可されていない Google アカウントでログインを試み、拒否され、エントリの内容がいっさい返らないことを確認する
 - [ ] 8.3 未認証の状態で各ページと保存の経路に直接要求を送り、拒否され、データが読み取られも変更もされないことを確認する
-- [ ] 8.4 HTTP でアクセスして HTTPS にリダイレクトされることを確認する
+- [ ] 8.4 HTTP でのアクセスが接続の時点で成立しないこと、および HTTPS の応答に `Strict-Transport-Security` が付いていることを確認する
 - [ ] 8.5 実行ロールの権限で `DeleteItem` が拒否されることを確認する（AWS CLI で実行ロールを引き受けて試す）
 - [ ] 8.6 実行ロールで他方の環境のテーブル、および写真・公開サイトのバケットへの操作が拒否されることを確認する
 - [ ] 8.7 十分な時間を置いてからアクセスし、コールドスタートを含む最初の応答が 30 秒以内に返ることを実測する。結果に応じて `MemorySize` を詰める
