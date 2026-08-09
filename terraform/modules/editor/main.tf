@@ -116,8 +116,13 @@ resource "aws_lambda_function" "editor" {
   source_code_hash = data.archive_file.placeholder.output_base64sha256
 
   # **同時実行の上限は Terraform が持つ。** 認証は関数の中で行うため、認証を
-  # 通らない要求も関数を1回起動させる。暴走したときの費用の上限がここにある。
-  # lambroll はこれを設定しないので、ignore_changes にも入れない。
+  # 通らない要求も関数を1回起動させる。lambroll はこれを設定しないので、
+  # ignore_changes にも入れない。
+  #
+  # 既定は -1（予約しない）。アカウントの同時実行上限が初期値の 10 のままだと、
+  # 未予約分を 10 未満にする予約は拒否され、どの関数も1つも予約できない。
+  # その状態ではアカウントの上限そのものが同時実行の上限として働く。
+  # 上限を引き上げたときに variables.tf の既定を変える。
   reserved_concurrent_executions = var.reserved_concurrency
 
   # メモリ・タイムアウト・環境変数はここに書かない。function.jsonnet が持つ。
