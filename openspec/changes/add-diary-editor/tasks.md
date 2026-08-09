@@ -1,0 +1,114 @@
+## 1. 公開サイトとの共有部分を切り出す
+
+- [ ] 1.1 `src/layouts/Base.astro` の `is:global` な CSS のうち、色の変数・字送り・本文要素（`h1` / `h2` / `img` / `pre` / `a` / `figure`）にかかわる部分を `src/styles/` へ移し、`Base.astro` から読む形にする。サイトのヘッダ・フッタに固有のものは移さない
+- [ ] 1.2 切り出しの前後で `npm run build -- staging` の生成物に差分が出ないことを確認する（見え方を変えない移動であること）
+- [ ] 1.3 `src/lib/store/put.ts` と `src/lib/store/queries.ts` が、編集アプリケーションからそのまま呼べる形になっているか確かめる。ビルド専用の前提（環境変数の読み方など）が混ざっていれば外す
+- [ ] 1.4 下書きを含む全エントリを新しい順に引く読み取りが既存のクエリで満たせるか確かめる。足りなければ `src/lib/store/queries.ts` に足す（公開サイト向けの経路には手を入れない）
+
+## 2. 編集アプリケーションの骨格
+
+- [ ] 2.1 `editor/` を作り、`astro.config.ts` を `output: 'server'` と `@astrojs/node`（standalone）で書く。公開サイトの `astro.config.ts` とは独立させ、書き出しの integration は入れない
+- [ ] 2.2 `@astrojs/node` をルートの `package.json` に足す。Astro と Markdown プロセッサは公開サイトと同じ版を共有する（版がずれるとプレビューと公開結果が食い違う）
+- [ ] 2.3 `npm run dev:editor` を足し、`http://localhost:4321` で開発サーバが立ち上がることを確認する。`load_env` を通し、環境名の指定を必須にする
+- [ ] 2.4 `npm run check` の対象に `editor/` を含める。型検査と Lint が通ることを確認する
+- [ ] 2.5 応答に `X-Robots-Tag: noindex` を付ける
+- [ ] 2.6 起動時に必要な設定が欠けていたら、何をどこに設定すべきかを添えて落ちるようにする（`src/lib/env.ts` と同じ流儀。SSM の仮値のままの場合もここで弾く）
+
+## 3. 認証（Google OIDC）
+
+- [ ] 3.1 SSM Parameter Store から OAuth クライアント ID・secret・署名鍵・許可アカウントを読む処理を書く。起動時に一度だけ読み、モジュールスコープで保持する
+- [ ] 3.2 `/auth/login` を書く。`state` と PKCE の verifier を短命（10 分）の `__Host-` Cookie に置き、`openid email` のスコープで Google の認可エンドポイントへ送る
+- [ ] 3.3 `/auth/callback` を書く。Cookie の `state` と照合し、一致しなければ認証を成立させない
+- [ ] 3.4 認可コードを client secret とともにトークンエンドポイントで交換する。`id_token` の `iss` / `aud` / `exp` / `email_verified` を検証する。署名検証は行わない（design 決定 5）
+- [ ] 3.5 `email` を許可アカウントと突き合わせ、一致しない場合は編集アプリケーションのいかなる内容も返さずに拒否する
+- [ ] 3.6 セッション Cookie を発行する。`{ sub, email, exp }` に HMAC-SHA256 の署名を添え、`__Host-` 接頭辞・`HttpOnly`・`Secure`・`SameSite=Lax`・有効期間 7 日で置く
+- [ ] 3.7 全ページ・全 API に共通で効く認証の確認を入れる。署名が検証できない、期限切れ、Cookie が無い、のいずれも未認証として扱う
+- [ ] 3.8 未認証の要求に対して、エントリの存在の有無が判別できる情報を返さないことを確認する（存在する日付と存在しない日付で応答が変わらない）
+- [ ] 3.9 `/auth/logout` を書く。セッション Cookie を失効させ、以後の要求が未認証になることを確認する
+- [ ] 3.10 認証の成功・拒否・ログアウトを記録に残す。日時と、拒否の場合は理由を含める。トークンや秘密そのものは記録しない
+- [ ] 3.11 改竄したセッション Cookie、自作したセッション Cookie、期限切れのセッション Cookie の3つで、いずれも未認証として扱われることを確認する
+
+## 4. 編集の画面
+
+- [ ] 4.1 エントリ一覧の画面を作る。下書きと公開の双方を日付の降順で並べ、各項目から日付・タイトル・公開状態が判別できるようにする
+- [ ] 4.2 エントリが1件もない場合に、空であることを示し、そこから新規作成に進めるようにする
+- [ ] 4.3 新規作成の画面を作る。日付の既定を JST の当日にし、`YYYY-MM-DD` 形式を検証する
+- [ ] 4.4 既にエントリのある日付を指定した場合、2件目を作らず既存エントリの内容を読み込んだ編集画面になることを確認する
+- [ ] 4.5 編集画面を作る。タイトル・本文・公開状態を編集でき、現在の公開状態が保存の前に判別できるようにする
+- [ ] 4.6 保存を `src/lib/store/put.ts` 経由で行う。GSI のキー属性の付け外しを編集アプリケーション側で実装しない
+- [ ] 4.7 保存の成否を利用者に明示する。失敗した場合は入力した本文を画面に残したまま再試行できるようにする
+- [ ] 4.8 プレビューを作る。`src/lib/markdown.ts` の `renderMarkdown()` を通し、1.1 で切り出した字面の中に表示する
+- [ ] 4.9 削除の操作をどこにも置かないことを確認する。公開の取り下げは下書きへの切り替えで行う
+- [ ] 4.10 編集アプリケーションで保存したエントリが `npm run build -- staging` の生成物と `export/` に現れること、CLI で登録したエントリが一覧に現れることを確認する
+- [ ] 4.11 作成日時・更新日時が CLI から保存した場合と同じ規則で記録されることを確認する
+
+## 5. Terraform: editor モジュール
+
+- [ ] 5.1 `terraform/modules/editor/` を作る。`ap-northeast-1` で完結させ、`aws.us_east_1` プロバイダは受け取らない
+- [ ] 5.2 CloudWatch Logs のロググループを保持 30 日で作る。関数より先に作られるようにする
+- [ ] 5.3 Lambda 関数の枠を作る。`runtime` / `handler` / `architectures`（arm64）は Terraform を唯一の宣言元とし、`filename` / `source_code_hash` / `memory_size` / `timeout` / `environment` / `layers` / `ephemeral_storage` を `ignore_changes` に並べる
+- [ ] 5.4 実行ロールを作る。DynamoDB への権限は `GetItem` / `PutItem` / `UpdateItem` / `Query` に限り、`DeleteItem` と `BatchWriteItem` を**与えない**。対象はテーブルとその GSI の ARN のみにする
+- [ ] 5.5 SSM のパラメータ（クライアント ID・secret・署名鍵・許可アカウント）を `/apkas-diary/<環境>/editor/` 以下に作る。値は仮値とし、`ignore_changes = [value]` を付ける。secret と署名鍵は SecureString にする
+- [ ] 5.6 実行ロールに、自環境のパラメータのパス配下のみを読む権限と、その復号に必要な権限を与える。S3・CloudFront への権限は与えない
+- [ ] 5.7 API Gateway HTTP API と既定ステージを作る。Lambda を payload format 2.0 で統合し、`$default` ルートを置く。`aws_lambda_permission` で API からの呼び出しだけを許可する
+- [ ] 5.8 Lambda の Function URL を**作らない**ことを確認する（関数へ届く経路が API Gateway だけであること）
+- [ ] 5.9 既定ステージにスロットリング（rate / burst）を設定する。あわせて関数に予約同時実行を設定する
+- [ ] 5.10 ACM 証明書（`ap-northeast-1`）と DNS 検証、API Gateway のカスタムドメイン、API マッピング、Route53 の A / AAAA alias を作る。ドメインは staging が `admin.dev.apkas.net`、production が `admin.apkas.net`
+- [ ] 5.11 `terraform/envs/staging` と `terraform/envs/production` から `module "editor"` を呼ぶ。ドメイン名とホストゾーン名は既存の呼び出しと同じ流儀で env 側に直接書く
+- [ ] 5.12 `outputs.tf` に、編集アプリケーションの URL・関数名・API の ID・パラメータのプレフィックスを出す
+- [ ] 5.13 staging に `terraform apply` し、リソースが作られること、`https://admin.dev.apkas.net` が証明書の警告なく応答することを確認する（この時点の中身は仮のアーカイブでよい）
+
+## 6. Google Cloud: OAuth クライアント
+
+- [ ] 6.1 `apkas-staging` プロジェクトで OAuth 同意画面を設定する。External の場合は自分をテストユーザに登録する
+- [ ] 6.2 ウェブアプリケーションの OAuth クライアントを作り、redirect URI に `https://admin.dev.apkas.net/auth/callback` と `http://localhost:4321/auth/callback` を登録する
+- [ ] 6.3 クライアント ID・secret と、生成した署名鍵、許可する Google アカウントを `aws ssm put-parameter --overwrite` で staging のパラメータに入れる
+- [ ] 6.4 `terraform plan` が差分を出さないことを確認する（`ignore_changes = [value]` が効いていること）
+- [ ] 6.5 tfstate に secret と署名鍵の実値が含まれていないことを確認する
+
+## 7. パッケージングとデプロイ
+
+- [ ] 7.1 `editor/function.jsonnet` を書く。`FunctionName` / `Role` / `Runtime` / `Handler` / `Architectures` は tfstate から読む。`MemorySize`（初期値 1024）と `Timeout` はここで決める
+- [ ] 7.2 `Environment.Variables` にテーブル名・自身の URL・パラメータのプレフィックス・Lambda Web Adapter 用の設定（`AWS_LAMBDA_EXEC_WRAPPER` など）を置く。値は tfstate から読み、転記を作らない
+- [ ] 7.3 `Layers` に Lambda Web Adapter の arm64 レイヤー ARN（`ap-northeast-1`）を書く。使った版を控える
+- [ ] 7.4 `scripts/build-editor.sh` を書く。Astro をビルドし、実行時に必要な依存だけを揃えた配布ディレクトリを作る。毎回作り直す
+- [ ] 7.5 `editor/.lambdaignore` を置き、TypeScript のソースや開発用のファイルが配布物に混ざらないようにする
+- [ ] 7.6 配布物のサイズを確認する。直接アップロードの上限（zip 50MB）に収まらない場合は S3 経由の配置に切り替える
+- [ ] 7.7 `scripts/deploy-editor.sh` を書く。環境名を第1引数に取り、`load_env` を通し、`backend.hcl` から state の場所を組み立てて `lambroll deploy --tfstate` に渡す。実行前に環境・profile・アカウントを表示し、production では確認を求める
+- [ ] 7.8 `npm run deploy:editor` として `package.json` に登録する。ビルドの中間生成物を `.gitignore` に足す
+- [ ] 7.9 環境名を指定せずに `npm run deploy:editor` を実行し、何もデプロイされないまま失敗することを確認する
+- [ ] 7.10 `npm run deploy:editor -- staging` を実行し、直後に `terraform plan` が差分を出さないことを確認する（`ignore_changes` の並べ忘れがないこと）
+
+## 8. staging での確認
+
+- [ ] 8.1 許可されたアカウントでログインでき、一覧・作成・編集・公開の切り替え・プレビュー・ログアウトがひととおり動くことを確認する
+- [ ] 8.2 許可されていない Google アカウントでログインを試み、拒否され、エントリの内容がいっさい返らないことを確認する
+- [ ] 8.3 未認証の状態で各ページと保存の経路に直接要求を送り、拒否され、データが読み取られも変更もされないことを確認する
+- [ ] 8.4 HTTP でアクセスして HTTPS にリダイレクトされることを確認する
+- [ ] 8.5 実行ロールの権限で `DeleteItem` が拒否されることを確認する（AWS CLI で実行ロールを引き受けて試す）
+- [ ] 8.6 実行ロールで他方の環境のテーブル、および写真・公開サイトのバケットへの操作が拒否されることを確認する
+- [ ] 8.7 十分な時間を置いてからアクセスし、コールドスタートを含む最初の応答が 30 秒以内に返ることを実測する。結果に応じて `MemorySize` を詰める
+- [ ] 8.8 2回目以降の要求で起動の待ちが生じないことを確認する
+- [ ] 8.9 CloudWatch Logs に実行の記録が残り、保持期間が設定されていることを確認する
+- [ ] 8.10 編集アプリケーションを止めた状態（関数を壊す、あるいは同時実行を 0 にする）で、公開サイトと写真が配信され続け、`npm run entry` からの登録も従来どおり動くことを確認する
+- [ ] 8.11 手元の `npm run dev:editor -- staging` でも本物の Google ログインを通して動くことを確認する（認証を迂回する経路が無いこと）
+
+## 9. production への展開
+
+- [ ] 9.1 `apkas-production` プロジェクトで OAuth 同意画面と OAuth クライアントを作り、redirect URI に `https://admin.apkas.net/auth/callback` を登録する（localhost は登録しない）
+- [ ] 9.2 production に `terraform apply` する
+- [ ] 9.3 production のパラメータに実値を入れる。**staging と異なるクライアント・異なる署名鍵**にする
+- [ ] 9.4 `npm run deploy:editor -- production` を実行し、直後に `terraform plan` が差分を出さないことを確認する
+- [ ] 9.5 staging の資格情報では production の編集アプリケーションに入れないことを確認する
+- [ ] 9.6 production で 8.1〜8.4 と同じ確認を行う
+
+## 10. ドキュメント
+
+- [ ] 10.1 README の冒頭の図に編集アプリケーションの経路を足す
+- [ ] 10.2 初期セットアップに、Google Cloud での OAuth クライアントの作成と SSM への実値の投入を足す。**これはコード管理の外に置く例外**であることと、その理由を書く
+- [ ] 10.3 日々の運用に、編集アプリケーションの URL と使い方、および「公開サイトへの反映は従来どおり手元の `npm run build` / `npm run deploy`」であることを書く
+- [ ] 10.4 環境ごとの表（URL の一覧）に編集アプリケーションの行を足す
+- [ ] 10.5 ディレクトリ構成に `editor/` と `terraform/modules/editor/` を足す
+- [ ] 10.6 設計上の要点に、「削除できないことを IAM で担保している」「CloudFront ではなく API Gateway を選んだ理由」「使わないあいだに費用の出る構成要素を持たない」を足す
+- [ ] 10.7 秘密の入れ替え（署名鍵の差し替え、クライアント secret の再発行）の手順を書く
+- [ ] 10.8 `config/staging.env.example` / `config/production.env.example` に、編集アプリケーションのために増えた項目があれば足す
