@@ -8,7 +8,8 @@
       "!export",
       "!**/.astro",
       "!**/.terraform",
-      "!lambda/*/build"
+      "!lambda/*/build",
+      "!editor/build"
     ]
   },
   "formatter": {

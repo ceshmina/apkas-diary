@@ -153,16 +153,30 @@
 
 ## 7. パッケージングとデプロイ
 
-- [ ] 7.1 `editor/function.jsonnet` を書く。`FunctionName` / `Role` / `Runtime` / `Handler` / `Architectures` は tfstate から読む。`MemorySize`（初期値 1024）と `Timeout` はここで決める
-- [ ] 7.2 `Environment.Variables` にテーブル名・自身の URL・パラメータのプレフィックス・Lambda Web Adapter 用の設定（`AWS_LAMBDA_EXEC_WRAPPER` など）を置く。値は tfstate から読み、転記を作らない
-- [ ] 7.3 `Layers` に Lambda Web Adapter の arm64 レイヤー ARN（`ap-northeast-1`）を書く。使った版を控える
-- [ ] 7.4 `scripts/build-editor.sh` を書く。Astro をビルドし、実行時に必要な依存だけを揃えた配布ディレクトリを作る。毎回作り直す
-- [ ] 7.5 `editor/.lambdaignore` を置き、TypeScript のソースや開発用のファイルが配布物に混ざらないようにする
-- [ ] 7.6 配布物のサイズを確認する。直接アップロードの上限（zip 50MB）に収まらない場合は S3 経由の配置に切り替える
-- [ ] 7.7 `scripts/deploy-editor.sh` を書く。環境名を第1引数に取り、`load_env` を通し、`backend.hcl` から state の場所を組み立てて `lambroll deploy --tfstate` に渡す。実行前に環境・profile・アカウントを表示し、production では確認を求める
-- [ ] 7.8 `npm run deploy:editor` として `package.json` に登録する。ビルドの中間生成物を `.gitignore` に足す
-- [ ] 7.9 環境名を指定せずに `npm run deploy:editor` を実行し、何もデプロイされないまま失敗することを確認する
+- [x] 7.1 `editor/function.jsonnet` を書く。`FunctionName` / `Role` / `Runtime` / `Handler` / `Architectures` は tfstate から読む。`MemorySize`（初期値 1024）と `Timeout` はここで決める
+  - `Timeout` は 30 秒。API Gateway の統合タイムアウトと同じにしてある。それより先に関数側が諦めても、利用者に返るものは変わらない。
+- [x] 7.2 `Environment.Variables` にテーブル名・自身の URL・パラメータのプレフィックス・Lambda Web Adapter 用の設定（`AWS_LAMBDA_EXEC_WRAPPER` など）を置く。値は tfstate から読み、転記を作らない
+  - `EDITOR_BASE_URL` と `EDITOR_PARAM_PREFIX` は**出力から読む**（`tfstate('output.editor_url')`）。文字列を組み立てる規則が Terraform と jsonnet の2箇所に分かれない。
+  - `AWS_LWA_READINESS_CHECK_HEALTHY_STATUS` を `100-599` にした。既定（100-499）のままだと、**設定が未投入で 500 を返す状態が「まだ起動していない」と解釈され**、原因の分かる 500 ではなくタイムアウトとして現れる。ここで見たいのは HTTP サーバが応答するようになったかであって、設定の正しさではない。
+- [x] 7.3 `Layers` に Lambda Web Adapter の arm64 レイヤー ARN（`ap-northeast-1`）を書く。使った版を控える
+  - `arn:aws:lambda:ap-northeast-1:753240598075:layer:LambdaAdapterLayerArm64:28`。
+- [x] 7.4 `scripts/build-editor.sh` を書く。Astro をビルドし、実行時に必要な依存だけを揃えた配布ディレクトリを作る。毎回作り直す
+  - **依存を「生成物が実際に参照しているもの」から決めるようにした。** ルートの `dependencies` をそのまま入れると、Astro のビルドにしか要らない `esbuild` まで Lambda に運ぶことになる（しかも `--os=linux --cpu=arm64` を付けると esbuild の postinstall が手元の binary の版を検査して落ちる）。Astro は自身のランタイムを生成物に取り込むので、実際に外部として残る参照は 16 個だけだった。版は手元の `node_modules` にある実際の版で固定する。
+  - **Astro の画像サービスを noop にした。** 既定のままだと `sharp` が実行時の依存に現れる。編集アプリケーションは `<Image>` を持たず、本文中の画像は Markdown から出た素の `<img>` なので、処理する対象がそもそもない。使わない native binary を運ばずに済む。
+  - `server/` と `client/` を兄弟に置き、サーバの入口が `server/` という名前のディレクトリに居ることが要る。node アダプタは配信物の場所を、ビルド時の絶対パスからではなく、この2つの相対関係と実行時の `import.meta.url` から解決する（`resolveClientDir`）。潰すと配信物が見つからなくなる。
+  - `--ignore-scripts` を付けている。他のプラットフォーム向けに入れているため、手元の環境を前提にした postinstall を走らせると落ちる。入れているものはいずれも純粋な JavaScript。
+- [x] 7.5 `editor/.lambdaignore` を置き、TypeScript のソースや開発用のファイルが配布物に混ざらないようにする
+- [x] 7.6 配布物のサイズを確認する。直接アップロードの上限（zip 50MB）に収まらない場合は S3 経由の配置に切り替える
+  - 展開 73.5 MB（8,936 ファイル）、**zip 12.5 MB**。上限に対して余裕がある。S3 経由への切り替えは要らない。
+  - 大きいのは `@aws-sdk`（16MB）、`@shikijs` と `shiki`（18MB、コードブロックの色付け）、`@smithy`（8.3MB）。
+- [x] 7.7 `scripts/deploy-editor.sh` を書く。環境名を第1引数に取り、`load_env` を通し、`backend.hcl` から state の場所を組み立てて `lambroll deploy --tfstate` に渡す。実行前に環境・profile・アカウントを表示し、production では確認を求める
+- [x] 7.8 `npm run deploy:editor` として `package.json` に登録する。ビルドの中間生成物を `.gitignore` に足す
+  - `editor/build/` を `.gitignore` に足した。あわせて `tsconfig.json` と `biome.json` の除外にも足した（`editor/dist` のときと同じ見落としで、配布物の 8,936 ファイルが検査対象に入っていた）。
+- [x] 7.9 環境名を指定せずに `npm run deploy:editor` を実行し、何もデプロイされないまま失敗することを確認する
+  - 環境名なし・未知の環境名・`config/<環境>.env` 不在の3つで、いずれもビルドにも AWS にも到達せずに止まる。
+  - あわせて、**作った配布物そのもの**（`editor/build/server/entry.mjs`）を起動して、これまでの検査（認証 26 件・画面 24 件・保存とプレビュー 12 件）を全部通し直した。依存を削ったことで動かなくなっていないことを、実際に動かして確かめてある。
 - [ ] 7.10 `npm run deploy:editor -- staging` を実行し、直後に `terraform plan` が差分を出さないことを確認する（`ignore_changes` の並べ忘れがないこと）
+  - **AWS の認証情報と lambroll が要るため未了。** lambroll はこの環境に入っていない（`brew install fujiwara/tap/lambroll`）。
 
 ## 8. staging での確認
 
