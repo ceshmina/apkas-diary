@@ -1,0 +1,49 @@
+---
+import Base from '../layouts/Base.astro'
+import { safeRedirectTo } from '../lib/auth/google.js'
+
+export const prerender = false
+
+// 既にログイン済みなら、ここに留まる理由がない。
+if (Astro.locals.session) {
+  return Astro.redirect('/', 302)
+}
+
+const redirectTo = safeRedirectTo(Astro.url.searchParams.get('redirect'))
+const denied = Astro.url.searchParams.has('error')
+
+const loginUrl = `/auth/login?redirect=${encodeURIComponent(redirectTo)}`
+---
+
+<Base title="ログイン">
+  <h1>ログイン</h1>
+
+  {
+    denied && (
+      <p class="denied">
+        ログインできませんでした。許可されたアカウントで、もう一度お試しください。
+      </p>
+    )
+  }
+
+  <p class="muted">Google アカウントで本人を確認します。</p>
+
+  <p><a class="button" href={loginUrl}>Google でログイン</a></p>
+
+  <style>
+    .denied {
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
+    }
+
+    .button {
+      display: inline-block;
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      text-decoration: none;
+    }
+  </style>
+</Base>
