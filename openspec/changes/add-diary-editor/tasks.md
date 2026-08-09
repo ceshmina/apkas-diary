@@ -146,6 +146,7 @@
 ## 6. Google Cloud: OAuth クライアント
 
 - [ ] 6.1 `apkas-staging` プロジェクトで OAuth 同意画面を設定する。External の場合は自分をテストユーザに登録する
+  - **Google Cloud のコンソールでの手作業が要るため未了。** 手順は README の「初期セットアップ / 7. 編集アプリケーションの OAuth クライアント」にある。
 - [ ] 6.2 ウェブアプリケーションの OAuth クライアントを作り、redirect URI に `https://admin.dev.apkas.net/auth/callback` と `http://localhost:4321/auth/callback` を登録する
 - [ ] 6.3 クライアント ID・secret と、生成した署名鍵、許可する Google アカウントを `aws ssm put-parameter --overwrite` で staging のパラメータに入れる
 - [ ] 6.4 `terraform plan` が差分を出さないことを確認する（`ignore_changes = [value]` が効いていること）
@@ -181,6 +182,7 @@
 ## 8. staging での確認
 
 - [ ] 8.1 許可されたアカウントでログインでき、一覧・作成・編集・公開の切り替え・プレビュー・ログアウトがひととおり動くことを確認する
+  - **staging への適用が済んでいないため未了。** 手元では、SSM の代役を立てたうえで配布物そのものを起動し、同等の確認（認証 26 件・画面 24 件・保存とプレビュー 12 件・純粋な関数 28 件）を通してある。ここで残っているのは Google との実際のやりとりと、AWS 上での挙動。
 - [ ] 8.2 許可されていない Google アカウントでログインを試み、拒否され、エントリの内容がいっさい返らないことを確認する
 - [ ] 8.3 未認証の状態で各ページと保存の経路に直接要求を送り、拒否され、データが読み取られも変更もされないことを確認する
 - [ ] 8.4 HTTP でのアクセスが接続の時点で成立しないこと、および HTTPS の応答に `Strict-Transport-Security` が付いていることを確認する
@@ -195,6 +197,7 @@
 ## 9. production への展開
 
 - [ ] 9.1 `apkas-production` プロジェクトで OAuth 同意画面と OAuth クライアントを作り、redirect URI に `https://admin.apkas.net/auth/callback` を登録する（localhost は登録しない）
+  - **staging の確認が済んでからにする。**
 - [ ] 9.2 production に `terraform apply` する
 - [ ] 9.3 production のパラメータに実値を入れる。**staging と異なるクライアント・異なる署名鍵**にする
 - [ ] 9.4 `npm run deploy:editor -- production` を実行し、直後に `terraform plan` が差分を出さないことを確認する
