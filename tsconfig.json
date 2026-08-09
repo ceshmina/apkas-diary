@@ -1,8 +1,9 @@
 {
   "extends": "astro/tsconfigs/strict",
-  "include": [".astro/types.d.ts", "**/*"],
+  "include": [".astro/types.d.ts", "editor/.astro/types.d.ts", "**/*"],
   "//": "lambda/ を外すのは、そこが Node の Lambda で独自の tsconfig と依存（sharp の型）を持つため。ここに含めるとサイト生成の型検査が lambda/photo-resize/node_modules を要求するようになる。検査は scripts/check-lambda.sh が別に行う。",
-  "exclude": ["dist", "node_modules", "export", "lambda"],
+  "//dist": "editor/dist にも生成物が出るため ** で受ける。`dist` だけだとルート直下しか外れず、編集アプリケーションのビルド結果が型検査の対象になる。",
+  "exclude": ["**/dist", "node_modules", "export", "lambda"],
   "compilerOptions": {
     "types": ["node"],
     "strictNullChecks": true,

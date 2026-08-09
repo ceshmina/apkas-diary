@@ -1,0 +1,24 @@
+/*
+ * 配色の基準値。
+ *
+ * 公開サイトと編集アプリケーションの双方から読む。プレビューで見たものと
+ * 公開後の見え方を一致させるため、色の出どころをここ1つに保つ。
+ */
+
+:root {
+  --fg: #1a1a1a;
+  --fg-muted: #666;
+  --bg: #fdfdfc;
+  --accent: #375e8a;
+  --border: #e2e0dc;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e8e6e3;
+    --fg-muted: #9a9691;
+    --bg: #1b1a19;
+    --accent: #8ab4e8;
+    --border: #35332f;
+  }
+}

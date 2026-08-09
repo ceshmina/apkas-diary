@@ -1,18 +1,45 @@
 ## 1. 公開サイトとの共有部分を切り出す
 
-- [ ] 1.1 `src/layouts/Base.astro` の `is:global` な CSS のうち、色の変数・字送り・本文要素（`h1` / `h2` / `img` / `pre` / `a` / `figure`）にかかわる部分を `src/styles/` へ移し、`Base.astro` から読む形にする。サイトのヘッダ・フッタに固有のものは移さない
-- [ ] 1.2 切り出しの前後で `npm run build -- staging` の生成物に差分が出ないことを確認する（見え方を変えない移動であること）
-- [ ] 1.3 `src/lib/store/put.ts` と `src/lib/store/queries.ts` が、編集アプリケーションからそのまま呼べる形になっているか確かめる。ビルド専用の前提（環境変数の読み方など）が混ざっていれば外す
-- [ ] 1.4 下書きを含む全エントリを新しい順に引く読み取りが既存のクエリで満たせるか確かめる。足りなければ `src/lib/store/queries.ts` に足す（公開サイト向けの経路には手を入れない）
+- [x] 1.1 `src/layouts/Base.astro` の `is:global` な CSS のうち、色の変数・字送り・本文要素（`h1` / `h2` / `img` / `pre` / `a` / `figure`）にかかわる部分を `src/styles/` へ移し、`Base.astro` から読む形にする。サイトのヘッダ・フッタに固有のものは移さない
+  - `src/styles/tokens.css`（配色）と `src/styles/base.css`（字送りと本文要素）の2つに分けた。`Base.astro` に残したのは `header` / `main` / `footer` / `.site-title` の4つだけ。
+  - `figure` は現状スタイルを持っていないため移すものがない。付けると見え方が変わるので、ここでは足さない。
+- [x] 1.2 切り出しの前後で `npm run build -- staging` の生成物に差分が出ないことを確認する（見え方を変えない移動であること）
+  - AWS の SSO が切れているため、DynamoDB Local に4件（公開3・下書き1）を入れて `astro build` を前後2回実行して比較した。
+  - **HTML 本体は完全に同一。** CSS は**ルールの集合として同一だが、順序が変わる**。Astro は import した CSS をコンポーネントの `<style>` より先に出すため、共有分（`a` / `h1` / `h2` / `img` / `pre` / `.muted`）がサイト固有分（`header` / `main` / `footer` / `.site-title`）より前に来る。
+  - 順序の変化が無害であることは、生成物に実在する 49 通りの (タグ, クラス) すべてについてカスケードを計算して確かめた。**計算結果が変わる要素は0件。** 入れ替わった 30 組のうちプロパティを共有するのは6組で、いずれも詳細度が異なる（`.site-title` > `a` など）ため順序によらず同じ側が勝つ。
+  - 当初は `<style>` の外に置いた注記が HTML コメントとして生成物に出ていた。CSS コメントとして `<style>` の中に移した。
+- [x] 1.3 `src/lib/store/put.ts` と `src/lib/store/queries.ts` が、編集アプリケーションからそのまま呼べる形になっているか確かめる。ビルド専用の前提（環境変数の読み方など）が混ざっていれば外す
+  - どちらも `tableName()` / `awsRegion()` / `docClient()` にしか依存しておらず、そのまま呼べる。`putEntry` は GSI キー属性の付け外しと作成日時の引き継ぎまで持っており、編集アプリケーション側で書き込みを再実装する必要がない。
+  - 唯一直したのは `src/lib/env.ts` の失敗メッセージ。`config/<環境>.env` を作れとだけ言っており、Lambda で動かしたときに嘘になる。両方の経路を案内する文面にした。
+- [x] 1.4 下書きを含む全エントリを新しい順に引く読み取りが既存のクエリで満たせるか確かめる。足りなければ `src/lib/store/queries.ts` に足す（公開サイト向けの経路には手を入れない）
+  - `scanAllIncludingDrafts()` で足りる。昇順で返るので、一覧側で反転して使う。新しいクエリは足さない。
+  - 年ごとにパーティションを引いて走査を避ける案も考えたが、「何年前まで遡れば `limit` 件に届くか」を決める規則がデータに依存し、空白の年をまたぐ判断が必要になる。1日1件の日記では全件でも数千件で、既にビルドのたびに走査している経路でもあるため、素直に走査する。
+  - doc コメントの「バックアップのための書き出し専用」は嘘になるので直した。公開サイトの生成がこの関数を呼ばないという肝心の部分は残してある。
 
 ## 2. 編集アプリケーションの骨格
 
-- [ ] 2.1 `editor/` を作り、`astro.config.ts` を `output: 'server'` と `@astrojs/node`（standalone）で書く。公開サイトの `astro.config.ts` とは独立させ、書き出しの integration は入れない
-- [ ] 2.2 `@astrojs/node` をルートの `package.json` に足す。Astro と Markdown プロセッサは公開サイトと同じ版を共有する（版がずれるとプレビューと公開結果が食い違う）
-- [ ] 2.3 `npm run dev:editor` を足し、`http://localhost:4321` で開発サーバが立ち上がることを確認する。`load_env` を通し、環境名の指定を必須にする
-- [ ] 2.4 `npm run check` の対象に `editor/` を含める。型検査と Lint が通ることを確認する
-- [ ] 2.5 応答に `X-Robots-Tag: noindex` を付ける
-- [ ] 2.6 起動時に必要な設定が欠けていたら、何をどこに設定すべきかを添えて落ちるようにする（`src/lib/env.ts` と同じ流儀。SSM の仮値のままの場合もここで弾く）
+- [x] 2.1 `editor/` を作り、`astro.config.ts` を `output: 'server'` と `@astrojs/node`（standalone）で書く。公開サイトの `astro.config.ts` とは独立させ、書き出しの integration は入れない
+  - **Astro のルートはリポジトリのルートのまま**にし、`srcDir` だけ `editor/src` に向けた。ルートを `editor/` に切ると、共有している `src/lib` と `src/styles` が Vite のルート外になる。実行は `astro build --config editor/astro.config.ts`。引数なしの `astro build` はこれまでどおり公開サイトを作る。
+  - `outDir` / `publicDir` / `cacheDir` も `editor/` 側に向けた。`dist/` と `.astro/` は `.gitignore` が階層を問わず無視するので追記は要らない。
+  - **HTML のストリーミングを切った**（`experimentalDisableStreaming`）。前段の API Gateway が応答を丸ごと受け取ってから返す以上、分割しても速くならない。分割しないほうが、生成の途中で例外が出たときに「途中まで正しく見えるページ」が返らずに済む。
+  - **Astro のセッションの保存先を `/tmp` に向けた。** 既定のままだと node アダプタが `cacheDir/sessions` を**ビルド時の絶対パスで焼き込む**。Lambda にその場所は無く、書き込みもできない。セッション自体は使わないが、いつか触ったときに動く場所を指しておく。ビルド結果に `/home/shu/...` が残っていないことを確認した。
+- [x] 2.2 `@astrojs/node` をルートの `package.json` に足す。Astro と Markdown プロセッサは公開サイトと同じ版を共有する（版がずれるとプレビューと公開結果が食い違う）
+  - `@astrojs/node` 11.1.0（peer は `astro@^7.0.0`）。設定を読むのに `@aws-sdk/client-ssm` も足した。
+- [x] 2.3 `npm run dev:editor` を足し、`http://localhost:4321` で開発サーバが立ち上がることを確認する。`load_env` を通し、環境名の指定を必須にする
+  - `scripts/dev-editor.sh`。環境名なし・未知の環境名・`config/<環境>.env` 不在の3つで、いずれも起動前に止まることを確認した。production を指定したときは確認を求める（手元から本番データを読み書きするため）。
+  - `EDITOR_BASE_URL`（`http://localhost:4321`）と `EDITOR_PARAM_PREFIX`（環境名から決まる）はこのスクリプトが渡す。`config/<環境>.env` に転記を増やさない。
+  - 実際の起動確認は staging の設定が要るため 8.11 で行う。`astro dev --config editor/astro.config.ts` 自体が起動して応答することはここで確認した。
+- [x] 2.4 `npm run check` の対象に `editor/` を含める。型検査と Lint が通ることを確認する
+  - `astro check` をルートと `--config editor/astro.config.ts` の2回走らせる。**ファイルの網羅としては1回目で足りている**（`astro check` はルート配下の `.astro` を全部見るため）。2回目を残したのは、`editor/astro.config.ts` そのものの誤りが1回目では読み込まれず素通りするため。わざと型エラーを入れて、両方が検出することを確認した。
+  - **`editor/dist` が検査対象に入っていた。** `tsconfig.json` の `exclude` が `"dist"`、biome の除外が `"!dist"` で、いずれもルート直下しか外れていなかった。両方 `**/dist` に直した。biome の `!.astro` も同じ理由で `!**/.astro` に直した。
+  - CSS を `.astro` から出したことで biome の CSS フォーマッタが効くようになり、引用符が二重に直されるようになった。`css.formatter.quoteStyle` を `single` にして、これまでの字面のまま保つようにした。
+- [x] 2.5 応答に `X-Robots-Tag: noindex` を付ける
+  - `editor/src/middleware.ts` で全応答に付ける。設定不足で 500 を返す経路にも付けた。`<meta name="robots">` も入れてある。
+- [x] 2.6 起動時に必要な設定が欠けていたら、何をどこに設定すべきかを添えて落ちるようにする（`src/lib/env.ts` と同じ流儀。SSM の仮値のままの場合もここで弾く）
+  - `editor/src/lib/config.ts`。SSM の1つのパスの下から4つまとめて取り、`PLACEHOLDER`・空文字・不在のいずれも失敗として扱う。メッセージには**実行すべき `aws ssm put-parameter` のコマンドがそのまま入る**。
+  - **詳細はログにだけ出し、ブラウザには返さない。** 未認証の相手に SSM のパス構成を教える理由がない。
+  - 失敗したときはキャッシュを捨てる。起動直後の一時的な失敗（IAM の伝播待ちなど）を、以後ずっと同じ失敗として返し続けないため。
+  - 手元での確認は、SSM の代役（`GetParametersByPath` だけ答える 30 行の HTTP サーバ）を立てて `AWS_ENDPOINT_URL_SSM` で向けた。仮値のまま／1つ欠け／実値ありの3通りで、500・500・200 になることと、ログのメッセージを確認した。
 
 ## 3. 認証（Google OIDC）
 
