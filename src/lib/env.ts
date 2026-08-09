@@ -1,8 +1,10 @@
 /**
  * 環境変数の読み取り。
  *
- * 実値は `config/<環境>.env` に置き、`scripts/build.sh` などが読み込んでから
- * プロセスに渡す。値が欠けている場合は、何をどこで設定すべきかを含めて失敗させる。
+ * 手元での実行では実値を `config/<環境>.env` に置き、`scripts/build.sh` などが
+ * 読み込んでからプロセスに渡す。編集アプリケーションを Lambda で動かすときは
+ * `editor/function.jsonnet` が Terraform の state から引いて関数に渡す。
+ * いずれの経路でも値が欠けている場合は、何をどこで設定すべきかを含めて失敗させる。
  */
 
 function required(name: string): string {
@@ -10,7 +12,8 @@ function required(name: string): string {
   if (!value) {
     throw new Error(
       `環境変数 ${name} が設定されていません。` +
-        'config/staging.env / config/production.env を作成し、terraform output の値を転記してください。',
+        '手元での実行では config/staging.env / config/production.env に terraform output の値を、' +
+        'Lambda では editor/function.jsonnet に設定してください。',
     )
   }
   return value

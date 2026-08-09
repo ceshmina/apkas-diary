@@ -3,12 +3,13 @@
   "files": {
     "includes": [
       "**",
-      "!dist",
+      "!**/dist",
       "!**/node_modules",
       "!export",
-      "!.astro",
+      "!**/.astro",
       "!**/.terraform",
-      "!lambda/*/build"
+      "!lambda/*/build",
+      "!editor/build"
     ]
   },
   "formatter": {
@@ -28,6 +29,11 @@
     "formatter": {
       "quoteStyle": "single",
       "semicolons": "asNeeded"
+    }
+  },
+  "css": {
+    "formatter": {
+      "quoteStyle": "single"
     }
   }
 }

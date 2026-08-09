@@ -1,0 +1,99 @@
+---
+// 配色と本文要素は公開サイトと共有する。プレビューの見え方を公開後と
+// 揃えるための前提であり、ここで上書きしない。
+import '../../../src/styles/tokens.css'
+import '../../../src/styles/base.css'
+
+interface Props {
+  title: string
+  /** ログイン中の利用者。未認証の画面（ログイン）では渡さない。 */
+  email?: string
+}
+
+const { title, email } = Astro.props
+const appTitle = 'apkas-diary 編集'
+const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <header>
+      <a href="/" class="app-title">{appTitle}</a>
+      {
+        email && (
+          <span class="session">
+            <span class="muted">{email}</span>
+            <form method="post" action="/auth/logout">
+              <button type="submit" class="link">ログアウト</button>
+            </form>
+          </span>
+        )
+      }
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <style is:global>
+      /* 編集アプリケーションの骨格。配色と本文要素は src/styles/ にある。 */
+      header,
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+      }
+
+      header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .app-title {
+        font-weight: 700;
+        font-size: 1.1rem;
+        text-decoration: none;
+        color: var(--fg);
+      }
+
+      .session {
+        display: flex;
+        align-items: baseline;
+        gap: 0.75rem;
+        font-size: 0.85rem;
+      }
+
+      .session form {
+        display: inline;
+      }
+
+      main {
+        padding: 2rem 0 4rem;
+        min-height: 60vh;
+      }
+
+      /* 見た目はリンク、実体はボタン。副作用のある操作を GET にしないため。 */
+      button.link {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--accent);
+        font: inherit;
+        font-size: inherit;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+    </style>
+  </body>
+</html>

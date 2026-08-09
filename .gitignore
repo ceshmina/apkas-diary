@@ -25,6 +25,7 @@ config/*.env
 
 # Lambda の配布物。lambroll deploy のたびに作り直す
 lambda/*/build/
+editor/build/
 
 # Terraform
 **/.terraform/

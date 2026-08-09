@@ -16,7 +16,9 @@
     "photo": "scripts/photo.sh",
     "import-legacy": "scripts/import-legacy.sh",
     "deploy:lambda": "scripts/deploy-lambda.sh",
-    "check": "astro check && biome check . && scripts/check-lambda.sh",
+    "dev:editor": "scripts/dev-editor.sh",
+    "deploy:editor": "scripts/deploy-editor.sh",
+    "check": "astro check && astro check --config editor/astro.config.ts && biome check . && scripts/check-lambda.sh",
     "format": "biome check --write ."
   },
   "repository": {
@@ -26,8 +28,10 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@astrojs/markdown-satteri": "^0.3.5",
+    "@astrojs/node": "^11.1.0",
     "@aws-sdk/client-dynamodb": "^3.1101.0",
     "@aws-sdk/client-s3": "^3.1106.0",
+    "@aws-sdk/client-ssm": "^3.1106.0",
     "@aws-sdk/lib-dynamodb": "^3.1101.0",
     "astro": "^7.1.6"
   },

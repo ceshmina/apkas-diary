@@ -1,0 +1,57 @@
+/*
+ * 字送りと本文要素の見え方。
+ *
+ * 公開サイトと編集アプリケーションの双方から読む。編集アプリケーションの
+ * プレビューは `renderMarkdown()` の結果をここで定めた字面の中に置くため、
+ * 整形の規則（src/lib/markdown.ts）と見え方の両方が同じ出どころになる。
+ *
+ * サイトのヘッダ・フッタなど、公開サイトに固有のものはここに置かない。
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0 1.25rem;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  line-height: 1.8;
+  font-size: 16px;
+}
+
+a {
+  color: var(--accent);
+}
+
+h1 {
+  font-size: 1.5rem;
+  line-height: 1.5;
+  margin: 0 0 1.5rem;
+}
+
+h2 {
+  font-size: 1.2rem;
+  margin: 2rem 0 0.75rem;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+pre {
+  overflow-x: auto;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  line-height: 1.6;
+}
+
+.muted {
+  color: var(--fg-muted);
+}

@@ -1,4 +1,9 @@
 ---
+// 配色と本文要素の見え方は編集アプリケーションと共有する。ここに書き戻すと、
+// プレビューと公開後の見え方がずれる余地が生まれる。
+import '../styles/tokens.css'
+import '../styles/base.css'
+
 interface Props {
   title: string
   description?: string
@@ -31,40 +36,7 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} | ${siteTitle}`
     <footer></footer>
 
     <style is:global>
-      :root {
-        --fg: #1a1a1a;
-        --fg-muted: #666;
-        --bg: #fdfdfc;
-        --accent: #375e8a;
-        --border: #e2e0dc;
-      }
-
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --fg: #e8e6e3;
-          --fg-muted: #9a9691;
-          --bg: #1b1a19;
-          --accent: #8ab4e8;
-          --border: #35332f;
-        }
-      }
-
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-      }
-
-      body {
-        margin: 0;
-        padding: 0 1.25rem;
-        background: var(--bg);
-        color: var(--fg);
-        font-family: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
-        line-height: 1.8;
-        font-size: 16px;
-      }
-
+      /* 公開サイトの骨格。配色と本文要素は src/styles/ にあり、編集アプリケーションと共有する。 */
       header,
       main,
       footer {
@@ -92,38 +64,6 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} | ${siteTitle}`
       footer {
         padding-bottom: 3rem;
         border-top: 1px solid var(--border);
-      }
-
-      a {
-        color: var(--accent);
-      }
-
-      h1 {
-        font-size: 1.5rem;
-        line-height: 1.5;
-        margin: 0 0 1.5rem;
-      }
-
-      h2 {
-        font-size: 1.2rem;
-        margin: 2rem 0 0.75rem;
-      }
-
-      img {
-        max-width: 100%;
-        height: auto;
-      }
-
-      pre {
-        overflow-x: auto;
-        padding: 0.9rem 1rem;
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        line-height: 1.6;
-      }
-
-      .muted {
-        color: var(--fg-muted);
       }
     </style>
   </body>

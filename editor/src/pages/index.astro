@@ -1,0 +1,175 @@
+---
+import { formatDateJa, todayJst, yearOf } from '../../../src/lib/date.js'
+import { byDateDesc } from '../../../src/lib/store/entry.js'
+import { scanAllIncludingDrafts } from '../../../src/lib/store/queries.js'
+import Base from '../layouts/Base.astro'
+
+export const prerender = false
+
+// 一覧には下書きも出す。公開サイトと違い、ここは書き手が見る場所である。
+// GSI1 は下書きを載せないため、ベーステーブルを走査して取る。
+const all = (await scanAllIncludingDrafts()).sort(byDateDesc)
+
+// 年ごとの件数は走査済みの結果から数える。追加の読み取りは要らない。
+const years = new Map<string, number>()
+for (const entry of all) {
+  const year = yearOf(entry.date)
+  years.set(year, (years.get(year) ?? 0) + 1)
+}
+
+const selectedYear = Astro.url.searchParams.get('year')
+const filtered = selectedYear ? all.filter((e) => yearOf(e.date) === selectedYear) : all
+
+// 全件を1ページに並べると、年を重ねるほど読み込みが重くなる。既定では
+// 直近だけを見せ、それより古いものは年で辿らせる。
+const LIMIT = 100
+const truncated = !selectedYear && filtered.length > LIMIT
+const shown = truncated ? filtered.slice(0, LIMIT) : filtered
+
+const session = Astro.locals.session
+const heading = selectedYear ? `${selectedYear}年のエントリ` : 'エントリ'
+---
+
+<Base title={heading} email={session?.email}>
+  <div class="head">
+    <h1>{heading}</h1>
+    <span class="head-actions">
+      <a href="/entries/new">別の日</a>
+      <a class="button" href={`/entries/${todayJst()}`}>今日の日記を書く</a>
+    </span>
+  </div>
+
+  {
+    all.length === 0 ? (
+      <p class="empty">
+        まだエントリがありません。
+        <a href={`/entries/${todayJst()}`}>最初の1件を書く</a>。
+      </p>
+    ) : (
+      <>
+        <p class="muted">
+          {selectedYear ? `${filtered.length} 件` : `全 ${all.length} 件`}
+          {truncated && ` のうち新しい ${shown.length} 件`}
+        </p>
+
+        <ul class="entries">
+          {shown.map((entry) => (
+            <li>
+              <a href={`/entries/${entry.date}`}>
+                <time datetime={entry.date}>{formatDateJa(entry.date)}</time>
+                <span class="title">{entry.title || <span class="muted">（無題）</span>}</span>
+              </a>
+              <span class={`status is-${entry.status}`}>
+                {entry.status === 'published' ? '公開' : '下書き'}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <nav class="years">
+          {selectedYear && <a href="/">すべて</a>}
+          {[...years.entries()]
+            .sort(([a], [b]) => (a < b ? 1 : -1))
+            .map(([year, count]) => (
+              <a href={`/?year=${year}`} aria-current={year === selectedYear ? 'page' : undefined}>
+                {year}
+                <span class="muted"> ({count})</span>
+              </a>
+            ))}
+        </nav>
+      </>
+    )
+  }
+
+  <style>
+    .head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .head-actions {
+      display: flex;
+      flex: none;
+      align-items: baseline;
+      gap: 1rem;
+      font-size: 0.9rem;
+    }
+
+    .button {
+      flex: none;
+      padding: 0.4rem 1rem;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .empty {
+      padding: 2rem 0;
+    }
+
+    .entries {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .entries li {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .entries a {
+      display: flex;
+      flex: 1;
+      align-items: baseline;
+      gap: 0.75rem;
+      min-width: 0;
+      text-decoration: none;
+    }
+
+    .entries time {
+      flex: none;
+      color: var(--fg-muted);
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .entries .title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .status {
+      flex: none;
+      padding: 0 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--fg-muted);
+      font-size: 0.75rem;
+    }
+
+    .status.is-published {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .years {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem 1rem;
+      padding-top: 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    .years [aria-current='page'] {
+      font-weight: 700;
+    }
+  </style>
+</Base>

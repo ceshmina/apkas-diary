@@ -1,0 +1,240 @@
+---
+import { formatDateJa, isValidDate } from '../../../../src/lib/date.js'
+import { renderMarkdown } from '../../../../src/lib/markdown.js'
+import { isEntryStatus } from '../../../../src/lib/store/entry.js'
+import { putEntry } from '../../../../src/lib/store/put.js'
+import { getEntry } from '../../../../src/lib/store/queries.js'
+import Base from '../../layouts/Base.astro'
+
+export const prerender = false
+
+const date = Astro.params.date ?? ''
+
+// 日付として読めないものは、存在しないページとして扱う。
+if (!isValidDate(date)) {
+  Astro.response.status = 404
+}
+
+const existing = isValidDate(date) ? await getEntry(date) : undefined
+
+let title = existing?.title ?? ''
+let body = existing?.body ?? ''
+let status = existing?.status ?? 'draft'
+
+let preview: string | undefined
+let error: string | undefined
+const saved = Astro.url.searchParams.has('saved')
+
+if (isValidDate(date) && Astro.request.method === 'POST') {
+  const form = await Astro.request.formData()
+
+  // 保存に失敗しても入力を捨てない。以降の描画はフォームから読んだ値で行う。
+  title = String(form.get('title') ?? '')
+  body = String(form.get('body') ?? '')
+  const rawStatus = String(form.get('status') ?? '')
+  status = isEntryStatus(rawStatus) ? rawStatus : 'draft'
+
+  if (String(form.get('action') ?? 'save') === 'preview') {
+    preview = await renderMarkdown(body)
+  } else {
+    try {
+      // 書き込みは CLI と同じ経路を通す。GSI キー属性の付け外しも作成日時の
+      // 引き継ぎも putEntry が持っており、ここでは持たない。
+      await putEntry({ date, title, body, status })
+
+      // POST の結果をそのまま描画すると、再読み込みで二重に保存される。
+      return Astro.redirect(`/entries/${date}?saved=1`, 303)
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e)
+    }
+  }
+}
+
+const session = Astro.locals.session
+const heading = isValidDate(date) ? formatDateJa(date) : '日付が不正です'
+---
+
+<Base title={heading} email={session?.email}>
+  {
+    !isValidDate(date) ? (
+      <>
+        <h1>日付が不正です</h1>
+        <p class="muted">YYYY-MM-DD 形式の、実在する日付を指定してください。</p>
+        <p>
+          <a href="/entries/new">日付を選び直す</a>
+        </p>
+      </>
+    ) : (
+      <>
+        <div class="head">
+          <h1>
+            <time datetime={date}>{heading}</time>
+          </h1>
+          <span class="state muted">
+            {existing ? `更新 ${existing.updatedAt}` : '新規'}
+          </span>
+        </div>
+
+        {saved && <p class="notice ok">保存しました。</p>}
+        {error && (
+          <p class="notice error">
+            保存できませんでした（{error}）。入力はそのまま残っているので、もう一度お試しください。
+          </p>
+        )}
+
+        <form method="post">
+          <label>
+            タイトル
+            <input type="text" name="title" value={title} autocomplete="off" />
+          </label>
+
+          <label>
+            本文（Markdown）
+            <textarea name="body" rows="20">{body}</textarea>
+          </label>
+
+          <fieldset>
+            <legend>公開状態</legend>
+            <label class="radio">
+              <input type="radio" name="status" value="draft" checked={status === 'draft'} />
+              下書き
+            </label>
+            <label class="radio">
+              <input type="radio" name="status" value="published" checked={status === 'published'} />
+              公開
+            </label>
+            <p class="muted hint">
+              公開にすると、次のサイト生成（<code>npm run build</code> と{' '}
+              <code>npm run deploy</code>）から公開サイトに現れる。下書きに戻すと消える。
+            </p>
+          </fieldset>
+
+          <div class="actions">
+            <button type="submit" name="action" value="save" class="primary">保存</button>
+            <button type="submit" name="action" value="preview">表示を確認</button>
+            <a href="/">一覧へ戻る</a>
+          </div>
+        </form>
+
+        {
+          preview !== undefined && (
+            <section class="preview">
+              <h2>表示の確認</h2>
+              <p class="muted">
+                公開サイトと同じ整形で表示している。まだ保存されていない。
+              </p>
+              <article set:html={preview} />
+            </section>
+          )
+        }
+      </>
+    )
+  }
+
+  <style>
+    .head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .head h1 {
+      margin-bottom: 0.5rem;
+    }
+
+    .state {
+      flex: none;
+      font-size: 0.8rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .notice {
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.9rem;
+    }
+
+    input[type='text'],
+    textarea {
+      padding: 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--fg);
+      font: inherit;
+    }
+
+    textarea {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      resize: vertical;
+    }
+
+    fieldset {
+      margin: 0;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+
+    legend {
+      padding: 0 0.4rem;
+      font-size: 0.9rem;
+    }
+
+    .radio {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 1rem;
+    }
+
+    .hint {
+      margin-bottom: 0;
+      font-size: 0.85rem;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .actions button {
+      padding: 0.45rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: none;
+      color: var(--fg);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .actions button.primary {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .preview {
+      margin-top: 3rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</Base>
