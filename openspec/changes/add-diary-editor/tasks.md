@@ -233,13 +233,38 @@
 
 ## 9. production への展開
 
-- [ ] 9.1 `apkas-production` プロジェクトで OAuth 同意画面と OAuth クライアントを作り、redirect URI に `https://admin.apkas.net/auth/callback` を登録する（localhost は登録しない）
-  - **staging の確認が済んでからにする。**
-- [ ] 9.2 production に `terraform apply` する
-- [ ] 9.3 production のパラメータに実値を入れる。**staging と異なるクライアント・異なる署名鍵**にする
-- [ ] 9.4 `npm run deploy:editor -- production` を実行し、直後に `terraform plan` が差分を出さないことを確認する
-- [ ] 9.5 staging の資格情報では production の編集アプリケーションに入れないことを確認する
+- [x] 9.1 `apkas-production` プロジェクトで OAuth 同意画面と OAuth クライアントを作り、redirect URI に `https://admin.apkas.net/auth/callback` を登録する（localhost は登録しない）
+  - 利用者が作成。`/auth/login` が返す認可 URL の `redirect_uri` が `https://admin.apkas.net/auth/callback` であること、`client_id` が SSM に入れた値と一致すること（指紋で照合）を実機で確認した。
+- [x] 9.2 production に `terraform apply` する
+  - **20 件追加、変更 0、破棄 0。** 追加はすべて `module.editor` の中で、既存の公開サイト・写真・テーブルには plan の時点でも `no-op` 以外が出ていない。編集アプリケーションの追加が既存の配信に触れないことが、適用前に読める形で確かめられる。
+- [x] 9.3 production のパラメータに実値を入れる。**staging と異なるクライアント・異なる署名鍵**にする
+  - 署名鍵はこちらで生成して投入し、**値を表示せずに指紋だけを比較**して staging と別物であることを確かめた。クライアントの id / secret は利用者が直接投入した。secret を会話や中間ファイルに通さないため。
+  - client id も指紋で照合し、staging とは別のクライアントであることを確認した。
+  - 許可アドレスは staging と同じ `shu@apkas.net`。書く人が同じなので分ける理由がない。
+- [x] 9.4 `npm run deploy:editor -- production` を実行し、直後に `terraform plan` が差分を出さないことを確認する
+  - zip 40.3 MB（上限 50 MB）。`current` alias を新規作成。
+  - **直後の `terraform plan` は `No changes`（`-detailed-exitcode` が 0）。** lambroll が入れた実行時設定を Terraform が戻そうとしないことが、production でも確かめられた。
+- [x] 9.5 staging の資格情報では production の編集アプリケーションに入れないことを確認する
+  - staging の署名鍵で作った cookie を production に提示 → `/login` へ 302。
+  - **併せて、正しい鍵で作った cookie では 200 になることも確かめた。** これが無いと、cookie の形が間違っているだけで「拒否された」ように見えてしまい、確認にならない。
+  - 中身だけ差し替えた cookie（署名は正しいまま）と期限切れの cookie も 302。
+  - client id / 署名鍵ともに staging と別物であることは 9.3 で確認済み。
 - [ ] 9.6 production で 8.1〜8.4 と同じ確認を行う
+  - **ブラウザでの Google ログイン（8.1 の入口と 8.2）だけ利用者に確認をお願いしている。** それ以外は実機で確認した。
+  - 一覧：実データ（2023〜2026 の 1096 項目）に対して 200。100 件で打ち切られ、年での絞り込みが効く（`?year=2023` は 2023 年の 291 件のみ。混ざって見えた 2026 の 1 件は当日分の新規作成リンク）。
+  - 編集：既存の日付・存在しない日付とも 200。保存は 303 で PRG、再取得でタイトルと本文が戻る。
+  - 公開の切り替え：`published` にすると `gsi1pk` / `gsi1sk` が付き、`draft` に戻すと外れる。**公開サイト側の絞り込みが sparse index だけで成立していることが、実データでも確かめられた。**
+  - プレビュー：Markdown が整形され、入力が残り、**DynamoDB には何も書かれない**（前後で項目なし）。
+  - 保存を3回またいでも `createdAt` は保たれ、`updatedAt` だけ進む。
+  - ログアウト：GET は 404（POST のみ）、POST は 303 で cookie が `Max-Age=0` で消える。
+  - 確認に使った 2099-12-31 の項目は AWS CLI で消した。件数は確認の前後で同じ。**編集アプリケーションには消す権限が無い**ので、この後片付けはこちらの経路でしかできない。
+  - 8.3 相当：未認証では `/`・`/entries/new`・`/entries/<日付>` がいずれも `/login` へ 302。存在する日付と存在しない日付で応答が変わるのは `Location` が要求されたパスをそのまま返す部分だけで、**エントリの有無は漏れない**。
+  - **未認証の POST は 403 で、staging で記録した 401 とは違う。** Astro の CSRF 判定が middleware より前に走るため、`Origin` の無いフォーム POST はそこで落ちる。`Origin` を付けて送れば middleware まで届いて 401 になる（実機で両方確認）。どちらも拒否だが、後から見て退行と誤読しないよう記録しておく。
+  - 別サイトからの POST は、正しい cookie を付けても 403。
+  - 8.4 相当：`http://admin.apkas.net` は接続が成立しない（status=000）。200・302・401・500 のいずれにも `Strict-Transport-Security` と `X-Robots-Tag` が付く。
+  - 8.5 / 8.6 相当：`DeleteItem` / `BatchWriteItem` / `UpdateItem` / `Query` は `implicitDeny`、`GetItem` / `PutItem` / `Scan` のみ `allowed`。staging のテーブル、公開サイトと写真のバケット、CloudFront の invalidation もすべて `implicitDeny`。
+  - 8.7 / 8.8 相当：コールドスタートは初期化 1.00 秒 + 応答 0.44 秒 = **1.44 秒**（上限 30 秒）。暖まっていれば 0.08 秒。使用メモリは 1024 MB 中 155 MB。
+  - 8.9 相当：`/aws/lambda/apkas-diary-editor-production`、保持 30 日。
 
 ## 10. ドキュメント
 
