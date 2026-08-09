@@ -187,6 +187,8 @@ staging は `admin.dev.apkas.net`、production は `admin.apkas.net`。既存の
 
 **[CSS の切り出しで公開サイトの見え方が変わる]** → 切り出しは移動だけとし、同時に整理しない。前後で生成物の差分を確認する（決定 10）。
 
+**[前段で TLS を終端するため、Astro が要求を http と解釈する]** → そのままだと `Astro.url.origin` が `http://…` になり、ブラウザが送る `Origin: https://…` と食い違って、Astro の CSRF 対策（`security.checkOrigin`、既定で有効）が**フォームの POST をひとつ残らず 403 にする**。`security.allowedDomains` に配信ドメインを挙げて `X-Forwarded-Proto` を信じさせることで解く。素性の知れないホストまで信じると `Astro.url` を操作されるので、挙げるのは 2 つのドメインに限る。
+
 **[最終更新の取り違え]** → 複数のタブで同じ日付を開いて別々に保存すると、あとの保存が前の保存を消す。利用者が1人なので楽観的に扱い、検出の仕組みは入れない。取り返しは DynamoDB の PITR（既に有効）で付ける。
 
 ## Migration Plan

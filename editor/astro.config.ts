@@ -32,6 +32,26 @@ export default defineConfig({
 
   trailingSlash: 'never',
 
+  security: {
+    /**
+     * 前段が渡す `X-Forwarded-Proto` / `X-Forwarded-Host` を、ここに挙げた
+     * ホストに限って信じる。
+     *
+     * **これが無いと保存が全部 403 になる。** TLS は API Gateway で終端し、
+     * 関数には平文で届くため、Astro は要求の URL を `http://` として組み立てる。
+     * 一方ブラウザが送る `Origin` は `https://` なので、Astro の CSRF 判定
+     * （`security.checkOrigin`、既定で有効）が別オリジンと見なす。フォームの
+     * POST がひとつ残らず弾かれる。
+     *
+     * 素性の知れないホストまで信じると、`X-Forwarded-Host` を差し込まれて
+     * `Astro.url` を操作されうる。ここに挙げた2つに限る。
+     */
+    allowedDomains: [
+      { hostname: 'admin.apkas.net', protocol: 'https' },
+      { hostname: 'admin.dev.apkas.net', protocol: 'https' },
+    ],
+  },
+
   // 画像処理を行わない。
   //
   // 既定の画像サービスは sharp を使う。編集アプリケーションは `<Image>` を

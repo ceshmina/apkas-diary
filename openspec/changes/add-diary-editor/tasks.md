@@ -151,12 +151,15 @@
 
 ## 6. Google Cloud: OAuth クライアント
 
-- [ ] 6.1 `apkas-staging` プロジェクトで OAuth 同意画面を設定する。External の場合は自分をテストユーザに登録する
-  - **Google Cloud のコンソールでの手作業が要るため未了。** 手順は README の「初期セットアップ / 7. 編集アプリケーションの OAuth クライアント」にある。
-- [ ] 6.2 ウェブアプリケーションの OAuth クライアントを作り、redirect URI に `https://admin.dev.apkas.net/auth/callback` と `http://localhost:4321/auth/callback` を登録する
-- [ ] 6.3 クライアント ID・secret と、生成した署名鍵、許可する Google アカウントを `aws ssm put-parameter --overwrite` で staging のパラメータに入れる
-- [ ] 6.4 `terraform plan` が差分を出さないことを確認する（`ignore_changes = [value]` が効いていること）
-- [ ] 6.5 tfstate に secret と署名鍵の実値が含まれていないことを確認する
+- [x] 6.1 `apkas-staging` プロジェクトで OAuth 同意画面を設定する。External の場合は自分をテストユーザに登録する
+  - 利用者がコンソールで実施。4つのパラメータはいずれも version 2 で、仮値のまま残っているものは無い。
+  - 認可 URL の `client_id` が SSM に入っている値と一致すること、`redirect_uri` が `https://admin.dev.apkas.net/auth/callback` であることを実機で確認した。
+- [x] 6.2 ウェブアプリケーションの OAuth クライアントを作り、redirect URI に `https://admin.dev.apkas.net/auth/callback` と `http://localhost:4321/auth/callback` を登録する
+- [x] 6.3 クライアント ID・secret と、生成した署名鍵、許可する Google アカウントを `aws ssm put-parameter --overwrite` で staging のパラメータに入れる
+- [x] 6.4 `terraform plan` が差分を出さないことを確認する（`ignore_changes = [value]` が効いていること）
+  - 差分なし。実値を入れても Terraform は仮値へ戻そうとしない。
+- [x] 6.5 tfstate に secret と署名鍵の実値が含まれていないことを確認する
+  - state（109,898 文字）を取得し、SSM の実値4つがそのバイト列として現れないことを機械的に確認した。state 内の `aws_ssm_parameter` の `value` は4つとも `PLACEHOLDER` のまま。
 
 ## 7. パッケージングとデプロイ
 
@@ -198,7 +201,9 @@
 - [ ] 8.1 許可されたアカウントでログインでき、一覧・作成・編集・公開の切り替え・プレビュー・ログアウトがひととおり動くことを確認する
   - **staging への適用が済んでいないため未了。** 手元では、SSM の代役を立てたうえで配布物そのものを起動し、同等の確認（認証 26 件・画面 24 件・保存とプレビュー 12 件・純粋な関数 28 件）を通してある。ここで残っているのは Google との実際のやりとりと、AWS 上での挙動。
 - [ ] 8.2 許可されていない Google アカウントでログインを試み、拒否され、エントリの内容がいっさい返らないことを確認する
-- [ ] 8.3 未認証の状態で各ページと保存の経路に直接要求を送り、拒否され、データが読み取られも変更もされないことを確認する
+- [x] 8.3 未認証の状態で各ページと保存の経路に直接要求を送り、拒否され、データが読み取られも変更もされないことを確認する
+  - 実機で確認。`/`・`/entries/<日付>`・`/entries/new` はいずれも `/login` へ 302、保存の経路（POST）は 401、別サイトからの POST は 403。
+  - 存在する日付（2026-08-01）と存在しない日付（2099-12-31）で応答が完全に一致することも確認した。
 - [x] 8.4 HTTP でのアクセスが接続の時点で成立しないこと、および HTTPS の応答に `Strict-Transport-Security` が付いていることを確認する
   - `http://admin.dev.apkas.net` は接続が成立しない（curl の status=000）。API Gateway のカスタムドメインは 443 しか受け付けない。
   - **HSTS が付いていない応答があった。** 設定不足の 500 と未認証の 401 は middleware の早期 return で、ヘッダを付ける場所を通っていなかった。最初の1回がその応答になることは十分ありうるので、付ける場所を1つにまとめて全経路で付くようにした。302・401・500・200 の4通りで確認済み。
@@ -215,8 +220,13 @@
   - 2回目は 0.24 秒。初期化は走らない。
 - [x] 8.9 CloudWatch Logs に実行の記録が残り、保持期間が設定されていることを確認する
   - `/aws/lambda/apkas-diary-editor-staging`、保持 30 日。実行の記録が残ることも確認した。
-- [ ] 8.10 編集アプリケーションを止めた状態（関数を壊す、あるいは同時実行を 0 にする）で、公開サイトと写真が配信され続け、`npm run entry` からの登録も従来どおり動くことを確認する
-- [ ] 8.11 手元の `npm run dev:editor -- staging` でも本物の Google ログインを通して動くことを確認する（認証を迂回する経路が無いこと）
+- [x] 8.10 編集アプリケーションを止めた状態（関数を壊す、あるいは同時実行を 0 にする）で、公開サイトと写真が配信され続け、`npm run entry` からの登録も従来どおり動くことを確認する
+  - 予約同時実行を 0 にして止めた（**0 の予約は未予約分を減らさないので、上限 10 のアカウントでも設定できる**。5.13 で 5 が拒否されたのとは別の話）。
+  - 止めた状態で：編集アプリケーション 503 / 公開サイト 200 / 写真 200 / `npm run entry -- staging` は成功。日記を書く手段は失われない。
+  - 予約を外して 200 に戻ることを確認。確認用に作った 2099-12-31 の下書きは AWS CLI で消した（**編集アプリケーションには消す権限が無い**ので、この後片付けはこちらの経路でしかできない）。
+- [x] 8.11 手元の `npm run dev:editor -- staging` でも本物の Google ログインを通して動くことを確認する
+  - 起動して staging の SSM と DynamoDB を読み、未認証では `/login` へ 302。認可 URL の `redirect_uri` は `http://localhost:4321/auth/callback` で、client_id は staging のもの。**認証を迂回する経路は無い。**
+  - localhost には HSTS が付かないことも確認した。付くと以後 `http://localhost` が繋がらなくなる。（認証を迂回する経路が無いこと）
 
 ## 9. production への展開
 
