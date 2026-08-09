@@ -105,6 +105,17 @@ export function nowUtcIso(): string {
   return new Date().toISOString()
 }
 
+/**
+ * JST における今日の暦日。`YYYY-MM-DD`。
+ *
+ * エポックを 9 時間ずらしてから UTC の暦日として読む。実行環境のタイムゾーン
+ * 設定に依存しないため、手元（JST）でも Lambda（UTC）でも同じ日を指す。
+ * 深夜 0 時から 9 時のあいだに、Lambda が前日を返すという形の間違いを避ける。
+ */
+export function todayJst(): string {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'] as const
 
 /**

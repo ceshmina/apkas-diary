@@ -1,0 +1,84 @@
+---
+import { isValidDate, todayJst } from '../../../../src/lib/date.js'
+import Base from '../../layouts/Base.astro'
+
+export const prerender = false
+
+// 日付が決まればあとは編集画面と同じである。ここは日付を選ぶだけの入口で、
+// 「新規作成」と「編集」で別の保存経路を持たない。既にエントリのある日付を
+// 選んだ場合は、その内容を読み込んだ編集画面になる。
+const requested = Astro.url.searchParams.get('date')
+
+let error: string | undefined
+if (requested !== null) {
+  if (isValidDate(requested)) {
+    return Astro.redirect(`/entries/${requested}`, 302)
+  }
+  error = '日付は YYYY-MM-DD 形式の、実在する日付で指定してください。'
+}
+
+const session = Astro.locals.session
+---
+
+<Base title="日付を選ぶ" email={session?.email}>
+  <h1>日付を選ぶ</h1>
+
+  {error && <p class="error">{error}</p>}
+
+  <form method="get" action="/entries/new">
+    <label>
+      日付
+      <input type="date" name="date" value={requested ?? todayJst()} required />
+    </label>
+    <button type="submit">開く</button>
+  </form>
+
+  <p class="muted">
+    既にエントリのある日付を選ぶと、その内容を読み込んだ編集画面になる。同じ日付に
+    2件目は作られない。
+  </p>
+
+  <p><a href="/">一覧へ戻る</a></p>
+
+  <style>
+    form {
+      display: flex;
+      align-items: end;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.9rem;
+    }
+
+    input {
+      padding: 0.4rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--fg);
+      font: inherit;
+    }
+
+    button {
+      padding: 0.45rem 1.25rem;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      background: none;
+      color: var(--accent);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .error {
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
+    }
+  </style>
+</Base>
