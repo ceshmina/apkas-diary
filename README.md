@@ -31,7 +31,16 @@
 | Node.js | 22 以上 | `.node-version` を参照 |
 | Terraform | 1.10 以上 | S3 backend のネイティブロック（`use_lockfile`）を使うため |
 | AWS CLI | v2 | デプロイと bootstrap で使う |
-| lambroll | 1.3 以上 | 写真変換 Lambda と編集アプリケーションのデプロイに使う。`brew install fujiwara/tap/lambroll` |
+| lambroll | 1.3 以上 | 写真変換 Lambda と編集アプリケーションのデプロイに使う |
+
+lambroll は macOS なら `brew install fujiwara/tap/lambroll`。Linux では [release](https://github.com/fujiwara/lambroll/releases) の tarball を落として PATH の通った場所に置く。
+
+```bash
+curl -sSL -o /tmp/lambroll.tar.gz \
+  https://github.com/fujiwara/lambroll/releases/download/v1.5.1/lambroll_v1.5.1_linux_amd64.tar.gz
+tar xzf /tmp/lambroll.tar.gz -C /tmp
+install -m 0755 /tmp/lambroll ~/.local/bin/lambroll
+```
 
 AWS は **staging と production でアカウントを分け、named profile で切り替える**。
 リージョンはいずれも `ap-northeast-1`。
@@ -423,6 +432,18 @@ npm run deploy:editor -- staging
 許可するアカウントを変えるときも同じで、`allowed-email` を入れ替えて配り直す。**アプリケーションのコードは触らない。**
 
 **秘密が漏れたとき**は、Google Cloud のコンソールでそのクライアントの secret を無効化するのが先である。SSM の値を書き換えても、古い secret が生きているあいだは他所から使える。もう一方の環境は別のクライアント・別の署名鍵なので、巻き込まれない。
+
+#### 配布物について知っておくこと
+
+`npm run deploy:editor` が作る配布物（`editor/build/`）は **linux/arm64 向け**である。Markdown プロセッサ（satteri）が native binding を持つため、手元の環境では読めない。
+
+そのため、**配布物をそのまま手元で動かしても本文の整形だけが落ちる**。手元で動かしたいときは `npm run dev:editor` を使う（こちらは手元の `node_modules` を使うので問題ない）。配布物のほうを試したい場合は、この環境向けの binding を足す。
+
+```bash
+cp -R node_modules/@bruits/satteri-linux-x64-gnu editor/build/node_modules/@bruits/
+```
+
+ビルドは最後に、**リポジトリの外に写した配布物が単体で起動できるか**を確かめる。中で動かすと Node がひとつ上の `node_modules` まで探しにいってしまい、入れ忘れた依存が手元では拾えてしまうためである。
 
 #### Web Adapter のレイヤーを上げる
 
