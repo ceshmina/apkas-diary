@@ -94,6 +94,6 @@
 - [x] 8.3 編集アプリケーションを production へ（lambroll、version 4、alias を更新）
   - `npm run deploy:editor -- production` は tfstate の読み取りで失敗した。**変更とは無関係の資格情報の問題**で、`apkas-production.admin` は `credential_process`（aws-sso-util）と旧来の SSO 設定の両方を持っており、Go 製のツール（lambroll・Terraform）は後者を選んで期限切れの token に当たる。AWS CLI は前者を使うので通る。`aws configure export-credentials` で得た資格情報を渡し、`build-editor.sh` を経た `editor/build` に対して `lambroll deploy` を直接実行した（スクリプトが最後に行う手順と同じもの）。
 - [x] 8.4 https://diary.apkas.net と https://admin.apkas.net/login を明暗それぞれで確認。新しい基準値が配信物に載っており、青（`#375e8a`）は残っていない
-- [ ] 8.5 production で `terraform plan` に差分が出ないことを確認する（`deploy-editor.sh` が求めている確認）
-  - 8.3 と同じ理由で実行できていない。backend の `profile` は Terraform が自分で読むため、環境変数の資格情報では上書きできない。`aws sso login --profile apkas-production.admin` のあとに実行すること。
-  - staging では同じモジュール構成で `No changes.` を確認済み。今回の反映で変わったのは関数のコードだけで、`function.jsonnet`（メモリ・タイムアウト・環境変数）には触れていない。
+- [x] 8.5 production で `terraform plan` に差分が出ないことを確認する（`deploy-editor.sh` が求めている確認）
+  - `No changes.`。関数の実行時設定が `ignore_changes` の一覧から漏れていないことを確認した。
+  - 一度は 8.3 と同じ理由で実行できなかった。backend の `profile` は Terraform が自分で読むため、環境変数の資格情報では上書きできない。`aws sso login` を通したあとに実行した。
