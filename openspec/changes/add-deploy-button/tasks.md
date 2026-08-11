@@ -148,13 +148,24 @@
 
 ## 7. production への展開
 
-- [ ] 7.1 `cd terraform/envs/production && terraform apply`
+**前提**: この章に入る前に change を `main` へマージした（`6731d39`）。CodeBuild は GitHub から clone するため、`main` に `buildspec.yml` が載るまでボタンは成功しない。マージ後、**staging のボタンを素で押して成功することを確認済み**（配った commit は `main` の HEAD と一致）。これで 6.4 が完全に閉じた。
+
+- [x] 7.1 `cd terraform/envs/production && terraform apply`
+  - staging と同じ形（**6 added / 1 changed / 0 destroyed**）。変更は editor の IAM ポリシーの in-place のみ。
 - [ ] 7.2 GitHub 接続を承認する（staging とは別の接続）
-- [ ] 7.3 `npm run deploy:editor -- production`
-- [ ] 7.4 production の画面で、確認を経ないと起動しないことを確認する。取り消したときに何も起きないことも確かめる
+  - **未完了。** コンソールでの人の操作が要る。`arn:aws:codestar-connections:ap-northeast-1:961341543806:connection/9d0c5e26-...` が `PENDING`。
+- [x] 7.3 `npm run deploy:editor -- production`
+  - version 2 として配布、alias を更新。
+  - 併せて production 側の権限境界が staging と同じ形になっていることを確認した。editor は自環境の公開手続きを起動できる一方、配信元 S3・CloudFront・**staging の公開手続き**はすべて `implicitDeny`。publish は配信元へ書ける一方、日記への書き込みは拒否。
+- [x] 7.4 production の画面で、確認を経ないと起動しないことを確認する。取り消したときに何も起きないことも確かめる
+  - 配備済みの `https://admin.apkas.net/publish` で確認。ボタンの submit 値は `confirm`、`action=confirm` は確認の画面を返し、`confirmed` 無しの `start` は確認へ戻される。
+  - **一連の操作を通してビルド総数は 0 のまま。** 「やめる」は `/publish` への GET なので、そもそも何も起こさない。
 - [ ] 7.5 コンソールから `DIARY_DEPLOY_CONFIRMED` を渡さずに `StartBuild` し、deploy の段に進まないことを確認する
+  - **7.2 待ち。** 接続が未承認だと `DOWNLOAD_SOURCE` で止まり、`deploy.sh` まで到達しないため確認にならない。
 - [ ] 7.6 確認を経て起動し、production のサイトが更新されることを確認する。staging のサイトが変化していないことも確かめる
-- [ ] 7.7 `terraform plan` が差分を出さないことを確認する
+  - **7.2 待ち。**
+- [x] 7.7 `terraform plan` が差分を出さないことを確認する
+  - apply と `deploy:editor` のあと、**No changes. Your infrastructure matches the configuration.**
 
 ## 8. 文書
 
