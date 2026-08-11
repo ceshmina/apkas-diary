@@ -34,7 +34,9 @@ if (isValidDate(date) && Astro.request.method === 'POST') {
   const rawStatus = String(form.get('status') ?? '')
   status = isEntryStatus(rawStatus) ? rawStatus : 'draft'
 
-  if (String(form.get('action') ?? 'save') === 'preview') {
+  const action = String(form.get('action') ?? 'save')
+
+  if (action === 'preview') {
     preview = await renderMarkdown(body)
   } else {
     try {
@@ -43,8 +45,20 @@ if (isValidDate(date) && Astro.request.method === 'POST') {
       await putEntry({ date, title, body, status })
 
       // POST の結果をそのまま描画すると、再読み込みで二重に保存される。
+      //
+      // 写真の投入はこの画面を離れる（フォームが S3 へ POST するため、書きかけの
+      // 本文を抱えたまま行けない）。**保存を経てから移る**ことで、戻ったときに
+      // 入力が残っている。保存を伴うことはボタンの文言で分かるようにしてある。
+      if (action === 'photo') {
+        const target = new URL('/photos/new', Astro.url)
+        target.searchParams.set('date', date)
+        target.searchParams.set('return', `/entries/${date}`)
+        return Astro.redirect(`${target.pathname}${target.search}`, 303)
+      }
+
       return Astro.redirect(`/entries/${date}?saved=1`, 303)
     } catch (e) {
+      // 保存に失敗したら移らない。入力を抱えたままこの画面に留まる。
       error = e instanceof Error ? e.message : String(e)
     }
   }
@@ -112,6 +126,12 @@ const heading = isValidDate(date) ? formatDateJa(date) : '日付が不正です'
           <div class="actions">
             <button type="submit" name="action" value="save" class="primary">保存</button>
             <button type="submit" name="action" value="preview">表示を確認</button>
+            {/*
+              写真の投入はこの画面を離れるので、先に保存する。**押す前にそれが
+              分かるよう、文言に書いてある**（entry-editing の「保存が起きること
+              の明示」）。
+            */}
+            <button type="submit" name="action" value="photo">保存して写真を追加</button>
             <a href="/">一覧へ戻る</a>
           </div>
         </form>

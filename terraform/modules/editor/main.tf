@@ -262,9 +262,64 @@ data "aws_iam_policy_document" "editor" {
     resources = [var.publish_project_arn]
   }
 
-  # **S3（公開サイトの配信元・写真の両方）と CloudFront への権限は与えない。**
-  # 公開手続きを起動できるようになっても、ここは変わらない。編集
-  # アプリケーションが直接触れるのは、自環境の日記テーブルと自分の設定だけである。
+  # 元写真を置く権限。**置くことだけを与える。**
+  #
+  # ブラウザからの投入では、編集アプリケーションがこのバケットへの書き込みを許す
+  # 一時的な資格（presigned POST）を発行し、写真そのものはブラウザから S3 へ直接
+  # 送られる。**署名は実行ロールの権限を超えられない**ので、ここが資格の上限になる。
+  #
+  # **s3:GetObject を与えない。** 元写真は付随情報を除去する前のもので、撮影場所を
+  # 含みうる。置ける入口であることが、過去に置いたものを持ち出せる経路になっては
+  # ならない（editor-hosting の「投入したもの以外の元写真を読み出す権限も与えない」）。
+  #
+  # 代償として、投入の前に「同じキーが既にある」ことを確かめられない。取り違えて
+  # 上書きしても元写真が失われないことは、バケットの versioning が担保している。
+  statement {
+    sid       = "PutOriginals"
+    effect    = "Allow"
+    actions   = ["s3:PutObject"]
+    resources = ["${var.photo_upload_bucket_arn}/*"]
+  }
+
+  # 派生画像が出来たかを見る権限。**読むだけで、書かない。**
+  #
+  # 生成は投入と同期しないため、投入した直後は URL を開いても画像が返らない。
+  # 貼ってよい状態になったことを画面で示すために、配信先の medium を HeadObject
+  # で調べる。
+  #
+  # **配信 URL を叩いて調べる形にはしない。** まだ無いあいだの 403 が CDN に載り、
+  # 自分の問い合わせが原因でしばらく読めないままになる（src/lib/env.ts と
+  # src/cli/put-photo.ts に同じ判断がある）。
+  statement {
+    sid       = "ProbeDerivatives"
+    effect    = "Allow"
+    actions   = ["s3:GetObject"]
+    resources = ["${var.photo_delivery_bucket_arn}/*"]
+  }
+
+  # **存在しないキーに 404 を返させるために要る。**
+  #
+  # S3 は、s3:ListBucket をバケットに対して持たない主体からの要求には、キーが無い
+  # 場合でも 403 を返す。s3:GetObject をいくら与えても変わらない。404 が返らないと
+  # 「まだ無い」と「読めない」を区別できず、最初の投入が権限の失敗として現れる。
+  #
+  # 変換 Lambda が同じ理由で同じ権限を持っている
+  # （terraform/modules/photos/main.tf の ProbeDerivatives）。閲覧者が一覧を得られる
+  # 経路とは無関係で、配信側の CloudFront には引き続き ListBucket を与えていない。
+  statement {
+    sid       = "ProbeDerivativeExistence"
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = [var.photo_delivery_bucket_arn]
+  }
+
+  # **写真について与えたのは「置くこと」と「出来たかを見ること」だけである。**
+  # 配信されるものを直接書き換える権限にはならない。派生画像の配信元へ書けるのは
+  # 変換 Lambda だけで、invalidation もその Lambda が行う。
+  #
+  # **公開サイトの配信元ストレージと CDN、および写真配信の CloudFront への権限は
+  # 与えない。** 公開手続きを起動できるようになっても、写真を投入できるように
+  # なっても、ここは変わらない。
 }
 
 resource "aws_iam_role_policy" "editor" {

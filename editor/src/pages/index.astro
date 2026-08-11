@@ -40,6 +40,11 @@ const heading = selectedYear ? `${selectedYear}年のエントリ` : 'エント�
         判定の根拠を持たないまま示すと嘘になる。状況は /publish で見る。
       */}
       <a href="/publish">公開</a>
+      {/*
+        エントリを書かずに写真だけ入れたいときの入口。書きながら入れる場合は
+        編集画面の「保存して写真を追加」から入る（そちらは日付が決まっている）。
+      */}
+      <a href="/photos/new">写真</a>
       <a href="/entries/new">別の日</a>
       <a class="button" href={`/entries/${todayJst()}`}>今日の日記を書く</a>
     </span>

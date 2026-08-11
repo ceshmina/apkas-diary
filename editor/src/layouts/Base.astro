@@ -11,14 +11,23 @@ interface Props {
   /**
    * 指定すると、その秒数後にページを読み直す。
    *
-   * 進行中の公開手続きを見ているときだけ使う。数分に一度しか押されない操作に
-   * 常時接続の仕組みを持ち込まないための、いちばん軽い手段。終わった状態を
-   * 表示しているあいだは指定しないこと（読み直しても何も変わらない）。
+   * 進行中の公開手続きや、生成を待っている写真を見ているときだけ使う。数秒に
+   * 一度しか変わらないものに常時接続の仕組みを持ち込まないための、いちばん軽い
+   * 手段。終わった状態を表示しているあいだは指定しないこと（読み直しても何も
+   * 変わらない）。
    */
   refreshSeconds?: number
+  /**
+   * 読み直す先。省略すると同じ URL を読み直す。
+   *
+   * 読み直すたびに失われてしまう事実を、次の要求へ持ち越すために使う。写真の
+   * 差し替えの判定がこれにあたる（作り直しが終わると「前のものがあった」ことは
+   * もう見えない）。
+   */
+  refreshTo?: string
 }
 
-const { title, email, refreshSeconds } = Astro.props
+const { title, email, refreshSeconds, refreshTo } = Astro.props
 const appTitle = 'apkas-diary 編集'
 const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
 ---
@@ -30,7 +39,14 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="robots" content="noindex, nofollow" />
-    {refreshSeconds && <meta http-equiv="refresh" content={String(refreshSeconds)} />}
+    {
+      refreshSeconds && (
+        <meta
+          http-equiv="refresh"
+          content={refreshTo ? `${refreshSeconds}; url=${refreshTo}` : String(refreshSeconds)}
+        />
+      )
+    }
     <link rel="icon" href="data:," />
   </head>
   <body>

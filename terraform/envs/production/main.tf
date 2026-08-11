@@ -48,6 +48,11 @@ module "photos" {
 
   domain_name      = "photos.apkas.net"
   hosted_zone_name = "apkas.net"
+
+  # 編集アプリケーションの画面から元写真を直接送る。**権限ではなく、応答を読ませて
+  # よい相手の宣言である。** production には localhost を入れない。手元から
+  # production を触る作業は CLI（`npm run photo`）で足りる。
+  upload_cors_origins = ["https://admin.apkas.net"]
 }
 
 # 編集アプリケーション。ブラウザから日記を書くための入口。
@@ -71,6 +76,12 @@ module "editor" {
   # 起動できる対象は自環境の公開手続き1つに限る。**配信元と CDN への権限は
   # これを渡しても増えない。** 押せることと書けることは別の権限である。
   publish_project_arn = module.publish.project_arn
+
+  # ブラウザから写真を投入するために渡す。**渡すのは投入側と、変換が終わったかを
+  # 見る側だけ**で、派生画像を書き換える権限にはならない。写真の module 側は
+  # この受け渡しで何も変わらない。
+  photo_upload_bucket_arn   = module.photos.upload_bucket_arn
+  photo_delivery_bucket_arn = module.photos.delivery_bucket_arn
 }
 
 # 公開手続き。書いたものを配信に反映する側。

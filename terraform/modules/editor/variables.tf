@@ -46,8 +46,33 @@ variable "publish_project_arn" {
 
     編集アプリケーションに与えるのは、**このプロジェクト1つを起動する権限と、
     その状況を読む権限だけ**である。配信元ストレージと CDN への権限はこれを
-    足しても増えない（editor-hosting の「実行基盤の権限は自環境の日記データと
-    公開手続きの起動に限られる」）。
+    足しても増えない（editor-hosting の「実行基盤の権限は自環境の日記データ・
+    写真の投入・公開手続きの起動に限られる」）。
+  EOT
+  type        = string
+}
+
+variable "photo_upload_bucket_arn" {
+  description = <<-EOT
+    元写真を置く S3 バケットの ARN。
+
+    ブラウザからの投入で、編集アプリケーションが**このバケットへの書き込みを
+    許す一時的な資格を発行する**ために使う。**署名は実行ロールの権限を超え
+    られない**ので、ここに与える権限がそのまま資格の上限になる。
+
+    与えるのは PutObject だけである。読み取りは与えない（main.tf の
+    PutOriginals を参照）。
+  EOT
+  type        = string
+}
+
+variable "photo_delivery_bucket_arn" {
+  description = <<-EOT
+    派生画像が置かれる S3 バケットの ARN。
+
+    投入した写真の変換が終わったかを見るためだけに使う。**書き込みは与えない。**
+    ここに書けるのは変換 Lambda だけであり、公開されるものが元写真から機械的に
+    作られたものに限られるのは、その権限の配り方によっている。
   EOT
   type        = string
 }

@@ -1,0 +1,138 @@
+## 1. キーの規約を1箇所にまとめる
+
+投入の入口が2つになる前に、キーを決める規則の宣言元を1つにしておく。ここでは手元の CLI の挙動を変えない。
+
+- [x] 1.1 `src/lib/photo.ts` に、日付とファイル名から元写真のキーを組み立てる関数を足す（`YYYY/MM/DD/<ファイル名>`）。既に同じファイルにある `photoKeyOf` / `photoUrlOf` と並べ、**投入から配信までの規約がこのファイルに揃っている**状態にする
+- [x] 1.2 `src/cli/put-photo.ts` の `keyOf` を 1.1 の関数を呼ぶ形に直す。`--key` の分岐はそのまま残す。CLI の出力と挙動が変わらないことを確認する
+- [x] 1.3 `@aws-sdk/s3-presigned-post` を依存に足す。版は既存の `@aws-sdk/client-s3` と揃える
+
+## 2. Terraform: 編集アプリケーションの権限と受け渡し
+
+写真の module（バケット・CloudFront・変換 Lambda）には手を入れない。
+
+- [x] 2.1 `terraform/modules/editor/variables.tf` に、アップロード用バケットと配信用バケットの ARN を受け取る変数を足す。**名前は受け取らない**（`function.jsonnet` が tfstate から直接読むため、同じ値が2経路で渡る状態を作らない）
+- [x] 2.2 `terraform/modules/editor/main.tf` の IAM ポリシーに3つのステートメントを足す（design.md 決定7）。アップロード用バケット `/*` への `s3:PutObject`、配信用バケット `/*` への `s3:GetObject`、配信用バケットへの `s3:ListBucket`
+  - **アップロード用バケットへの `s3:GetObject` は与えない。** 元写真は付随情報を除去する前のもので、撮影場所を含みうる。置ける入口が、置いたものを持ち出せる経路になってはならない理由をコメントに残す
+  - **`s3:ListBucket` が要る理由**（持たない主体には「無い」が 403 で返り、「まだ無い」と「読めない」を区別できない）をコメントに残す。変換 Lambda の `ProbeDerivatives` と同じ事情であることを指しておく
+  - 配信用バケットへの書き込みと写真配信の CloudFront への権限を**与えない**ことを、既存の「S3 と CloudFront への権限は与えない」のコメントとともに書き直す
+- [x] 2.3 `terraform/envs/staging/main.tf` と `terraform/envs/production/main.tf` で、`module.photos` の出力を `module.editor` に渡す。バケットの ARN を出力していなければ `terraform/modules/photos/outputs.tf` に足す
+- [x] 2.4 `terraform fmt -recursive` と、backend を外した複製での `terraform validate` を staging・production の両方で通す
+
+## 3. 設定の受け渡し
+
+新しい転記を作らない。値の出どころは tfstate（Lambda）と `config/<環境>.env`（手元）のまま。
+
+- [x] 3.1 `editor/function.jsonnet` の `Environment.Variables` に `PHOTO_UPLOAD_BUCKET` / `PHOTO_BUCKET` / `PHOTO_URL` を足す。いずれも tfstate から読む（バケット名は `module.photos` のリソースから、URL は `output.photo_url` から）
+- [x] 3.2 `scripts/dev-editor.sh` の `require_env_vars` にこの3つを足し、起動時の表示にも出す。**`load_env` が `config/<環境>.env` を `set -a` で読むので値は既に来ている**ので、足すのは欠けたときに気づく仕組みだけである
+- [x] 3.3 `config/staging.env.example` / `config/production.env.example` の「編集アプリケーション」の節にある「ここに足すものはない」を直す。写真の3つを編集アプリケーションも読むようになったことを書く（**転記は増えない**ことも併せて書く）
+
+## 4. 投入の資格と完了の確認
+
+画面から切り離した形で先に用意する。
+
+- [x] 4.1 presigned POST を作る処理を書く（design.md 決定2・3・6）。`key` は `<日付>/${filename}`、policy の条件は `["starts-with", "$key", "<日付>/"]` と `content-length-range` 1〜50MB、`Fields` に `success_action_redirect`、期限は 15 分
+  - `Content-Type` のフィールドは**置かない**（決定9）。理由をコメントに残す
+  - `${filename}` が S3 側で置換される変数であること、日付の閉じ込めが `starts-with` によることを書き残す
+- [x] 4.2 派生画像が出来たかを見る処理を書く。配信用バケットの `medium` に対する `HeadObject` を行い、**署名した時刻より後に書かれているか**で判定する（決定4）。404 だけを「まだ無い」として扱い、それ以外の失敗は投げる（`put-photo.ts` の `probeUpdatedAt` と同じ形）
+  - 署名時刻より**古い**派生画像が存在した場合は「以前にも使われたキーである」＝差し替えとして区別できるようにする
+  - **配信 URL を叩いて調べない**こと、その理由（まだ無いあいだの 403 が CDN に載る）をコメントに残す
+- [x] 4.3 S3 から戻ってきた `key` を検証する処理を書く。署名した日付の下にあることを確かめ、外れていれば結果を出さない
+
+## 5. 投入の画面
+
+- [x] 5.1 `/photos/new` を作る。日付（既定は JST の当日、query で受け取れる）とファイルを選ぶフォームで、`action` はアップロード用バケット、`method` は POST、`enctype` は `multipart/form-data`。4.1 の隠しフィールドを並べる
+  - `success_action_redirect` は `<自分の URL>/photos/uploaded` に、署名時刻と日付と戻り先を query として載せる
+  - 応答に `Cache-Control: no-store` を付ける（一時的な資格が載るため）
+  - 上限（50MB）と、超えるものは手元の CLI から入れることを画面に書く
+- [x] 5.2 `/photos/uploaded` を作る。戻ってきた `key` から4つのサイズの URL を `photoUrlOf` で組み立てて並べ、**本文にそのまま貼れる Markdown**（`medium` を使う。日別ページの拡大表示が `/medium/` → `/large/` の差し替えに依存しているため）を選択できる形で出す
+  - 4.2 の判定を行い、まだなら `refreshSeconds` を渡して数秒後に読み直す。完了したら読み直しをやめる（`/publish` と同じ形）
+  - 差し替えだった場合はその旨を出す
+  - `return` が `/entries/` で始まるときだけ「編集に戻る」リンクを出す。**自動では飛ばさない**
+  - 実装中に判明: **読めない形式を投入すると派生画像が永遠に現れず、待つ画面が止まらない**（HEIC がこれにあたる。投入は通り、生成だけが起きない）。待ちに上限（90 秒）を置き、達したら更新をやめて「遅れているのか読めなかったのかは分からない」と HEIC の可能性を添えて示す形にした。失敗としては扱わない（design.md 決定4 に追記）
+  - 併せて、投入の画面にも HEIC が変換できないことを先に書いた。選ぶ前に言うほうが手数が少ない
+- [x] 5.3 押す前にファイルの大きさを見る小さなスクリプトを、**任意の上乗せとして**足す。動かなくても投入は成立し、上限を超えたときに S3 の生の XML を見ることになるだけであることをコメントに残す。`accept` 属性も併せて付ける
+- [x] 5.4 `editor/src/lib/auth/session.ts` に、**`SameSite` を `Strict` にすると S3 からの戻りが未認証になる**ことを書き残す（Google の認証からの戻りと同じ性質）
+
+## 6. 編集画面からの導線
+
+- [x] 6.1 `editor/src/pages/entries/[date].astro` に**「保存して写真を追加」**を足す。既存の保存と同じ経路（`putEntry`）を通ってから `/photos/new?date=<日付>&return=/entries/<日付>` へ送る。保存に失敗したときは移動せず、入力を残したまま失敗を示す（既存の保存と同じ扱い）
+  - ボタンの文言で保存を伴うことが分かる形にする（`entry-editing` に足した要件）
+- [x] 6.2 `editor/src/pages/index.astro` の入口に、日付を指定しない単独の投入への導線を足す
+- [x] 6.3 `/photos/*` が `middleware.ts` の `PUBLIC_PATHS` に**入っていない**ことを確認する（認証を通らずに資格が得られる経路を作らない）
+
+## 7. 検証
+
+- [x] 7.1 `npm run check` を通す（`astro check` は編集アプリケーション側も見る）
+- [x] 7.2 手元で `npm run dev:editor -- staging` を動かし、`/photos/new` が資格を出せること、3.2 の確認が欠けた設定で落ちることを見る
+  - 手元からは S3 への POST が本物の staging バケットに届く。戻り先が `http://localhost:4321` になることも確かめる
+  - **AWS の資格情報とブラウザでの Google ログインが要るので、ここは人が実行する。** 資格情報なしで確かめられるところまでは済ませてある:
+    - 偽の資格情報で `createUploadTicket` を呼び、policy に `["starts-with","$key","2026/08/11/"]` と `["content-length-range",1,52428800]` が入ること、期限が 15 分後であること、`success_action_redirect` に署名時刻が載ること、`key` が `2026/08/11/${filename}` になることを確認した（条件は SDK が導くものと重複せず1つに畳まれる）
+    - `acceptReturnedKey` が、別の日付・`..` を含むキー・空のファイル名・`null` をいずれも弾くことを確認した
+    - `require_env_vars` が `PHOTO_UPLOAD_BUCKET` / `PHOTO_BUCKET` / `PHOTO_URL` の欠けを起動時に止めることを確認した
+    - `astro build --config editor/astro.config.ts` が通り、5.3 のスクリプトがページに inline で載ること（`/_astro/` への追加の要求が発生しないこと）を確認した
+- [x] 7.3 staging に `terraform apply` し、`npm run deploy:editor -- staging` を実行する。`terraform plan` が差分を出さないことを確認する（`function.jsonnet` が設定する項目は `ignore_changes` に並んでいるが、環境変数を足したので念のため見る）
+  - plan は **0 to add, 1 to change, 0 to destroy**。変わったのは編集アプリケーションの IAM ポリシーだけで、バケットも CloudFront も変換 Lambda も触れていない。
+  - lambroll で version 6 をデプロイ。**環境変数を3つ足したが、その後の `terraform plan` は No changes.** `ignore_changes` の `environment` が効いている。
+- [x] 7.4 staging で実機の確認を行う
+  - 通常の投入 → 4つの URL が示され、完了が示されたあとに URL を開くと画像が返る
+  - **CLI との一致** → 同じ日付・同じファイル名で `npm run photo` から投入したものと同じキー・同じ URL になる
+  - **差し替え** → 既にあるキーへ別の内容を投入し、完了表示が古い派生画像で満たされないこと、差し替えと示されることを見る
+  - **大きい写真** → 10MB を超える写真が投入できる（決定1 が回避した上限に触れないこと）
+  - **上限超過** → 50MB を超えるファイルで、5.3 のスクリプトが押す前に止めること、およびスクリプトを無効にすると S3 のエラーになること
+  - **期限切れ** → `/photos/new` を開いたまま 15 分以上放置してから送ると失敗し、元写真が置かれないこと
+  - **書きかけの本文** → 本文を入力した状態から 6.1 で移動し、戻ったときに内容が残っていること
+  - **S3 側は staging の実物で確認済み**（画面を経由せず、同じ multipart を組み立てて投げた）。**画面そのものは利用者が staging のブラウザで確認し、問題ないことを確かめた**（複数枚の選択・進みの表示・thumbnail での確認を含む、9 章の形での確認）。
+    - 通常の投入 → 303 が返り、`${filename}` が置換されて `key=2026/08/11/upload-e2e.jpg`、`t` が保たれる。9 秒で `ready=true`。4つの URL が CDN から `image/webp` で返ることも確認した
+    - CLI との一致 → `npm run photo` が同じ `2026/08/11/upload-e2e.jpg` と同じ4つの URL を出した
+    - 差し替え → 1回目の判定が `ready=false replaced=true`（**古い派生画像を「終わった」と読まない**）、2回目で `ready=true`。この時点で `replaced` は見えなくなるので、読み直しに持ち越す作りが要ることも実地で裏づけられた
+    - 大きい写真 → **20.5MB が投入できた**。決定1 が避けた上限（Lambda の同期呼び出しは 6MB）を実際に超えている
+    - 上限超過 → 51MB は `400 EntityTooLarge`（`content-length-range` が効いている）
+    - 期限切れ → 期限を過ぎた資格は `403 Policy expired`。15 分は待てないので、同じ形の資格を1秒で作って S3 側の強制を確かめた
+    - **日付の外への投入** → 署名はそのままにキーだけ翌日へ書き換えて送ると `403 Policy Condition failed: ["starts-with", "$key", "2026/08/11/"]`。キーを利用者が決められないことは画面ではなく S3 が担保している
+    - 確認に使った元写真4バージョンと派生画像8件は削除し、CDN も invalidate した（残 0）
+- [x] 7.5 編集アプリケーションの実行ロールを引き受けて、**与えていない操作が拒否される**ことを確かめる
+  - アップロード用バケットの `GetObject`・`ListBucket` → 拒否
+  - 配信用バケットの `PutObject`・`DeleteObject` → 拒否
+  - 写真配信の CloudFront への `CreateInvalidation` → 拒否
+  - 他方の環境のバケット → 拒否
+  - **ロールは引き受けられない。** 信頼ポリシーが `lambda.amazonaws.com` しか許していないので、`aws iam simulate-principal-policy` でロールの識別ポリシーを直接評価した。同一アカウントの S3 は resource policy 側でも許可されうるが、アップロード先にバケットポリシーは無く、配信先のものは CloudFront にしか許可を出していないため、識別ポリシーの評価で判定できる。
+  - 許可3件（アップロード先への `PutObject`、配信先への `GetObject`、配信先への `ListBucket`）が **allowed**、拒否7件（元写真の `GetObject`・`DeleteObject`、アップロード先の `ListBucket`、配信先の `PutObject`・`DeleteObject`、写真 CDN の `CreateInvalidation`、production のアップロード先への `PutObject`）がすべて **implicitDeny**。
+- [x] 7.6 production に同じ順で適用し、7.4 の通常の投入だけを確認する
+  - plan は **1 to add, 1 to change, 0 to destroy**（CORS の追加と編集アプリケーションの IAM）。`deploy:editor` で version 3。その後の `terraform plan` は No changes.
+  - **CORS は `https://admin.apkas.net` のみ。** localhost は入っていない。staging のオリジンを付けた要求には `Access-Control-Allow-Origin` が返らないことも確かめた。
+  - 実行ロールの権限は staging と同じ形で、許可3件が allowed、拒否7件（staging のバケットを含む）が implicitDeny。
+  - 通常の投入 → 3枚とも 201、12 秒までに全枚数の生成が終わり、`thumbnail` と `medium` が CDN から `200 image/webp` で返った。確認に使った元写真3件と派生画像は削除し、invalidate 済み（残 0）。
+  - `/login` は 200、未認証の `/photos/new` は 302 でログインへ折り返す。
+
+## 8. ドキュメント
+
+- [x] 8.1 README の写真の手順に、ブラウザからの経路を書く。上限（50MB）、超えるときは CLI を使うこと、生成が非同期であること、キーの規則が CLI と同じであることを含める
+- [x] 8.2 README の編集アプリケーションの節に、実行ロールが写真について持つ権限（置ける・出来たかを見られる／読めない・配信元は書けない）を書く
+
+## 9. 複数枚の投入と、入った写真の確認
+
+決定2 を書き直したことによる作り直し。**S3 の POST は1回に1枚しか受け取らない**ため、複数枚を送るにはスクリプトから N 回投げることになり、フォームの送信と `success_action_redirect` で往復する形は成立しなくなった。
+
+- [x] 9.1 アップロード用バケットに CORS を足す。`terraform/modules/photos` に許すオリジンの変数を作り、`AllowedMethods` は `POST` のみ、`AllowedOrigins` は環境ごとの編集アプリケーション（staging には手元の開発用に `http://localhost:4321` も）に限る。**CORS は権限ではない**ことをコメントに残す
+- [x] 9.2 `createUploadTicket` の `Fields` から `success_action_redirect` を外し、`success_action_status: 201` にする。**1枚ぶんの署名を N 枚に使い回す**（policy はファイル名を含まないため成立する）ことを書き残す。戻り先を組み立てるための引数が不要になるので、署名時刻を返すだけの形に戻す
+- [x] 9.3 `/photos/new` の投入をスクリプトにする。`<input type="file" multiple>` で選ばせ、1枚ずつ `fetch` で POST し、201 の XML から `Key` を読む。**キーの決定を S3 に置いたままにする**（スクリプト側でキーを組み立てない）
+  - 何枚のうち何枚が済んだかを出す。1枚の中の進捗は追わない
+  - **1枚の失敗が他の枚を取り消さない。** 失敗したファイル名を出し、成功したぶんは結果へ進める
+  - すべて終わったら `/photos/uploaded?date=...&t=...&key=...&key=...` へ遷移する
+  - スクリプトが動かない環境では投入できないので、`<noscript>` でその旨を出す
+- [x] 9.4 `/photos/uploaded` を複数枚に対応させる。`key` を複数受け取り、枚ごとに完了を判定して、枚ごとに URL と貼れる記述を出す
+- [x] 9.5 生成が終わった写真の `thumbnail` を画面に表示する（決定10）。**まだのものは表示しない**——`<img>` を先に置くと、決定4 で避けた「まだ無いあいだの 403 が CDN に載る」を確認の側から起こす。理由をコメントに残す
+- [x] 9.6 画面から運用向けの記述を落とす（決定11）。CLI の呼び出し方・バケット名・ログの在り処は書かない。残すのは上限の大きさ、変換できない形式、生成に時間がかかること
+- [x] 9.7 `editor/src/lib/auth/session.ts` の `SameSite` の注記から S3 からの戻りを外す。**その経路は無くなった**ので、残るのは Google の認証からの戻りだけである
+- [x] 9.8 `Base.astro` の `refreshTo` が引き続き要ることを確かめる（差し替えの判定は枚ごとに持ち越す必要がある）
+- [x] 9.9 `npm run check` を通し、editor をビルドする
+- [x] 9.10 staging に `terraform apply` して CORS を入れ、`deploy:editor` する。`terraform plan` が差分を出さないことを確認する
+- [x] 9.11 staging で複数枚の投入を実機で確かめる（複数枚・1枚だけ失敗・thumbnail の表示・生成前に表示しないこと）
+  - **画面のスクリプトと同じことを実物に対して行った。** 1枚ぶんの署名で3枚とも 201、応答の XML から `Key` を読めた。`success_action_redirect` はもう付いていない。
+  - **枚ごとの完了** → 6秒で小さい2枚が済み、20MB の1枚は 12秒。「一部だけ終わっている」状態が実際に出ることを確認した。
+  - **thumbnail** → 3枚とも CDN から `200 image/webp`。
+  - **CORS のオリジン制限** → `https://admin.dev.apkas.net` と `http://localhost:4321` には `Access-Control-Allow-Origin` が返り、`https://evil.example.com` には返らない。**要求そのものは 201 で通る**（署名を持っているため）が、別オリジンのスクリプトは応答を読めない。決定2 に書いた「CORS は権限ではない」がそのまま観測できる形になっている。
+  - **1枚だけ失敗** → 3枚のうち2枚目だけ上限超過にすると、その1枚が `400 EntityTooLarge`、前後の2枚は成立した。巻き戻さない。
+  - 確認に使った元写真8バージョンと派生画像は削除し、invalidate も済ませた（残 0）。
+  - 生成前に `<img>` を置かないことはコード上の順序で担保している（`ready` が真のときだけ描画）。実地の確認は画面で行う。
+- [x] 9.12 README を複数枚の投入に合わせて直す

@@ -37,6 +37,24 @@ variable "hosted_zone_name" {
   type        = string
 }
 
+variable "upload_cors_origins" {
+  description = <<-EOT
+    アップロード用バケットへブラウザから直接 POST できるオリジン。
+
+    編集アプリケーションの画面が、発行された presigned POST で元写真を送るために要る。
+    **CORS は権限ではない**（署名のない要求は変わらず拒否される）が、応答を読ませて
+    よい相手を宣言するものなので、編集アプリケーションのオリジンだけに限る。
+
+    staging には手元での開発に使う localhost を含める。production には含めない。
+  EOT
+  type        = list(string)
+
+  validation {
+    condition     = length(var.upload_cors_origins) > 0
+    error_message = "upload_cors_origins には少なくとも1つのオリジンが必要です。"
+  }
+}
+
 variable "price_class" {
   description = "CloudFront の価格クラス。個人サイトのため既定では最も安いものを使う。"
   type        = string

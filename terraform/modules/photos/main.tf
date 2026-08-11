@@ -70,6 +70,32 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "upload" {
   }
 }
 
+# 編集アプリケーションの画面から元写真を直接 POST するために要る。
+#
+# **CORS は権限ではない。** ブラウザに応答を読ませてよいオリジンを宣言するだけで、
+# 署名のない要求は CORS があってもなくても拒否される。書き込めるのは、編集
+# アプリケーションが発行した presigned POST を持っている場合に限られる。
+#
+# 許すのは編集アプリケーションのオリジンだけにしてある。ここを広げると、別のサイト
+# 上のスクリプトが（資格を手に入れたときに）応答を読めるようになる。
+resource "aws_s3_bucket_cors_configuration" "upload" {
+  bucket = aws_s3_bucket.upload.id
+
+  cors_rule {
+    allowed_methods = ["POST"]
+    allowed_origins = var.upload_cors_origins
+
+    # POST するフィールドはすべて本文の中にあり、独自ヘッダは付けない。
+    # それでも許しておくのは、ブラウザが付けうるヘッダで弾かれないようにするため。
+    allowed_headers = ["*"]
+
+    # 応答から読むのは本文（Key を含む XML）だけで、ヘッダは読まない。
+    expose_headers = ["ETag"]
+
+    max_age_seconds = 3000
+  }
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "upload" {
   bucket = aws_s3_bucket.upload.id
 

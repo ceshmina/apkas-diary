@@ -59,7 +59,14 @@ export function decodeSession(
   return payload
 }
 
-/** 発行。属性は editor-access-control の要求そのまま。 */
+/**
+ * 発行。属性は editor-access-control の要求そのまま。
+ *
+ * **`sameSite` を `strict` にしてはいけない。** Google の認証を終えて
+ * `/auth/callback` に戻ってくる要求は、別サイトを起点とするトップレベルの GET
+ * ナビゲーションである。`lax` はこの場合に Cookie を送るが、`strict` は送らない。
+ * 変えると**認証を終えた直後に未認証として扱われる**。
+ */
 export function setSessionCookie(cookies: AstroCookies, session: Session, key: string): void {
   cookies.set(SESSION_COOKIE, encodeSession(session, key), {
     httpOnly: true,

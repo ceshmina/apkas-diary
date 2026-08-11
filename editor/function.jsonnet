@@ -70,6 +70,17 @@ local tfstate = std.native('tfstate');
       // なので、ここが別の環境を指しても、その先で権限に阻まれる。名前と権限の
       // 出どころが同じ state にあり、片方だけずれた状態は作れない。
       PUBLISH_PROJECT_NAME: tfstate('output.publish_project_name'),
+
+      // 写真の投入先と、変換が終わったかを見る先と、配信 URL の基点。
+      //
+      // **実行ロールが触れるのもこの2つのバケットだけ**なので、ここが別の環境を
+      // 指しても、その先で権限に阻まれる。公開手続きと同じ形である。
+      //
+      // 配信 URL は投入した写真の URL を組み立てて見せるためだけに使う。CDN へ
+      // 要求を送るためのものではない（完了の確認は PHOTO_BUCKET を直接見る）。
+      PHOTO_UPLOAD_BUCKET: tfstate('module.photos.aws_s3_bucket.upload.bucket'),
+      PHOTO_BUCKET: tfstate('module.photos.aws_s3_bucket.delivery.bucket'),
+      PHOTO_URL: tfstate('output.photo_url'),
     },
   },
 }
