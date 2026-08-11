@@ -148,13 +148,29 @@
 
 ## 7. production への展開
 
-- [ ] 7.1 `cd terraform/envs/production && terraform apply`
-- [ ] 7.2 GitHub 接続を承認する（staging とは別の接続）
-- [ ] 7.3 `npm run deploy:editor -- production`
-- [ ] 7.4 production の画面で、確認を経ないと起動しないことを確認する。取り消したときに何も起きないことも確かめる
-- [ ] 7.5 コンソールから `DIARY_DEPLOY_CONFIRMED` を渡さずに `StartBuild` し、deploy の段に進まないことを確認する
-- [ ] 7.6 確認を経て起動し、production のサイトが更新されることを確認する。staging のサイトが変化していないことも確かめる
-- [ ] 7.7 `terraform plan` が差分を出さないことを確認する
+**前提**: この章に入る前に change を `main` へマージした（`6731d39`）。CodeBuild は GitHub から clone するため、`main` に `buildspec.yml` が載るまでボタンは成功しない。マージ後、**staging のボタンを素で押して成功することを確認済み**（配った commit は `main` の HEAD と一致）。これで 6.4 が完全に閉じた。
+
+- [x] 7.1 `cd terraform/envs/production && terraform apply`
+  - staging と同じ形（**6 added / 1 changed / 0 destroyed**）。変更は editor の IAM ポリシーの in-place のみ。
+- [x] 7.2 GitHub 接続を承認する（staging とは別の接続）
+  - `AVAILABLE`。staging とは別の接続であり、片方の承認はもう片方に影響しない。
+- [x] 7.3 `npm run deploy:editor -- production`
+  - version 2 として配布、alias を更新。
+  - 併せて production 側の権限境界が staging と同じ形になっていることを確認した。editor は自環境の公開手続きを起動できる一方、配信元 S3・CloudFront・**staging の公開手続き**はすべて `implicitDeny`。publish は配信元へ書ける一方、日記への書き込みは拒否。
+- [x] 7.4 production の画面で、確認を経ないと起動しないことを確認する。取り消したときに何も起きないことも確かめる
+  - 配備済みの `https://admin.apkas.net/publish` で確認。ボタンの submit 値は `confirm`、`action=confirm` は確認の画面を返し、`confirmed` 無しの `start` は確認へ戻される。
+  - **一連の操作を通してビルド総数は 0 のまま。** 「やめる」は `/publish` への GET なので、そもそも何も起こさない。
+- [x] 7.5 コンソールから `DIARY_DEPLOY_CONFIRMED` を渡さずに `StartBuild` し、deploy の段に進まないことを確認する
+  - **`scripts/deploy.sh` で FAILED。`scripts/build.sh` は成功している。** つまり生成までは進み、反映の直前で止まった。ログには意図した文言がそのまま出た（「production への反映には確認が要ります。端末から実行するか、DIARY_DEPLOY_CONFIRMED=yes を渡してください。」）。
+  - **本番の配信物 1514 ファイルは1つも変化しなかった。**
+- [x] 7.6 確認を経て起動し、production のサイトが更新されることを確認する。staging のサイトが変化していないことも確かめる
+  - ボタンから確認を経て起動 → 成功。配った commit は `main` の HEAD（`6731d39`）と一致。配信物は手元の `npm run build -- production` の結果と **1514 ファイルすべて一致**。
+  - **上書き前に中身を確かめたところ、想定と違う事実が出た。** 本番は `main` より1つ前を配信していた（`Add diary editor (#10)` の CSS 切り出しが未反映）。そのため HTML 1513 件すべてが書き換わることになった。ファイルの増減は0で、変わるのは埋め込み CSS の**ルールの順序だけ**（集合は完全に同一）。
+  - 順序の変化が無害であることは、**生成物に実在する 59 通りの (タグ, クラス) × 2 通りの媒体条件すべてでカスケードを計算して確かめた。計算結果が変わる要素は0件。** これは #10 の tasks 1.2 が staging で行った検証を、production の実際のルールに対してやり直したもの。
+  - staging は巻き込まれていない（別バケット・別ディストリビューション。production 1514 に対し staging 410 ファイル）。本番のトップは 200、存在しないパスは 404 を返す。
+  - 副次的に、staging の生成物が 409→410 に増えていた。今日の日付のエントリが公開された結果で、ボタンからの再生成がそれを拾っている。
+- [x] 7.7 `terraform plan` が差分を出さないことを確認する
+  - apply と `deploy:editor` のあと、**No changes. Your infrastructure matches the configuration.**
 
 ## 8. 文書
 
