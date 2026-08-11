@@ -34,6 +34,12 @@ const heading = selectedYear ? `${selectedYear}年のエントリ` : 'エント�
   <div class="head">
     <h1>{heading}</h1>
     <span class="head-actions">
+      {/*
+        公開サイトへ反映する入口。**「未反映のものがある」とは示さない。**
+        それを言うには最後の反映より後に書かれたかを判定する必要があり、
+        判定の根拠を持たないまま示すと嘘になる。状況は /publish で見る。
+      */}
+      <a href="/publish">公開</a>
       <a href="/entries/new">別の日</a>
       <a class="button" href={`/entries/${todayJst()}`}>今日の日記を書く</a>
     </span>

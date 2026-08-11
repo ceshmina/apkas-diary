@@ -1,0 +1,330 @@
+---
+import Base from '../layouts/Base.astro'
+import { latestPublish, type PublishStatus, startPublish } from '../lib/publish.js'
+
+export const prerender = false
+
+const config = Astro.locals.config
+const session = Astro.locals.session
+
+// production だけは、押しただけでは始まらない。確認の一段を挟む。
+const isProduction = config.environment === 'production'
+
+/** 起動に失敗した理由。ビルドの失敗ではなく、始められなかったときのもの。 */
+let startError: string | undefined
+/** production の確認を表示している状態。 */
+let confirming = false
+
+function message(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/**
+ * 最新の実行。**ここが唯一の状態の出どころで、こちら側には何も保存しない。**
+ *
+ * 読めなかった場合も画面は出す。起動できるかどうかとは別の話であり、
+ * 「状況が読めない」を「実行されていない」と見せない。
+ */
+let status: PublishStatus | undefined
+let statusError: string | undefined
+
+try {
+  status = await latestPublish(config)
+} catch (error) {
+  statusError = message(error)
+}
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData()
+  const action = String(form.get('action') ?? '')
+
+  // 進行中なら、どの経路から来ても新しくは始めない。2つの同期が重なると
+  // どちらの生成物とも一致しない状態が配信される（構造の側の担保は
+  // CodeBuild の concurrent_build_limit = 1）。
+  if (status?.state === 'running') {
+    return Astro.redirect('/publish?busy=1', 303)
+  }
+
+  if (action === 'confirm') {
+    confirming = true
+  } else if (action === 'start') {
+    // 確認を経ていない production の起動は、ここで確認へ戻す。
+    if (isProduction && String(form.get('confirmed') ?? '') !== 'yes') {
+      confirming = true
+    } else {
+      try {
+        await startPublish(config)
+
+        // POST の結果をそのまま描画すると、再読み込みで二重に起動する。
+        return Astro.redirect('/publish?started=1', 303)
+      } catch (error) {
+        startError = message(error)
+      }
+    }
+  }
+}
+
+const started = Astro.url.searchParams.has('started')
+const busy = Astro.url.searchParams.has('busy')
+const running = status?.state === 'running'
+
+// 進行中のあいだと、起動した直後だけ読み直す。**終わった状態を表示している
+// あいだは読み直さない。** 何も変わらないページを再取得し続ける意味がない。
+//
+// 起動直後に読み直すのは、一覧に新しい実行が現れるまでに少し間があるため。
+// その間は直前の実行が最新として返り、放っておくと古い結果が出たままになる。
+const refreshSeconds = running || started ? 5 : undefined
+
+const LABELS: Record<PublishStatus['state'], string> = {
+  running: '進行中',
+  succeeded: '成功',
+  failed: '失敗',
+  stopped: '中止',
+}
+
+function formatTime(value: Date | undefined): string | undefined {
+  if (!value) return undefined
+
+  // 実行環境のタイムゾーンは UTC。JST を明示しないと、書いた人の感覚と
+  // ずれた時刻が出る。
+  return new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(value)
+}
+---
+
+<Base title="公開" email={session?.email} refreshSeconds={refreshSeconds}>
+  <div class="head">
+    <h1>公開</h1>
+    <a href="/">一覧へ戻る</a>
+  </div>
+
+  <p class="muted lead">
+    公開状態のエントリからサイトを作り直し、配信に反映する。配られるのは
+    <strong>GitHub の main の内容</strong>で、手元にだけある変更は含まれない。
+    数分かかる。
+  </p>
+
+  {started && <p class="notice ok">公開手続きを始めた。進み具合は下に出る。</p>}
+  {busy && <p class="notice">すでに実行中だった。終わるまで新しくは始めない。</p>}
+  {
+    startError && (
+      <p class="notice error">
+        起動できなかった（{startError}）。配信中の内容は変わっていない。
+      </p>
+    )
+  }
+
+  <section class="status">
+    <h2>直近の実行</h2>
+
+    {
+      statusError ? (
+        <p class="notice error">
+          状況を読めなかった（{statusError}）。実行されていないという意味ではない。
+        </p>
+      ) : !status ? (
+        <p class="muted">まだ一度も実行されていない。</p>
+      ) : (
+        <dl>
+          <div>
+            <dt>状態</dt>
+            <dd>
+              <span class={`badge is-${status.state}`}>{LABELS[status.state]}</span>
+              {status.state === 'running' && status.phase && (
+                <span class="muted"> {status.phase}</span>
+              )}
+              {status.state === 'failed' && (
+                <span class="muted"> {status.rawStatus}</span>
+              )}
+            </dd>
+          </div>
+
+          <div>
+            <dt>開始</dt>
+            <dd>{formatTime(status.startedAt) ?? '—'}</dd>
+          </div>
+
+          {status.endedAt && (
+            <div>
+              <dt>終了</dt>
+              <dd>{formatTime(status.endedAt)}</dd>
+            </div>
+          )}
+
+          <div>
+            <dt>commit</dt>
+            <dd>
+              {status.commit ? (
+                <code title={status.commit}>{status.commit.slice(0, 7)}</code>
+              ) : (
+                '—'
+              )}
+            </dd>
+          </div>
+        </dl>
+      )
+    }
+
+    {
+      status?.logsUrl && (
+        <p class="logs">
+          <a href={status.logsUrl} target="_blank" rel="noreferrer noopener">
+            実行の記録を見る
+          </a>
+          <span class="muted"> （CloudWatch Logs）</span>
+        </p>
+      )
+    }
+
+    {
+      status?.state === 'failed' && (
+        <p class="muted note">
+          失敗した実行は配信物に届いていない。生成に失敗すると反映の段に進まないため、
+          配信中の内容は直前のまま変わっていない。
+        </p>
+      )
+    }
+  </section>
+
+  {
+    confirming ? (
+      <form method="post" class="confirm">
+        <p>
+          <strong>production に反映する。</strong>
+          公開状態のエントリが、いま見えている内容に置き換わる。
+        </p>
+        <div class="actions">
+          <button type="submit" name="action" value="start" class="primary">
+            実行する
+          </button>
+          <input type="hidden" name="confirmed" value="yes" />
+          <a href="/publish">やめる</a>
+        </div>
+      </form>
+    ) : (
+      <form method="post" class="actions">
+        <button
+          type="submit"
+          name="action"
+          value={isProduction ? 'confirm' : 'start'}
+          class="primary"
+          disabled={running}
+        >
+          {running ? '実行中' : '公開する'}
+        </button>
+        {running && <span class="muted">終わるまで押せない。</span>}
+      </form>
+    )
+  }
+
+  <style>
+    .head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .lead {
+      font-size: 0.9rem;
+    }
+
+    .notice {
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
+    }
+
+    .status {
+      margin: 2rem 0;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .status h2 {
+      font-size: 1rem;
+    }
+
+    dl {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin: 0;
+    }
+
+    dl > div {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+    }
+
+    dt {
+      flex: none;
+      width: 4.5rem;
+      color: var(--fg-muted);
+      font-size: 0.85rem;
+    }
+
+    dd {
+      margin: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .badge {
+      padding: 0 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--fg-muted);
+      font-size: 0.75rem;
+    }
+
+    .badge.is-running,
+    .badge.is-succeeded {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .logs,
+    .note {
+      margin-top: 1rem;
+      font-size: 0.85rem;
+    }
+
+    .confirm {
+      padding: 1rem;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .actions button {
+      padding: 0.45rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: none;
+      color: var(--fg);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .actions button.primary {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .actions button:disabled {
+      border-color: var(--border);
+      color: var(--fg-muted);
+      cursor: default;
+    }
+  </style>
+</Base>

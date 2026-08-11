@@ -67,4 +67,40 @@ module "editor" {
 
   table_name = module.storage.table_name
   table_arn  = module.storage.table_arn
+
+  # 起動できる対象は自環境の公開手続き1つに限る。**配信元と CDN への権限は
+  # これを渡しても増えない。** 押せることと書けることは別の権限である。
+  publish_project_arn = module.publish.project_arn
+}
+
+# 公開手続き。書いたものを配信に反映する側。
+#
+# **編集アプリケーションはこれを起動できるだけで、配信物には触れない。**
+# バケットと CloudFront を書き換えられるのはこのモジュールが作る実行ロールに
+# 限られる（design.md 決定4）。
+#
+# production への反映は、どの起動口からでも人の確認を要求する。CodeBuild 側は
+# DIARY_DEPLOY_CONFIRMED が渡っていることを scripts/deploy.sh で確かめており、
+# 起動の時点では編集アプリケーションの画面が確認の一段を挟む。
+#
+# 渡している値は、これまで config/production.env に人が転記していたものと同じ
+# 集合である。出どころが同じ root の output なので、この経路には転記が挟まらない。
+module "publish" {
+  source = "../../modules/publish"
+
+  environment = local.environment
+
+  # 配る元のコードは環境によらず1つ。違うのは接続とプロジェクトのほう。
+  repository_url = "https://github.com/ceshmina/apkas-diary.git"
+
+  table_name = module.storage.table_name
+  table_arn  = module.storage.table_arn
+  gsi1_name  = module.storage.gsi1_name
+
+  site_bucket_name = module.delivery.bucket_name
+  site_bucket_arn  = module.delivery.bucket_arn
+  distribution_id  = module.delivery.distribution_id
+  site_url         = module.delivery.site_url
+
+  photo_url = module.photos.photo_url
 }

@@ -1,0 +1,45 @@
+# 公開手続き。CodeBuild がこれを読んで、サイトを作り直して配信に反映する。
+#
+# **手順そのものは持たない。** 呼ぶのは手元と同じ scripts/build.sh と
+# scripts/deploy.sh で、ここにあるのは実行環境の準備だけである。手順を
+# ここへ書き写すと、ボタンから配ったものと手元から配ったものが食い違う。
+#
+# 設定（バケット・ディストリビューション ID・テーブル名など）はプロジェクトの
+# 環境変数として渡る。config/<環境>.env はコミットされないのでここには無く、
+# DIARY_CONFIG_SOURCE=environment がその旨を scripts/lib/load-env.sh に伝える。
+
+version: 0.2
+
+env:
+  shell: bash
+
+phases:
+  install:
+    runtime-versions:
+      # .node-version と揃える。ずれると手元と違う結果が出うる。
+      nodejs: 22
+    commands:
+      - node --version
+      - echo "commit:$CODEBUILD_RESOLVED_SOURCE_VERSION"
+      - npm ci
+
+  build:
+    # **生成と反映を同じフェーズに、この順で置く。** CodeBuild は同一フェーズ内で
+    # 先行するコマンドが失敗すると後続を実行しないため、生成に失敗した実行は
+    # s3 sync に到達しない。フェーズを分けると、build の失敗後も deploy が
+    # 走りうる置き方になる。
+    commands:
+      - scripts/build.sh "$DIARY_ENV"
+      - scripts/deploy.sh "$DIARY_ENV"
+
+  post_build:
+    # **ここに配信物へ触る処理を置かない。** post_build は build が失敗しても
+    # 実行される。ここに反映の処理があると、「生成に失敗した実行が配信物を
+    # 書き換える」経路そのものになる。置くのは結果の要約だけにする。
+    commands:
+      - |
+        if [[ "$CODEBUILD_BUILD_SUCCEEDING" == "1" ]]; then
+          echo "公開しました。commit:$CODEBUILD_RESOLVED_SOURCE_VERSION 環境:$DIARY_ENV"
+        else
+          echo "失敗しました。上の build フェーズの出力を確認してください。" >&2
+        fi

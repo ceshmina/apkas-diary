@@ -58,10 +58,18 @@ local tfstate = std.native('tfstate');
 
       DIARY_TABLE_NAME: tfstate('module.storage.aws_dynamodb_table.diary.name'),
 
+      // 対象環境。production かどうかで、公開の前に確認の一段が付くかが決まる。
+      DIARY_ENV: tfstate('output.environment'),
+
       // 自分の URL と、設定の置き場所。どちらも出力として定義済みのものを読む。
       // 同じ文字列を組み立てる規則が2箇所に分かれない。
       EDITOR_BASE_URL: tfstate('output.editor_url'),
       EDITOR_PARAM_PREFIX: tfstate('output.editor_param_prefix'),
+
+      // 起動する公開手続き。**実行ロールが起動を許されているのもこの1つだけ**
+      // なので、ここが別の環境を指しても、その先で権限に阻まれる。名前と権限の
+      // 出どころが同じ state にあり、片方だけずれた状態は作れない。
+      PUBLISH_PROJECT_NAME: tfstate('output.publish_project_name'),
     },
   },
 }

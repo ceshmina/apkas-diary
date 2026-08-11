@@ -237,8 +237,34 @@ data "aws_iam_policy_document" "editor" {
     resources = ["${trimsuffix(aws_cloudwatch_log_group.editor.arn, ":*")}:*"]
   }
 
-  # S3（公開サイトの配信元・写真の両方）と CloudFront への権限は与えない。
-  # 編集アプリケーションが触れるのは自環境の日記テーブルと自分の設定だけである。
+  # 公開手続きを**起動する**権限と、その状況を**読む**権限。
+  #
+  # **これは配信物を書き換える権限ではない。** 編集アプリケーションが起こせる
+  # のは「定められた手順を、定められた入力で始めること」だけで、何をどこへ
+  # 書くかは手順の側（公開手続きの実行ロール）が持つ。このコードが乗っ取られ
+  # ても、配信物へ任意の内容を書き込む経路にはならない。
+  #
+  # 削除の操作を画面ではなく権限で塞いでいるのと同じ考え方で、境界を「画面に
+  # 何を置いたか」ではなく「何ができるか」の側に置いている。
+  #
+  # 3つとも資源をプロジェクトの ARN で絞れる。自環境の1つに限っており、
+  # 他方の環境の公開手続きには届かない。
+  statement {
+    sid    = "StartAndWatchPublish"
+    effect = "Allow"
+
+    actions = [
+      "codebuild:StartBuild",
+      "codebuild:BatchGetBuilds",
+      "codebuild:ListBuildsForProject",
+    ]
+
+    resources = [var.publish_project_arn]
+  }
+
+  # **S3（公開サイトの配信元・写真の両方）と CloudFront への権限は与えない。**
+  # 公開手続きを起動できるようになっても、ここは変わらない。編集
+  # アプリケーションが直接触れるのは、自環境の日記テーブルと自分の設定だけである。
 }
 
 resource "aws_iam_role_policy" "editor" {

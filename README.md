@@ -1,6 +1,6 @@
 # apkas-diary
 
-個人の日記サイト。日記データは DynamoDB を正とし、ローカルでビルドした静的サイトを S3 + CloudFront で配信する。写真は別の経路で、投入すると Lambda が派生画像を作って配信用の S3 + CloudFront に置く。日記の追加・修正は手元の CLI からでも、ブラウザの編集アプリケーションからでも行える。
+個人の日記サイト。日記データは DynamoDB を正とし、そこから生成した静的サイトを S3 + CloudFront で配信する。写真は別の経路で、投入すると Lambda が派生画像を作って配信用の S3 + CloudFront に置く。日記の追加・修正は手元の CLI からでも、ブラウザの編集アプリケーションからでも行える。公開サイトへの反映も、手元からでもブラウザからでも行える。
 
 ```
 【編集】
@@ -14,13 +14,18 @@
   DynamoDB ─┬─ 公開分（GSI1） ──▶ Astro ──▶ 静的サイト ──▶ S3 ──▶ CloudFront ──▶ 閲覧
             └─ 下書き含む全件 ──▶ Markdown 書き出し ──▶ export/（コミットしない）
 
+  これを走らせる場所が2つある。どちらも同じ scripts/build.sh と scripts/deploy.sh を通る。
+
+  手元（npm run build / npm run deploy）──▶ 手元のコードから
+  CodeBuild（ブラウザの「公開」ボタン）──▶ GitHub の main から
+
 【写真】
   元写真 ──▶ S3（アップロード用）──▶ Lambda ──▶ S3（配信用）──▶ CloudFront ──▶ 閲覧
                       │                  │
                  原本を保管         4サイズ・WebP・EXIF 全除去
 ```
 
-**編集アプリケーションの責務は DynamoDB への書き込みまで。** 公開サイトへの反映は、どちらで書いた場合も手元の `npm run build` / `npm run deploy` で行う。
+**編集アプリケーションが書き込むのは DynamoDB までで、配信物には触れない。** 公開の操作でできるのは CodeBuild のプロジェクトを1つ起動することだけで、S3 と CloudFront を書き換える権限は編集アプリケーションの実行ロールに無い。押せることと書けることを別の権限に分けてある。
 
 現在の仕様は [openspec/specs/](openspec/specs/)、基盤構築時の設計判断は [openspec/changes/archive/2026-08-01-setup-diary-foundation/design.md](openspec/changes/archive/2026-08-01-setup-diary-foundation/design.md) を参照。
 
@@ -247,6 +252,38 @@ cd terraform/envs/staging && terraform output
 `.env.production` があると staging のビルドにもその内容が混入する。環境の
 取り違えを避けるため、Vite の名前空間の外に置いている。
 
+このファイルが要るのは**手元からの実行だけ**である。CodeBuild での公開手続きには
+同じ集合が Terraform から環境変数として渡っており、そちらに転記は無い。
+
+### 10. GitHub 接続の承認（環境ごとに1度だけ）
+
+ブラウザの「公開」ボタンから配るには、CodeBuild が GitHub からソースを取れる
+必要がある。接続そのものは `terraform apply` が作るが、**作られるのは `PENDING`
+の状態までで、GitHub 側の認可は人が行う**。state の保存先・DNS のホストゾーン・
+Google の OAuth クライアントに並ぶ、コード管理の外に置く4つ目の例外である。
+
+Terraform で認可まで済ませられないのは、GitHub 側で当該アカウントに AWS の
+Connector アプリを入れる操作が要るためで、これは資格情報ではなく人の同意にあたる。
+
+```bash
+cd terraform/envs/staging
+terraform output publish_connection_status   # PENDING なら未承認
+terraform output publish_connection_arn
+```
+
+AWS コンソールの **Developer Tools → 設定 → 接続**でその接続を開き、「保留中の接続を
+更新」から GitHub の認可を通す。`AVAILABLE` になれば完了。
+
+```bash
+terraform output publish_connection_status   # AVAILABLE
+```
+
+**承認しないまま「公開」を押すと、ビルドはソースの取得で失敗する。** 黙って古い
+内容を配り続けることはない。失敗は編集アプリケーションの画面に出る。
+
+接続は環境ごとに別で、staging の承認は production に影響しない。片方の接続を
+失効させても、もう片方は動き続ける。
+
 ## 日々の運用
 
 すべてのコマンドは環境名（`staging` / `production`）を第1引数に取る。**対象環境を明示しないと実行できない。**
@@ -282,12 +319,25 @@ Google アカウントでログインする。許可されたアカウント以�
 - 日付を指定して新規作成・編集（既にある日付を開くと、その内容を読み込んだ編集になる）
 - 下書きと公開の切り替え
 - 保存前のプレビュー（**公開サイトとまったく同じ整形**で表示される）
+- 公開サイトへの反映（次節）
 
 **削除はできない。** 画面に無いだけでなく、実行ロールに `DeleteItem` を与えていない。公開を取り下げたいときは下書きに戻す。本文は残る。
 
-**公開サイトへの反映は手元で行う。** 編集アプリケーションが書き込むのは DynamoDB までで、次の `npm run build` / `npm run deploy` まで公開サイトは変わらない。
-
 初回のアクセスは、使っていない時間が長いほど待つ（コールドスタート）。1〜3 秒程度で、30 秒を超えることはない。待っているあいだも料金は発生しない。使わない月の費用はゼロである。
+
+#### ブラウザから公開する
+
+一覧の「公開」から `/publish` に入る。押すと CodeBuild が動き、サイトを作り直して配信に反映する。
+
+**配られるのは GitHub の `main` の内容である。** 手元にだけあるコミットしていない変更は含まれない。どの commit で走ったかは画面に出るので、意図した版が配られたかはそこで確かめられる。
+
+- 所要は **2〜3 分**。押した時点で応答が返り、進行中・成功・失敗が画面に出る。進行中のあいだは5秒ごとに自動で更新される。
+- 費用は **1回あたり $0.01 程度**（ARM の小さい実行環境で数分）。実行していないあいだは発生しない。
+- **実行中は押せない。** 2つの同期が重なると、どちらの生成物とも一致しない状態が配信されるため、画面でもプロジェクトの設定（`concurrent_build_limit = 1`）でも塞いである。
+- **production では確認の一段が入る。** 押しただけでは始まらず、「実行する」を選んで初めて動く。
+- 失敗したときは CloudWatch Logs へのリンクが出る。**失敗した実行は配信物に届いていない**（生成に失敗すると反映の段に進まない）ので、配信中の内容は直前のまま変わらない。
+
+反映されない・古いままだと感じたときは、まず接続の状態を疑う。承認が切れていると、ソースの取得の段で失敗する。
 
 #### 手元で動かす
 
@@ -299,7 +349,7 @@ npm run dev:editor -- staging
 
 読み書きの対象は指定した環境の DynamoDB テーブルで、設定も同じ環境の SSM から読む。手元用の別のデータは持たない。
 
-### ビルドとデプロイ
+### 手元からビルドとデプロイ
 
 ```bash
 npm run build  -- staging   # DynamoDB から取得して dist/ を生成し、export/ に書き出す
@@ -307,6 +357,12 @@ npm run deploy -- staging   # dist/ を S3 に同期し、CloudFront を invalid
 ```
 
 `npm run build` は副産物として `export/` に全エントリ（下書きを含む）を Markdown で書き出す。これは DynamoDB や AWS アカウントを失った場合の備えで、リポジトリにはコミットしない。
+
+**ブラウザからの公開と同じスクリプトが動く。** CodeBuild の `buildspec.yml` が呼ぶのもこの2本で、違うのは資格情報の出どころ（named profile か実行ロールか）と、production の確認の取り方（対話か `DIARY_DEPLOY_CONFIRMED` か）だけである。手順の宣言元が1つなので、どちらから配っても同じものが出る。
+
+**この経路はブラウザからの公開に依存しない。** GitHub が落ちていても、接続の承認が切れていても、CodeBuild に障害が出ていても、手元からは配れる。配る手段を1つに集約していないのは、日記が書き手ひとりの記録であり、公開の経路が失われたまま復旧を待つ状況を作らないためである。
+
+手元からは**コミットしていない変更もそのまま配られる**。ブラウザからの公開との違いはここにある。試しに見た目を変えて確かめたいときは手元から、書いたものを普通に公開するときはブラウザから、と使い分ければよい。
 
 ### 写真を投入する
 
@@ -464,20 +520,22 @@ cp -R node_modules/@bruits/satteri-linux-x64-gnu editor/build/node_modules/@brui
 │   └── photo-resize/ # 写真の変換。独自の package.json を持つ（sharp を隔離するため）
 ├── editor/           # 編集アプリケーション。Astro の SSR
 │   ├── src/
-│   │   ├── lib/      # 設定（SSM）と認証（セッション・Google OIDC・記録）
+│   │   ├── lib/      # 設定（SSM）・認証（セッション・Google OIDC・記録）・公開手続きの起動
 │   │   ├── layouts/
-│   │   ├── pages/    # 一覧・日付選択・編集・ログイン
+│   │   ├── pages/    # 一覧・日付選択・編集・公開・ログイン
 │   │   └── middleware.ts  # 設定の確認と認証の確認。素通りできる経路はここ以外に無い
 │   ├── astro.config.ts    # ルートは repo のまま、srcDir だけ editor/src に向ける
 │   ├── function.jsonnet   # lambroll が読む。値は tfstate から引く
 │   └── run.sh             # Lambda での起動（Web Adapter が実行する）
+├── buildspec.yml     # CodeBuild が読む。手順は持たず scripts/ を呼ぶだけ
 ├── scripts/          # bootstrap / build / deploy / entry / photo / lambda / editor
 ├── terraform/
 │   ├── modules/
 │   │   ├── storage/  # DynamoDB
 │   │   ├── delivery/ # サイト配信。S3 + CloudFront + OAC
 │   │   ├── photos/   # 写真。S3 ×2 + CloudFront + OAC + Lambda の枠
-│   │   └── editor/   # 編集。API Gateway + Lambda の枠 + SSM の入れ物
+│   │   ├── editor/   # 編集。API Gateway + Lambda の枠 + SSM の入れ物
+│   │   └── publish/  # 公開手続き。CodeBuild + GitHub 接続 + 実行ロール
 │   └── envs/
 │       ├── staging/
 │       └── production/
@@ -489,12 +547,16 @@ cp -R node_modules/@bruits/satteri-linux-x64-gnu editor/build/node_modules/@brui
 
 `editor/` はルートの `package.json` を共有する。**Astro のルートもリポジトリのルートのまま**にしてあり、`srcDir` だけを `editor/src` に向けている。こうすると `src/lib`（日付・DynamoDB アクセス・Markdown の整形）と `src/styles` を素直な相対 import で共有でき、公開サイトと編集アプリケーションで Astro や Markdown プロセッサの版がずれない。プレビューと公開結果を一致させる前提がここにある。
 
+`buildspec.yml` は**手順を持たない**。`npm ci` のあと `scripts/build.sh` と `scripts/deploy.sh` を順に呼ぶだけである。ここに手順を書き写すと、ボタンから配ったものと手元から配ったものが食い違う余地が生まれる。したがって公開の手順を直すのはコードの変更であって、`terraform apply` は要らない（関数の中身を lambroll が持つのと同じ、インフラと中身のライフサイクルの分離）。
+
 ## 開発
 
 ```bash
 npm run check          # 型チェックと Lint（editor/ と lambda/ の型検査も含む）
 npm run format         # 整形と自動修正
 ```
+
+**CI は CodeBuild に置かない。** 公開手続きが担うのは「`main` の内容を配る」ことだけで、型検査・Lint・テストはコードの変更に対して回すものである。両者を1つの実行に混ぜると、片方の都合でもう片方が止まる（Lint の失敗で日記が公開できない、あるいは公開のための実行環境の都合が CI の速さを縛る）。CI を置くなら GitHub Actions 側に置く。この repo にはまだ `.github/` が無く、置くのは別の change になる。
 
 `astro check` は2回走る。1回目（ルートの設定）でリポジトリ配下の `.astro` は全部見ているが、2回目（`--config editor/astro.config.ts`）を残しているのは、**`editor/astro.config.ts` そのものの誤りが1回目では読み込まれず素通りする**ためである。
 
@@ -527,8 +589,12 @@ AWS_SECRET_ACCESS_KEY=local
 - **写真は配信用バケットに人が書かない**。書けるのは Lambda だけで、そこに置かれるのは元写真から機械的に作られたものに限られる。「EXIF が残っていないこと」を毎回の注意ではなく経路の不在で守っている。
 - **写真の元と配信は別のバケット**。サイトのデプロイは `aws s3 sync --delete` で配信元を丸ごと同期するため、写真が同居していると1度のデプロイで消える。バージョニングも、作り直せない元写真の側にだけ付けてある。
 - **関数の存在は Terraform、中身は lambroll**。インフラと関数のコードは変わる頻度が違う。境界がここにあるのは、S3 のイベント通知（写真）と API Gateway の統合（編集）が関数の実在を要求するためで、その代償として `ignore_changes` の一覧を人が保つ必要がある（`terraform plan` で見張る）。
-- **編集アプリケーションはエントリを削除できない**。画面に削除の操作が無いだけでなく、実行ロールに `DeleteItem` と `BatchWriteItem` を与えていない。画面から消すやり方だと、あとから足せてしまう。権限が無ければ、足そうとした時点で失敗する。同じ理由で、与えているのは実際に使う `GetItem` / `PutItem` / `Scan` の3つだけで、S3 と CloudFront への権限は一切ない。
+- **編集アプリケーションはエントリを削除できない**。画面に削除の操作が無いだけでなく、実行ロールに `DeleteItem` と `BatchWriteItem` を与えていない。画面から消すやり方だと、あとから足せてしまう。権限が無ければ、足そうとした時点で失敗する。同じ理由で、与えているのは実際に使う `GetItem` / `PutItem` / `Scan` の3つだけである。
+- **公開を起こす権限と、配信物を書き換える権限を分けてある**。編集アプリケーションに「公開」ボタンが付いても、実行ロールに S3 と CloudFront の権限は1つも増えていない。増えたのは自環境の CodeBuild プロジェクト1つに対する `StartBuild` / `BatchGetBuilds` / `ListBuildsForProject` だけで、起こせるのは「定められた手順を、定められた入力で始めること」に限られる。何をどこへ書くかは手順の側が持つ。**このコードが乗っ取られても、配信物へ任意の内容を書き込む経路にはならない。** 削除を画面ではなく権限で塞いでいるのと同じ考え方を、配信物にも当てている。
+- **公開の手順は1箇所にしかない**。`buildspec.yml` は手順を持たず、手元と同じ `scripts/build.sh` と `scripts/deploy.sh` を呼ぶ。宣言元が1つなので、ボタンから配ったものと手元から配ったものが食い違わない。設定の出どころだけが違い（`config/<環境>.env` か Terraform が渡す環境変数か）、それは `DIARY_CONFIG_SOURCE` の1つの分岐に閉じている。
+- **公開の経路を1つに集約しない**。ブラウザからの公開は GitHub と CodeBuild に依存するが、手元からの `npm run build` / `npm run deploy` はそのどちらにも依存しない。日記は書き手ひとりの記録であり、公開の手段が失われたまま復旧を待つ状況を作らない。同じ理由で、書く手段も CLI とブラウザの2つある。
 - **編集の前段は CloudFront ではなく API Gateway**。他の2つの配信と揃わないのは POST のためである。CloudFront の OAC が Lambda オリジンに付ける SigV4 署名は本文を署名対象に含めるが、Lambda は unsigned payload を受け付けない。そのため PUT / POST を使うには**ブラウザ側で本文の SHA-256 を計算して `x-amz-content-sha256` に載せる**ことが要求される（[AWS の文書](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-lambda.html)）。日記を保存するアプリケーションでその前提は置けない。
-- **使っていないあいだに費用の出る構成要素を持たない**。編集アプリケーションのために増えたのは Lambda・API Gateway・ACM・SSM の Standard パラメータで、いずれも時間あたりの課金がない。ALB（月 $18 程度）も EC2 の EBS も Secrets Manager（秘密1つあたり月 $0.40）も避けている。起動・停止の操作が人の手に残らないので、止め忘れという失敗の形も無い。
+- **使っていないあいだに費用の出る構成要素を持たない**。編集アプリケーションのために増えたのは Lambda・API Gateway・ACM・SSM の Standard パラメータ、公開手続きのために増えたのは CodeBuild と接続で、いずれも時間あたりの課金がない。ALB（月 $18 程度）も EC2 の EBS も Secrets Manager（秘密1つあたり月 $0.40）も避けている。起動・停止の操作が人の手に残らないので、止め忘れという失敗の形も無い。公開手続きにビルドのキャッシュを持たせていないのも、数十秒を惜しんで保存先とその寿命の管理を増やさないためである。
 - **編集アプリケーションは日記を書くための唯一の入口ではない**。Google の障害や OAuth クライアントの失効で入れなくなっても、`npm run entry` からの登録は従来どおり動く。公開サイトの配信も編集アプリケーションに依存しない。
+- **公開手続きが読むのは公開分だけ、書くのは配信物だけ**。実行ロールに与えた DynamoDB の権限は GSI1 への `Query`（サイトの生成）とベーステーブルへの `Scan`（`export/` への書き出し）の2つで、**書き込みは1つも無い**。ビルドが日記を壊す経路が権限の側に存在しない。写真のバケットにも届かない。
 - **プレビューと公開結果は同じコードを通る**。`src/lib/markdown.ts` の `renderMarkdown()` と `src/styles/` を両者で共有している。整形の規則も字面も出どころが1つなので、食い違う余地がない。
