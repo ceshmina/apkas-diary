@@ -118,7 +118,7 @@ function formatTime(value: Date | undefined): string | undefined {
   }
 
   <section class="status">
-    <h2>直近の実行</h2>
+    <h2 class="section-title">直近の実行</h2>
 
     {
       statusError ? (
@@ -132,7 +132,11 @@ function formatTime(value: Date | undefined): string | undefined {
           <div>
             <dt>状態</dt>
             <dd>
-              <span class={`badge is-${status.state}`}>{LABELS[status.state]}</span>
+              <span
+                class={`pill ${status.state === 'running' || status.state === 'succeeded' ? '' : 'is-quiet'}`}
+              >
+                {LABELS[status.state]}
+              </span>
               {status.state === 'running' && status.phase && (
                 <span class="muted"> {status.phase}</span>
               )}
@@ -221,32 +225,8 @@ function formatTime(value: Date | undefined): string | undefined {
   }
 
   <style>
-    .head {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 1rem;
-    }
-
-    .lead {
-      font-size: 0.9rem;
-    }
-
-    .notice {
-      padding: 0.75rem 1rem;
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
-      border-radius: 4px;
-    }
-
     .status {
       margin: 2rem 0;
-      padding-top: 1rem;
-      border-top: 1px solid var(--border);
-    }
-
-    .status h2 {
-      font-size: 1rem;
     }
 
     dl {
@@ -274,57 +254,10 @@ function formatTime(value: Date | undefined): string | undefined {
       font-variant-numeric: tabular-nums;
     }
 
-    .badge {
-      padding: 0 0.5rem;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      color: var(--fg-muted);
-      font-size: 0.75rem;
-    }
-
-    .badge.is-running,
-    .badge.is-succeeded {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
     .logs,
     .note {
       margin-top: 1rem;
       font-size: 0.85rem;
-    }
-
-    .confirm {
-      padding: 1rem;
-      border: 1px solid var(--accent);
-      border-radius: 4px;
-    }
-
-    .actions {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .actions button {
-      padding: 0.45rem 1.25rem;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: none;
-      color: var(--fg);
-      font: inherit;
-      cursor: pointer;
-    }
-
-    .actions button.primary {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .actions button:disabled {
-      border-color: var(--border);
-      color: var(--fg-muted);
-      cursor: default;
     }
   </style>
 </Base>

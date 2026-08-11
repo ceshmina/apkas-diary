@@ -51,6 +51,7 @@ const resultBase = `/photos/uploaded?date=${date}&t=${ticket?.signedAt ?? 0}${
     </label>
     {returnTo && <input type="hidden" name="return" value={returnTo} />}
     <button type="submit">この日付にする</button>
+    {/* 主となる操作は下の「追加する」なので、こちらは `primary` にしない。 */}
   </form>
 
   {
@@ -194,24 +195,6 @@ const resultBase = `/photos/uploaded?date=${date}&t=${ticket?.signedAt ?? 0}${
   </script>
 
   <style>
-    .head {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 1rem;
-    }
-
-    .note {
-      font-size: 0.9rem;
-    }
-
-    .notice {
-      padding: 0.75rem 1rem;
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
-      border-radius: 4px;
-    }
-
     form {
       display: flex;
       flex-direction: column;
@@ -226,49 +209,8 @@ const resultBase = `/photos/uploaded?date=${date}&t=${ticket?.signedAt ?? 0}${
       margin-bottom: 0;
     }
 
-    label {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      font-size: 0.9rem;
-    }
-
-    input[type='date'],
-    input[type='file'] {
-      padding: 0.4rem 0.5rem;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: var(--bg);
-      color: var(--fg);
-      font: inherit;
-    }
-
     .actions {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
       font-size: 0.9rem;
-    }
-
-    button {
-      padding: 0.45rem 1.25rem;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: none;
-      color: var(--fg);
-      font: inherit;
-      cursor: pointer;
-    }
-
-    button.primary {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    button:disabled {
-      border-color: var(--border);
-      color: var(--fg-muted);
-      cursor: default;
     }
   </style>
 </Base>

@@ -1,24 +1,55 @@
 /*
- * 配色の基準値。
+ * 体裁の基準値。
  *
  * 公開サイトと編集アプリケーションの双方から読む。プレビューで見たものと
- * 公開後の見え方を一致させるため、色の出どころをここ1つに保つ。
+ * 公開後の見え方を一致させるため、出どころをここ1つに保つ。画面ごとに
+ * 独自の色や寸法を決めないこと。
+ *
+ * 値の出どころはポートフォリオ（../apkas/src/assets/style.css）にある。
+ * こちらはその写しで、あちらを変えたときは手で写し直す。変数名は日記側の
+ * ものを保っており、対応は次のとおり。
+ *
+ *   --fg = --ink   --fg-muted = --muted   --border = --line
+ *   --bg / --accent / --surface / --accent-soft は同じ名前
+ *
+ * Web フォントは読み込まない。これもあちらに合わせている。
  */
 
 :root {
-  --fg: #1a1a1a;
-  --fg-muted: #666;
-  --bg: #fdfdfc;
-  --accent: #375e8a;
-  --border: #e2e0dc;
+  --fg: #1c1a18;
+  --fg-muted: #6d655d;
+  --bg: #faf8f5;
+  --surface: #fff;
+  --accent: #b0512a;
+  --accent-soft: #f3e6dd;
+  --border: #e5ded4;
+
+  /* 40rem ≒ 日本語で 40 字/行。本文も一覧もこの1列に収める */
+  --page: 40rem;
+
+  --font:
+    -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Hiragino Sans',
+    'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic Medium', Meiryo, sans-serif;
+
+  /*
+   * 角丸。囲みが --radius、ボタンと入力欄が --radius-sm、ピルは 999px。
+   *
+   * ポートフォリオは囲みとピルの2つしか持たない（入力欄もボタンもないため）。
+   * --radius-sm はこちらで決めた値で、12px をそのまま当てると、横に長い箱ほど
+   * 角丸が目立ち、フォームだけが丸くなるのを避けている。
+   */
+  --radius: 12px;
+  --radius-sm: 8px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --fg: #e8e6e3;
-    --fg-muted: #9a9691;
-    --bg: #1b1a19;
-    --accent: #8ab4e8;
-    --border: #35332f;
+    --fg: #ece6de;
+    --fg-muted: #a2988c;
+    --bg: #15120f;
+    --surface: #1d1916;
+    --accent: #e39264;
+    --accent-soft: #2a1f18;
+    --border: #2e2822;
   }
 }

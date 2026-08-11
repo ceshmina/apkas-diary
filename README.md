@@ -545,6 +545,7 @@ cp -R node_modules/@bruits/satteri-linux-x64-gnu editor/build/node_modules/@brui
 │   ├── lib/          # 日付ユーティリティ、環境変数、DynamoDB アクセス、写真の URL 規約
 │   ├── export/       # Markdown 書き出し
 │   ├── cli/          # エントリ登録・写真投入 CLI
+│   ├── styles/       # 体裁の基準（配色・書体・寸法）と本文要素。編集アプリケーションと共有する
 │   ├── layouts/      # Astro のレイアウト
 │   ├── components/   # Astro のコンポーネント
 │   └── pages/        # Astro のページ（ルーティング）
@@ -630,3 +631,4 @@ AWS_SECRET_ACCESS_KEY=local
 - **編集アプリケーションは日記を書くための唯一の入口ではない**。Google の障害や OAuth クライアントの失効で入れなくなっても、`npm run entry` からの登録は従来どおり動く。公開サイトの配信も編集アプリケーションに依存しない。
 - **公開手続きが読むのは公開分だけ、書くのは配信物だけ**。実行ロールに与えた DynamoDB の権限は GSI1 への `Query`（サイトの生成）とベーステーブルへの `Scan`（`export/` への書き出し）の2つで、**書き込みは1つも無い**。ビルドが日記を壊す経路が権限の側に存在しない。写真のバケットにも届かない。
 - **プレビューと公開結果は同じコードを通る**。`src/lib/markdown.ts` の `renderMarkdown()` と `src/styles/` を両者で共有している。整形の規則も字面も出どころが1つなので、食い違う余地がない。
+- **体裁の基準はポートフォリオにある**。配色・書体・本文の幅・角丸は [apkas.net](https://apkas.net)（別リポジトリの `apkas`）の `src/assets/style.css` を出どころとし、`src/styles/tokens.css` はその写しを持つ。ポートフォリオから日記へ辿ったときに別のサイトに見えないことと、画面を足すたびに角丸や余白をその場で決めずに済むことの両方をここで担保している。**別リポジトリ・別配信なので CSS そのものは共有できない。** あちらの値を変えたときは、こちらも手で写し直す。

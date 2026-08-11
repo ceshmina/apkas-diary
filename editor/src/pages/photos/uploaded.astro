@@ -157,7 +157,7 @@ const heading = keys.length === 0 ? '結果を表示できない' : '追加し�
               <div class="body">
                 <p class="name">
                   {photo.name}
-                  {photo.replaced && <span class="tag">差し替え</span>}
+                  {photo.replaced && <span class="pill tag">差し替え</span>}
                 </p>
 
                 {photo.error ? (
@@ -205,28 +205,9 @@ const heading = keys.length === 0 ? '結果を表示できない' : '追加し�
   }
 
   <style>
-    .head {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 1rem;
-    }
-
-    .lead,
-    .note,
-    .small {
-      font-size: 0.9rem;
-    }
-
     .small {
       margin: 0;
-    }
-
-    .notice {
-      padding: 0.75rem 1rem;
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
-      border-radius: 4px;
+      font-size: 0.9rem;
     }
 
     .photos {
@@ -251,7 +232,7 @@ const heading = keys.length === 0 ? '結果を表示できない' : '追加し�
       display: block;
       width: 100%;
       height: auto;
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
     }
 
     .placeholder {
@@ -260,7 +241,7 @@ const heading = keys.length === 0 ? '結果を表示できない' : '追加し�
       justify-content: center;
       height: 90px;
       border: 1px dashed var(--border);
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
       font-size: 0.8rem;
     }
 
@@ -279,20 +260,11 @@ const heading = keys.length === 0 ? '結果を表示できない' : '追加し�
 
     .tag {
       margin-left: 0.5rem;
-      padding: 0 0.5rem;
-      border: 1px solid var(--accent);
-      border-radius: 999px;
-      color: var(--accent);
-      font-size: 0.7rem;
     }
 
+    /* 本文に貼る記述。読むのではなく写すものなので等幅にする。 */
     .snippet {
       width: 100%;
-      padding: 0.4rem 0.5rem;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: var(--bg);
-      color: var(--fg);
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 0.85rem;
     }

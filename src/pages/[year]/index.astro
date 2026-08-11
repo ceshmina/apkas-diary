@@ -37,7 +37,9 @@ const months = [...byMonth.keys()]
       <ul class="month-list">
         {months.map((month) => (
           <li>
-            <a href={`/${year}/${month}`}>{Number(month)}月</a>
+            <a class="pill" href={`/${year}/${month}`}>
+              {Number(month)}月
+            </a>
           </li>
         ))}
       </ul>
@@ -51,7 +53,7 @@ const months = [...byMonth.keys()]
   .month-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem 1.25rem;
+    gap: 0.5rem;
     list-style: none;
     margin: 0 0 2rem;
     padding: 0;

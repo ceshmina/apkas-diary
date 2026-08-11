@@ -21,6 +21,9 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} | ${siteTitle}`
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     {description && <meta name="description" content={description} />}
+    {/* ブラウザの枠の色。値は tokens.css の --bg と同じで、ポートフォリオとも揃う。 */}
+    <meta name="theme-color" content="#faf8f5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#15120f" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="data:," />
   </head>
   <body>
@@ -40,7 +43,7 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} | ${siteTitle}`
       header,
       main,
       footer {
-        max-width: 42rem;
+        max-width: var(--page);
         margin: 0 auto;
       }
 
@@ -50,8 +53,9 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} | ${siteTitle}`
       }
 
       .site-title {
-        font-weight: 700;
+        font-weight: 600;
         font-size: 1.1rem;
+        letter-spacing: 0.04em;
         text-decoration: none;
         color: var(--fg);
       }

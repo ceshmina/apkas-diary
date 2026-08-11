@@ -6,6 +6,7 @@
  * 整形の規則（src/lib/markdown.ts）と見え方の両方が同じ出どころになる。
  *
  * サイトのヘッダ・フッタなど、公開サイトに固有のものはここに置かない。
+ * 色と寸法の基準は tokens.css にある。
  */
 
 *,
@@ -14,28 +15,50 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+
+  /*
+   * ブラウザが自前で描くもの（日付の入力欄の暦、スクロールバー、ファイル選択の
+   * ボタン）を、明暗の設定に追従させる。これを言わないと、暗い設定でも明るい
+   * 前提の部品が出て、そこだけ浮く。
+   */
+  color-scheme: light dark;
+
+  /* 選択の印（ラジオ・チェックボックス）もアクセント色にする。 */
+  accent-color: var(--accent);
+}
+
 body {
   margin: 0;
-  padding: 0 1.25rem;
+  padding: 0 1.5rem;
   background: var(--bg);
   color: var(--fg);
-  font-family: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
-  line-height: 1.8;
-  font-size: 16px;
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.9;
+  letter-spacing: 0.02em;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
   color: var(--accent);
 }
 
+/* 見出しの太さは 600。既定の bold（700）より一段軽い。 */
 h1 {
   font-size: 1.5rem;
+  font-weight: 600;
   line-height: 1.5;
+  letter-spacing: 0.01em;
   margin: 0 0 1.5rem;
 }
 
 h2 {
   font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
   margin: 2rem 0 0.75rem;
 }
 
@@ -48,10 +71,89 @@ pre {
   overflow-x: auto;
   padding: 0.9rem 1rem;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   line-height: 1.6;
 }
 
 .muted {
   color: var(--fg-muted);
 }
+
+/*
+ * 短い語をひとかたまりで示すピル。公開サイト（年・月の並び）と編集
+ * アプリケーション（公開状態、実行状態、差し替え）の両方に現れるので、
+ * どちらか一方ではなくここに置く。ポートフォリオの `.tags` と同じ体裁。
+ *
+ * `is-quiet` は、際立たせる必要のない側（下書き、実行していない状態）。
+ * 地を持たず、境界線と淡い文字で示す。
+ */
+.pill {
+  display: inline-block;
+  padding: 0.3rem 0.85rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  text-decoration: none;
+}
+
+.pill.is-quiet {
+  border-color: var(--border);
+  background: none;
+  color: var(--fg-muted);
+}
+
+/*
+ * ページの構造としての見出し。エントリ本文の `##` には当てないので、
+ * `h2` そのものではなく class で与える。当てるのは3箇所だけ（トップの
+ * 「年別」、編集の「直近の実行」「表示の確認」）。
+ *
+ * ポートフォリオの `.section__title` は、小さな大文字ラベルの右へ罫線を
+ * 伸ばす。日本語には大文字化が効かないので、罫線のほうを目印として持って
+ * きている。
+ */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: var(--accent);
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+}
+
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* キーボードで辿っている位置。地の色によらず見えている必要がある。 */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/*
+ * 動きを減らす設定。体裁のために足した動き（ホバーの浮き上がり、色の遷移）
+ * だけを止める。写真の拡大表示はこの設定を自前で見ており、動きを伴わずに
+ * 切り替わる（src/components/photo-zoom.ts）。
+ *
+ * `*` は最も弱い指定なので、`!important` がないと個別の宣言に負けて何も
+ * 止まらない。この打ち消しに限っては、それが目的である。
+ */
+/* biome-ignore-start lint/complexity/noImportantStyles: 個別の宣言を打ち消すための指定 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+/* biome-ignore-end lint/complexity/noImportantStyles: 個別の宣言を打ち消すための指定 */

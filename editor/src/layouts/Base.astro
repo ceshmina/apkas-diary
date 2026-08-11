@@ -39,6 +39,9 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="robots" content="noindex, nofollow" />
+    {/* ブラウザの枠の色。値は tokens.css の --bg と同じで、公開サイトとも揃う。 */}
+    <meta name="theme-color" content="#faf8f5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#15120f" media="(prefers-color-scheme: dark)" />
     {
       refreshSeconds && (
         <meta
@@ -69,25 +72,35 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
     </main>
 
     <style is:global>
-      /* 編集アプリケーションの骨格。配色と本文要素は src/styles/ にある。 */
+      /*
+       * 編集アプリケーションの骨格と、画面をまたいで現れる部品。配色・書体・
+       * 角丸の基準と、本文要素・ピルの体裁は src/styles/ にあり、公開サイトと
+       * 共有している。
+       *
+       * 部品（囲み・ボタン・入力欄）をここに置くのは、同じ CSS が各ページの
+       * `<style>` に書き写されていたため。ページ側には、その画面にしかない
+       * 配置だけを残す。
+       */
       header,
       main {
-        max-width: 42rem;
+        max-width: var(--page);
         margin: 0 auto;
       }
 
       header {
         display: flex;
+        flex-wrap: wrap;
         align-items: baseline;
         justify-content: space-between;
-        gap: 1rem;
+        gap: 0.5rem 1rem;
         padding: 1.5rem 0;
         border-bottom: 1px solid var(--border);
       }
 
       .app-title {
-        font-weight: 700;
+        font-weight: 600;
         font-size: 1.1rem;
+        letter-spacing: 0.04em;
         text-decoration: none;
         color: var(--fg);
       }
@@ -108,16 +121,165 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
         min-height: 60vh;
       }
 
+      /* 見出しと本文のあいだに置く一言。 */
+      .lead,
+      .note {
+        font-size: 0.9rem;
+      }
+
+      /*
+       * 伝えることのある囲み（保存した、失敗した、確認する）。左の線は日記に
+       * 固有の体裁で、ポートフォリオに対応するものはない。地と角丸は囲みの基準
+       * に従う。
+       */
+      .notice {
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+
+      /* 押す前に一段構える囲み。全体をアクセント色で縁取る。 */
+      .confirm {
+        padding: 1rem 1.25rem;
+        border: 1px solid var(--accent);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+
+      /*
+       * ボタン。`.primary` はその画面で主となる操作で、境界線と文字が
+       * アクセント色になる。
+       *
+       * ホバーで浮くのは箱のリンク（`a.button`）だけにしている。押す位置が
+       * 動くと、連続して押すときに狙いが外れるため。動きを減らす設定では
+       * base.css の抑制ブロックが効き、色の変化だけが残る。
+       */
+      button,
+      .button {
+        display: inline-block;
+        padding: 0.45rem 1.25rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        color: var(--fg);
+        font: inherit;
+        line-height: 1.5;
+        text-decoration: none;
+        cursor: pointer;
+        transition:
+          color 0.18s ease,
+          border-color 0.18s ease,
+          transform 0.18s ease;
+      }
+
+      button.primary,
+      .button.primary {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      button:hover:not(:disabled),
+      .button:hover {
+        border-color: var(--accent);
+      }
+
+      a.button:hover {
+        transform: translateY(-2px);
+      }
+
+      button:disabled {
+        border-color: var(--border);
+        color: var(--fg-muted);
+        cursor: default;
+      }
+
       /* 見た目はリンク、実体はボタン。副作用のある操作を GET にしないため。 */
       button.link {
         padding: 0;
         border: 0;
+        border-radius: 0;
         background: none;
         color: var(--accent);
         font: inherit;
         font-size: inherit;
         text-decoration: underline;
         cursor: pointer;
+      }
+
+      /* 入力欄。ボタンと同じ角丸で、同じ列に並んだときに揃う。 */
+      input[type='text'],
+      input[type='date'],
+      input[type='file'],
+      textarea {
+        padding: 0.45rem 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        color: var(--fg);
+        font: inherit;
+      }
+
+      textarea {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.95rem;
+        line-height: 1.7;
+        resize: vertical;
+      }
+
+      /* ファイル選択の中のボタン。ブラウザ既定の灰色のままだと、ここだけ浮く。 */
+      input[type='file']::file-selector-button {
+        margin-right: 0.75rem;
+        padding: 0.25rem 0.9rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--bg);
+        color: var(--fg);
+        font: inherit;
+        font-size: 0.9rem;
+        cursor: pointer;
+      }
+
+      /* 入力欄の見出し。入力そのものの上に小さく置く。 */
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        font-size: 0.9rem;
+      }
+
+      fieldset {
+        margin: 0;
+        padding: 0.75rem 1.25rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+
+      legend {
+        padding: 0 0.4rem;
+        font-size: 0.9rem;
+      }
+
+      /* 操作の並び。ボタンとリンクを横に並べる。 */
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      /*
+       * 画面の題と、その右に置く小さな操作。狭い画面では操作のほうが下へ回る。
+       * 折り返さないと、題が1文字ずつの縦棒になるまで潰れる。
+       */
+      .head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5rem 1rem;
       }
     </style>
   </body>
