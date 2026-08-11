@@ -3,9 +3,26 @@ output "upload_bucket_name" {
   value       = aws_s3_bucket.upload.bucket
 }
 
+output "upload_bucket_arn" {
+  description = <<-EOT
+    元写真を置く S3 バケットの ARN。
+    編集アプリケーションの実行ロールを、このバケットへの書き込みだけに限るために使う。
+  EOT
+  value       = aws_s3_bucket.upload.arn
+}
+
 output "delivery_bucket_name" {
   description = "派生画像が置かれる S3 バケット名。人が書き込む先ではない。"
   value       = aws_s3_bucket.delivery.bucket
+}
+
+output "delivery_bucket_arn" {
+  description = <<-EOT
+    派生画像が置かれる S3 バケットの ARN。
+    編集アプリケーションが変換の完了を見るための読み取りを、このバケットに限るために使う。
+    **書き込みは誰にも渡さない。** ここへ書けるのは変換 Lambda だけである。
+  EOT
+  value       = aws_s3_bucket.delivery.arn
 }
 
 output "distribution_id" {

@@ -1,0 +1,236 @@
+---
+import { formatDateJa, isValidDate } from '../../../../src/lib/date.js'
+import { photoUrl } from '../../../../src/lib/env.js'
+import { PHOTO_SIZES, photoUrlOf } from '../../../../src/lib/photo.js'
+import Base from '../../layouts/Base.astro'
+import { acceptReturnedKey, probeDerivative, WAIT_TIMEOUT_MS } from '../../lib/photo-upload.js'
+
+export const prerender = false
+
+const session = Astro.locals.session
+
+/**
+ * S3 が 303 で戻したときの query。
+ *
+ * `key` / `bucket` / `etag` は S3 が付ける。`date` / `t` / `return` は投入の画面が
+ * 戻り先の URL に載せたものである。
+ */
+const params = Astro.url.searchParams
+const date = params.get('date') ?? ''
+const signedAt = Number(params.get('t'))
+
+// 差し替えであることは、作り直しが終わると見えなくなる。読み直しをまたいで
+// 持ち越すために query に載せている（`refreshTo`）。
+const knownReplaced = params.has('replaced')
+
+const rawReturn = params.get('return')
+const returnTo = rawReturn?.startsWith('/entries/') ? rawReturn : undefined
+
+// 受け取ってよいキーかを確かめる。日付の下にあり、そこから先が単一のファイル名で
+// あることまで見る。外れていれば結果を出さない。
+const key =
+  isValidDate(date) && Number.isFinite(signedAt) && signedAt > 0
+    ? acceptReturnedKey(date, params.get('key'))
+    : undefined
+
+let ready = false
+let replaced = knownReplaced
+let probeError: string | undefined
+
+if (key) {
+  try {
+    const probe = await probeDerivative(key, signedAt)
+    ready = probe.ready
+    replaced = replaced || probe.replaced
+  } catch (error) {
+    probeError = error instanceof Error ? error.message : String(error)
+  }
+}
+
+const base = key ? photoUrl() : ''
+const urls = key ? PHOTO_SIZES.map((size) => ({ size, url: photoUrlOf(base, size, key) })) : []
+
+// 本文に貼る既定は medium。日別ページの拡大表示が `/medium/` を `/large/` に
+// 差し替える形で動いているため、ここが medium でないと拡大が成り立たない
+// （src/components/photo-zoom.ts）。
+const snippet = key ? `![](${photoUrlOf(base, 'medium', key)})` : ''
+
+// 待ちきれなかった状態。**失敗ではない。** 生成が遅れているのか、そもそも読めない
+// 形式だったのかは、ここからは区別できない。区別できないことを言う。
+const gaveUp = !ready && Date.now() - signedAt > WAIT_TIMEOUT_MS
+
+/**
+ * 生成を待っているあいだだけ読み直す。終わったら、あるいは待ちきれなくなったら止める。
+ *
+ * 読み直す先に `replaced` を足すのは、作り直しが終わったあとにはもう「前のものが
+ * あった」と判定できないため。見えたときに拾って次の要求へ渡す。
+ */
+let refreshTo: string | undefined
+if (key && !ready && !gaveUp && !probeError) {
+  const next = new URL(Astro.url)
+  if (replaced) next.searchParams.set('replaced', '1')
+  refreshTo = `${next.pathname}${next.search}`
+}
+
+const heading = key ? '投入した写真' : '結果を表示できない'
+---
+
+<Base
+  title={heading}
+  email={session?.email}
+  refreshSeconds={refreshTo ? 3 : undefined}
+  refreshTo={refreshTo}
+>
+  <div class="head">
+    <h1>{heading}</h1>
+    <a href={returnTo ?? '/'}>{returnTo ? '編集へ戻る' : '一覧へ戻る'}</a>
+  </div>
+
+  {
+    !key ? (
+      <>
+        <p class="notice error">
+          投入の結果を確かめられなかった。この画面は写真を投入したあとに開かれる。
+        </p>
+        <p>
+          <a href="/photos/new">投入からやり直す</a>
+        </p>
+      </>
+    ) : (
+      <>
+        <p class="muted lead">
+          <time datetime={date}>{formatDateJa(date)}</time> に <code>{key}</code> として置いた。
+        </p>
+
+        {replaced && (
+          <p class="notice">
+            同じ場所に写真があったので<strong>差し替えた</strong>。
+            以前の元写真はバケットに残っている。
+          </p>
+        )}
+
+        {probeError ? (
+          <p class="notice error">
+            生成が終わったかを読めなかった（{probeError}）。
+            投入そのものは成功している。
+          </p>
+        ) : ready ? (
+          <p class="notice ok">生成が終わった。下の URL はもう開ける。</p>
+        ) : gaveUp ? (
+          <p class="notice error">
+            <strong>まだ現れない。</strong>
+            遅れているのか、画像として読めなかったのかはここからは分からない。
+            <strong>iPhone の HEIC は読めない</strong>ので、それなら手元で JPEG に
+            変換して入れ直すこと。それ以外なら変換 Lambda のログに理由が残っている。
+          </p>
+        ) : (
+          <p class="notice">
+            生成を待っている。<strong>まだ開いても画像は返らない</strong>。
+            数秒で終わるので、このまま待つこと。
+          </p>
+        )}
+
+        <section>
+          <h2>本文に貼る</h2>
+          <p class="muted note">
+            拡大表示は <code>medium</code> を <code>large</code> に読み替える形で動くので、
+            本文には <code>medium</code> を書く。<code>[]</code> に書いた文は写真の下に出る。
+          </p>
+          <input class="snippet" type="text" value={snippet} readonly />
+        </section>
+
+        <section>
+          <h2>4つのサイズ</h2>
+          <ul class="urls">
+            {urls.map(({ size, url }) => (
+              <li>
+                <span class="size muted">{size}</span>
+                <a href={url} target="_blank" rel="noreferrer noopener">
+                  {url}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <p class="actions">
+          <a href={`/photos/new?date=${date}${returnTo ? `&return=${encodeURIComponent(returnTo)}` : ''}`}>
+            もう1枚投入する
+          </a>
+        </p>
+      </>
+    )
+  }
+
+  <style>
+    .head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .lead,
+    .note {
+      font-size: 0.9rem;
+    }
+
+    .notice {
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
+    }
+
+    section {
+      margin: 2rem 0;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    section h2 {
+      font-size: 1rem;
+    }
+
+    .snippet {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.9rem;
+    }
+
+    .urls {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-size: 0.85rem;
+    }
+
+    .urls li {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      padding: 0.3rem 0;
+      min-width: 0;
+    }
+
+    .size {
+      flex: none;
+      width: 5rem;
+    }
+
+    .urls a {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .actions {
+      font-size: 0.9rem;
+    }
+  </style>
+</Base>

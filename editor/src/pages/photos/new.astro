@@ -1,0 +1,225 @@
+---
+import { isValidDate, todayJst } from '../../../../src/lib/date.js'
+import Base from '../../layouts/Base.astro'
+import { createUploadTicket, MAX_UPLOAD_BYTES } from '../../lib/photo-upload.js'
+
+export const prerender = false
+
+const config = Astro.locals.config
+const session = Astro.locals.session
+
+// 一時的な資格が載るページなので、どこにも残さない。
+Astro.response.headers.set('Cache-Control', 'no-store')
+
+const requested = Astro.url.searchParams.get('date')
+const invalidDate = requested !== null && !isValidDate(requested)
+const date = requested !== null && isValidDate(requested) ? requested : todayJst()
+
+// 戻り先は画面のリンクにしか使わず、**自動では飛ばさない**。値も編集画面に限る。
+// 任意の URL を通すと、認証を通った先から外へ誘導できる経路になる。
+const rawReturn = Astro.url.searchParams.get('return')
+const returnTo = rawReturn?.startsWith('/entries/') ? rawReturn : undefined
+
+/**
+ * 保存に成功した S3 が 303 で戻す先。
+ *
+ * 署名した時刻を持たせるのは、戻ったあとに「この投入から作られた派生画像か」を
+ * 判定するためである（`probeDerivative`）。日付は、S3 が付ける `key` を受け取って
+ * よいか確かめるために要る。
+ */
+function redirectTo(signedAt: number): string {
+  const url = new URL('/photos/uploaded', `${config.baseUrl}/`)
+  url.searchParams.set('date', date)
+  url.searchParams.set('t', String(signedAt))
+  if (returnTo) url.searchParams.set('return', returnTo)
+  return url.toString()
+}
+
+let ticket: Awaited<ReturnType<typeof createUploadTicket>> | undefined
+let ticketError: string | undefined
+
+try {
+  ticket = await createUploadTicket(date, redirectTo)
+} catch (error) {
+  ticketError = error instanceof Error ? error.message : String(error)
+}
+
+const maxMegabytes = Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024)
+---
+
+<Base title="写真を投入する" email={session?.email}>
+  <div class="head">
+    <h1>写真を投入する</h1>
+    <a href={returnTo ?? '/'}>{returnTo ? '編集へ戻る' : '一覧へ戻る'}</a>
+  </div>
+
+  <p class="muted lead">
+    元写真は<strong>このアプリケーションを経由せず</strong>、ブラウザから直接置かれる。
+    置いたあと、縮小された4つのサイズが自動で作られる。数秒かかる。
+  </p>
+
+  {invalidDate && <p class="notice error">日付が不正だったので、今日の日付にした。</p>}
+
+  <form method="get" action="/photos/new" class="date">
+    <label>
+      日付
+      <input type="date" name="date" value={date} required />
+    </label>
+    {returnTo && <input type="hidden" name="return" value={returnTo} />}
+    <button type="submit">この日付にする</button>
+  </form>
+
+  <p class="muted note">
+    写真は <code>{date.replaceAll('-', '/')}/&lt;ファイル名&gt;</code> に置かれる。
+    手元から <code>npm run photo</code> で入れた場合と同じ場所である。
+  </p>
+
+  {
+    ticketError ? (
+      <p class="notice error">
+        投入の準備ができなかった（{ticketError}）。設定か権限を確認すること。
+      </p>
+    ) : (
+      ticket && (
+        <form
+          method="post"
+          action={ticket.url}
+          enctype="multipart/form-data"
+          data-max-bytes={String(MAX_UPLOAD_BYTES)}
+        >
+          {/*
+            隠しフィールドは file より前に置く。**S3 は POST のフィールドを順に読み、
+            ファイルより後ろにあるものを見ない。** 並べ替えると署名が届かなくなる。
+          */}
+          {Object.entries(ticket.fields).map(([name, value]) => (
+            <input type="hidden" name={name} value={value} />
+          ))}
+
+          <label>
+            写真
+            <input type="file" name="file" accept="image/*" required />
+          </label>
+
+          <div class="actions">
+            <button type="submit" class="primary">投入する</button>
+          </div>
+        </form>
+      )
+    )
+  }
+
+  <p class="muted note">
+    上限は {maxMegabytes}MB。これを超えるものは手元から
+    <code>npm run photo -- {config.environment} --file &lt;path&gt; --date {date}</code>
+    で入れる。
+  </p>
+
+  {/*
+    HEIC は投入そのものは通るが、変換 Lambda が読めないため派生画像が永遠に
+    現れない（sharp の libheif が HEVC をデコードできない）。**投入の前に言う**
+    ほうが、待つ画面で気づくより手数が少ない。
+  */}
+  <p class="muted note">
+    <strong>iPhone の HEIC は変換できない。</strong>
+    置くところまでは通るが、縮小された写真は作られない。
+    <code>sips -s format jpeg IMG_1234.heic --out IMG_1234.jpg</code> で JPEG にしてから入れる。
+  </p>
+
+  {/*
+    押す前に大きさを見るだけの上乗せ。**無くても投入は成立する。** 動かない場合、
+    上限を超えたファイルは S3 に断られ、利用者はこのアプリケーションの画面ではなく
+    S3 のエラー文書を見ることになる。それを減らすためだけのもので、フォームの本体を
+    これに依存させてはいけない（design.md 決定2）。
+  */}
+  <script>
+    const form = document.querySelector<HTMLFormElement>('form[data-max-bytes]')
+    const file = form?.querySelector<HTMLInputElement>('input[type="file"]')
+
+    if (form && file) {
+      const max = Number(form.dataset.maxBytes)
+
+      form.addEventListener('submit', (event) => {
+        const chosen = file.files?.[0]
+        if (!chosen || chosen.size <= max) return
+
+        event.preventDefault()
+        const size = (chosen.size / 1024 / 1024).toFixed(1)
+        const limit = Math.floor(max / 1024 / 1024)
+        window.alert(`${size}MB は上限の ${limit}MB を超えている。手元の CLI から入れること。`)
+      })
+    }
+  </script>
+
+  <style>
+    .head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .lead,
+    .note {
+      font-size: 0.9rem;
+    }
+
+    .notice {
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin: 1.5rem 0 0.5rem;
+    }
+
+    form.date {
+      flex-direction: row;
+      align-items: end;
+      gap: 0.75rem;
+      margin-bottom: 0;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.9rem;
+    }
+
+    input[type='date'],
+    input[type='file'] {
+      padding: 0.4rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--fg);
+      font: inherit;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    button {
+      padding: 0.45rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: none;
+      color: var(--fg);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button.primary {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+  </style>
+</Base>

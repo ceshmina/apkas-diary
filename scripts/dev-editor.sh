@@ -25,7 +25,11 @@ fi
 shift
 
 load_env "$ENV_NAME"
-require_env_vars DIARY_TABLE_NAME
+
+# 写真の3つは load_env が config/<環境>.env から既に export している（set -a）。
+# ここで確かめるのは、欠けたまま起動して**写真を投入しようとした時点で初めて
+# 落ちる**のを避けるためである。Lambda では editor/function.jsonnet が渡す。
+require_env_vars DIARY_TABLE_NAME PHOTO_UPLOAD_BUCKET PHOTO_BUCKET PHOTO_URL
 
 PORT="${PORT:-4321}"
 
@@ -45,6 +49,9 @@ cat <<EOF
   テーブル    : $DIARY_TABLE_NAME
   パラメータ  : $EDITOR_PARAM_PREFIX
   公開手続き  : $PUBLISH_PROJECT_NAME
+  写真の投入先: $PHOTO_UPLOAD_BUCKET
+  写真の配信元: $PHOTO_BUCKET
+  写真の URL  : $PHOTO_URL
   URL         : $EDITOR_BASE_URL
 
 EOF

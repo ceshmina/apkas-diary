@@ -15,9 +15,9 @@
 import { readFile } from 'node:fs/promises'
 import { basename, extname } from 'node:path'
 import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
-import { assertValidDate, dayOf, monthOf, yearOf } from '../lib/date.js'
+import { assertValidDate } from '../lib/date.js'
 import { awsRegion, photoDeliveryBucket, photoUploadBucket, photoUrl } from '../lib/env.js'
-import { PHOTO_SIZES, photoKeyOf, photoUrlOf } from '../lib/photo.js'
+import { PHOTO_SIZES, photoKeyOf, photoSourceKeyOf, photoUrlOf } from '../lib/photo.js'
 
 interface Args {
   file?: string
@@ -99,8 +99,11 @@ function parseArgs(argv: string[]): Args {
 /**
  * 元写真のキーを決める。
  *
- * 日付でディレクトリを切るのは、写真が1日の日記に属するという実態に合わせるため。
- * 日付はこのシステム全体の並べ替えの軸でもある。
+ * `--date` から組み立てる規則は `src/lib/photo.ts` が持つ。**ブラウザからの投入も
+ * 同じ関数を通る**ので、どちらの入口から入れても同じ場所に置かれる。
+ *
+ * `--key` はこの CLI にしかない。日付という軸から外れた場所へ置ける入口を、
+ * いちばん手軽な入口（ブラウザ）の側には持たせていない。
  */
 function keyOf(args: Args): string {
   if (args.key !== undefined) {
@@ -114,7 +117,7 @@ function keyOf(args: Args): string {
   // parseArgs の後に date か key のどちらかがあることは呼び出し側が確かめている。
   const date = args.date as string
   const file = args.file as string
-  return `${yearOf(date)}/${monthOf(date)}/${dayOf(date)}/${basename(file)}`
+  return photoSourceKeyOf(date, basename(file))
 }
 
 /** SDK のエラーから HTTP のステータスを取り出す。 */

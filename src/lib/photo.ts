@@ -1,5 +1,11 @@
 /**
- * 配信される写真の URL 規約。
+ * 写真を置く場所と、配信される URL の規約。
+ *
+ * 元写真をどこに置くか（`photoDatePrefixOf` / `photoSourceKeyOf`）と、そこから
+ * 派生画像の URL がどう決まるか（`photoKeyOf` / `photoUrlOf`）を、投入から配信まで
+ * ひと続きでここに置いている。**投入の入口は手元の CLI とブラウザの2つあるが、
+ * 規約はこのファイル1つが持つ。** 入口ごとに別の規則が生まれると、あとから
+ * 「どちらで入れたか」を思い出さないと写真に辿り着けなくなる。
  *
  * サイズ名を先頭に置き、元写真のキーは拡張子だけを webp に替える。サイズ名以外が
  * すべて一致するので、1つのサイズの URL からその写真の他のサイズを導ける。
@@ -10,9 +16,35 @@
  * いない。**どちらかを変えるときは両方を直す。**
  */
 
+import { dayOf, monthOf, yearOf } from './date.js'
+
 export const PHOTO_SIZES = ['thumbnail', 'small', 'medium', 'large'] as const
 
 export type PhotoSize = (typeof PHOTO_SIZES)[number]
+
+/**
+ * 日付に対応する、元写真のキーの接頭辞。末尾の区切りを含む。
+ *
+ * 日付でディレクトリを切るのは、写真が1日の日記に属するという実態に合わせるため。
+ * 日付はこのシステム全体の並べ替えの軸でもある。
+ *
+ * ファイル名と切り離して出しているのは、ブラウザからの投入が**ファイル名の決まる
+ * 前にこの接頭辞だけを必要とする**ため。署名を作る時点で利用者はまだファイルを
+ * 選んでおらず、「置いてよい場所」だけが決まっている。
+ */
+export function photoDatePrefixOf(date: string): string {
+  return `${yearOf(date)}/${monthOf(date)}/${dayOf(date)}/`
+}
+
+/**
+ * 日付とファイル名から、元写真を置くキーを組み立てる。
+ *
+ * `filename` はパスではなくファイル名を受け取る。手元の CLI はパスから取り出して
+ * から渡し、ブラウザからの投入では S3 が受け取ったファイル名がここに入る。
+ */
+export function photoSourceKeyOf(date: string, filename: string): string {
+  return `${photoDatePrefixOf(date)}${filename}`
+}
 
 /**
  * 元写真のキーから、配信される派生画像のキーを組み立てる。
