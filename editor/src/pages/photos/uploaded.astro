@@ -9,70 +9,92 @@ export const prerender = false
 
 const session = Astro.locals.session
 
-/**
- * S3 が 303 で戻したときの query。
- *
- * `key` / `bucket` / `etag` は S3 が付ける。`date` / `t` / `return` は投入の画面が
- * 戻り先の URL に載せたものである。
- */
 const params = Astro.url.searchParams
 const date = params.get('date') ?? ''
 const signedAt = Number(params.get('t'))
 
 // 差し替えであることは、作り直しが終わると見えなくなる。読み直しをまたいで
-// 持ち越すために query に載せている（`refreshTo`）。
-const knownReplaced = params.has('replaced')
+// 持ち越すために query に載せている（`refreshTo`）。キーごとに持つ。
+const knownReplaced = new Set(params.getAll('replaced'))
+
+/** 投入そのものに失敗したぶん。送った側が持ってくる。 */
+const failed = params.get('failed')
 
 const rawReturn = params.get('return')
 const returnTo = rawReturn?.startsWith('/entries/') ? rawReturn : undefined
 
-// 受け取ってよいキーかを確かめる。日付の下にあり、そこから先が単一のファイル名で
-// あることまで見る。外れていれば結果を出さない。
-const key =
-  isValidDate(date) && Number.isFinite(signedAt) && signedAt > 0
-    ? acceptReturnedKey(date, params.get('key'))
-    : undefined
+// 受け取ってよいキーだけを通す。日付の下にあり、そこから先が単一のファイル名で
+// あることまで見る。外れているものは黙って落とす。
+const usable = isValidDate(date) && Number.isFinite(signedAt) && signedAt > 0
+const keys = usable
+  ? params
+      .getAll('key')
+      .map((key) => acceptReturnedKey(date, key))
+      .filter((key): key is string => key !== undefined)
+  : []
 
-let ready = false
-let replaced = knownReplaced
-let probeError: string | undefined
+const base = keys.length > 0 ? photoUrl() : ''
 
-if (key) {
-  try {
-    const probe = await probeDerivative(key, signedAt)
-    ready = probe.ready
-    replaced = replaced || probe.replaced
-  } catch (error) {
-    probeError = error instanceof Error ? error.message : String(error)
-  }
+interface Photo {
+  key: string
+  /** ファイル名だけ。画面に出すのはこちらで足りる。 */
+  name: string
+  ready: boolean
+  replaced: boolean
+  /** 本文に貼る記述。拡大表示が成り立つよう medium を使う。 */
+  snippet: string
+  thumbnail: string
+  urls: { size: string; url: string }[]
+  error?: string
 }
 
-const base = key ? photoUrl() : ''
-const urls = key ? PHOTO_SIZES.map((size) => ({ size, url: photoUrlOf(base, size, key) })) : []
+const photos: Photo[] = await Promise.all(
+  keys.map(async (key): Promise<Photo> => {
+    const photo: Photo = {
+      key,
+      name: key.slice(key.lastIndexOf('/') + 1),
+      ready: false,
+      replaced: knownReplaced.has(key),
+      snippet: `![](${photoUrlOf(base, 'medium', key)})`,
+      thumbnail: photoUrlOf(base, 'thumbnail', key),
+      urls: PHOTO_SIZES.map((size) => ({ size, url: photoUrlOf(base, size, key) })),
+    }
 
-// 本文に貼る既定は medium。日別ページの拡大表示が `/medium/` を `/large/` に
-// 差し替える形で動いているため、ここが medium でないと拡大が成り立たない
-// （src/components/photo-zoom.ts）。
-const snippet = key ? `![](${photoUrlOf(base, 'medium', key)})` : ''
+    try {
+      const probe = await probeDerivative(key, signedAt)
+      photo.ready = probe.ready
+      photo.replaced = photo.replaced || probe.replaced
+    } catch (error) {
+      photo.error = error instanceof Error ? error.message : String(error)
+    }
 
-// 待ちきれなかった状態。**失敗ではない。** 生成が遅れているのか、そもそも読めない
-// 形式だったのかは、ここからは区別できない。区別できないことを言う。
-const gaveUp = !ready && Date.now() - signedAt > WAIT_TIMEOUT_MS
+    return photo
+  }),
+)
+
+const pending = photos.filter((p) => !p.ready && !p.error)
+
+// 待ちきれなかった状態。**失敗ではない。** 遅れているのか、そもそも読めない形式
+// だったのかは、ここからは区別できない。
+const gaveUp = Date.now() - signedAt > WAIT_TIMEOUT_MS
 
 /**
- * 生成を待っているあいだだけ読み直す。終わったら、あるいは待ちきれなくなったら止める。
+ * まだのものがあるあいだだけ読み直す。
  *
  * 読み直す先に `replaced` を足すのは、作り直しが終わったあとにはもう「前のものが
  * あった」と判定できないため。見えたときに拾って次の要求へ渡す。
  */
 let refreshTo: string | undefined
-if (key && !ready && !gaveUp && !probeError) {
+if (pending.length > 0 && !gaveUp) {
   const next = new URL(Astro.url)
-  if (replaced) next.searchParams.set('replaced', '1')
+  next.searchParams.delete('replaced')
+  for (const photo of photos) {
+    if (photo.replaced) next.searchParams.append('replaced', photo.key)
+  }
   refreshTo = `${next.pathname}${next.search}`
 }
 
-const heading = key ? '投入した写真' : '結果を表示できない'
+const heading = keys.length === 0 ? '結果を表示できない' : '追加した写真'
 ---
 
 <Base
@@ -86,76 +108,96 @@ const heading = key ? '投入した写真' : '結果を表示できない'
     <a href={returnTo ?? '/'}>{returnTo ? '編集へ戻る' : '一覧へ戻る'}</a>
   </div>
 
+  {failed && <p class="notice error">追加できなかった写真がある: {failed}</p>}
+
   {
-    !key ? (
+    keys.length === 0 ? (
       <>
-        <p class="notice error">
-          投入の結果を確かめられなかった。この画面は写真を投入したあとに開かれる。
-        </p>
+        <p class="notice error">追加の結果を確かめられなかった。</p>
         <p>
-          <a href="/photos/new">投入からやり直す</a>
+          <a href="/photos/new">やり直す</a>
         </p>
       </>
     ) : (
       <>
         <p class="muted lead">
-          <time datetime={date}>{formatDateJa(date)}</time> に <code>{key}</code> として置いた。
+          <time datetime={date}>{formatDateJa(date)}</time> に {photos.length} 枚追加した。
+          {pending.length > 0 && !gaveUp && (
+            <span> 残り {pending.length} 枚を準備している。</span>
+          )}
         </p>
 
-        {replaced && (
-          <p class="notice">
-            同じ場所に写真があったので<strong>差し替えた</strong>。
-            以前の元写真はバケットに残っている。
+        {pending.length > 0 && gaveUp && (
+          <p class="notice error">
+            <strong>まだ準備できない写真がある。</strong>
+            時間がかかっているか、画像として読めなかった可能性がある。
+            HEIC の場合は JPEG で保存し直して追加すること。
           </p>
         )}
 
-        {probeError ? (
-          <p class="notice error">
-            生成が終わったかを読めなかった（{probeError}）。
-            投入そのものは成功している。
-          </p>
-        ) : ready ? (
-          <p class="notice ok">生成が終わった。下の URL はもう開ける。</p>
-        ) : gaveUp ? (
-          <p class="notice error">
-            <strong>まだ現れない。</strong>
-            遅れているのか、画像として読めなかったのかはここからは分からない。
-            <strong>iPhone の HEIC は読めない</strong>ので、それなら手元で JPEG に
-            変換して入れ直すこと。それ以外なら変換 Lambda のログに理由が残っている。
-          </p>
-        ) : (
-          <p class="notice">
-            生成を待っている。<strong>まだ開いても画像は返らない</strong>。
-            数秒で終わるので、このまま待つこと。
-          </p>
-        )}
+        <ul class="photos">
+          {photos.map((photo) => (
+            <li>
+              <div class="figure">
+                {/*
+                  **生成が終わったものだけを出す。** まだ無いうちに img を置くと、
+                  ブラウザが配信 URL を取りにいき、まだ無いあいだの 403 が CDN に
+                  載る（decision 4 で避けたことを、確認の表示のほうから起こして
+                  しまう）。順序を入れ替えないこと。
+                */}
+                {photo.ready ? (
+                  <a href={photo.urls[3]?.url} target="_blank" rel="noreferrer noopener">
+                    <img src={photo.thumbnail} alt={photo.name} loading="lazy" />
+                  </a>
+                ) : (
+                  <span class="placeholder muted">{photo.error ? '確認できず' : '準備中'}</span>
+                )}
+              </div>
 
-        <section>
-          <h2>本文に貼る</h2>
-          <p class="muted note">
-            拡大表示は <code>medium</code> を <code>large</code> に読み替える形で動くので、
-            本文には <code>medium</code> を書く。<code>[]</code> に書いた文は写真の下に出る。
-          </p>
-          <input class="snippet" type="text" value={snippet} readonly />
-        </section>
+              <div class="body">
+                <p class="name">
+                  {photo.name}
+                  {photo.replaced && <span class="tag">差し替え</span>}
+                </p>
 
-        <section>
-          <h2>4つのサイズ</h2>
-          <ul class="urls">
-            {urls.map(({ size, url }) => (
-              <li>
-                <span class="size muted">{size}</span>
-                <a href={url} target="_blank" rel="noreferrer noopener">
-                  {url}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
+                {photo.error ? (
+                  <p class="muted small">
+                    準備できたかを確認できなかった（{photo.error}）。追加そのものは成功している。
+                  </p>
+                ) : !photo.ready ? (
+                  <p class="muted small">準備できるまで、この写真はまだ表示できない。</p>
+                ) : (
+                  <>
+                    <input class="snippet" type="text" value={photo.snippet} readonly />
+                    <details>
+                      <summary class="muted small">ほかのサイズ</summary>
+                      <ul class="urls">
+                        {photo.urls.map(({ size, url }) => (
+                          <li>
+                            <span class="size muted">{size}</span>
+                            <a href={url} target="_blank" rel="noreferrer noopener">
+                              {url}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  </>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        <p class="muted note">
+          本文に貼るとその写真が表示される。<code>[]</code> の中に書いた文は写真の下に出る。
+        </p>
 
         <p class="actions">
-          <a href={`/photos/new?date=${date}${returnTo ? `&return=${encodeURIComponent(returnTo)}` : ''}`}>
-            もう1枚投入する
+          <a
+            href={`/photos/new?date=${date}${returnTo ? `&return=${encodeURIComponent(returnTo)}` : ''}`}
+          >
+            さらに追加する
           </a>
         </p>
       </>
@@ -171,8 +213,13 @@ const heading = key ? '投入した写真' : '結果を表示できない'
     }
 
     .lead,
-    .note {
+    .note,
+    .small {
       font-size: 0.9rem;
+    }
+
+    .small {
+      margin: 0;
     }
 
     .notice {
@@ -182,39 +229,94 @@ const heading = key ? '投入した写真' : '結果を表示できない'
       border-radius: 4px;
     }
 
-    section {
-      margin: 2rem 0;
-      padding-top: 1rem;
+    .photos {
+      margin: 1.5rem 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .photos > li {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem 0;
       border-top: 1px solid var(--border);
     }
 
-    section h2 {
-      font-size: 1rem;
+    .figure {
+      flex: none;
+      width: 120px;
+    }
+
+    .figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 90px;
+      border: 1px dashed var(--border);
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+
+    .body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .name {
+      margin: 0 0 0.5rem;
+      font-size: 0.9rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tag {
+      margin-left: 0.5rem;
+      padding: 0 0.5rem;
+      border: 1px solid var(--accent);
+      border-radius: 999px;
+      color: var(--accent);
+      font-size: 0.7rem;
     }
 
     .snippet {
       width: 100%;
-      padding: 0.5rem;
+      padding: 0.4rem 0.5rem;
       border: 1px solid var(--border);
       border-radius: 4px;
       background: var(--bg);
       color: var(--fg);
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
+    }
+
+    details {
+      margin-top: 0.5rem;
+    }
+
+    summary {
+      cursor: pointer;
     }
 
     .urls {
-      margin: 0;
+      margin: 0.5rem 0 0;
       padding: 0;
       list-style: none;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
     }
 
     .urls li {
       display: flex;
       align-items: baseline;
       gap: 0.75rem;
-      padding: 0.3rem 0;
+      padding: 0.2rem 0;
       min-width: 0;
     }
 

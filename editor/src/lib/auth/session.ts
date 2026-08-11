@@ -62,11 +62,10 @@ export function decodeSession(
 /**
  * 発行。属性は editor-access-control の要求そのまま。
  *
- * **`sameSite` を `strict` にしてはいけない。** このアプリケーションには、別の
- * サイトからのリダイレクトで戻ってくる経路が2つある——Google の認証からの
- * `/auth/callback` と、写真を投入した S3 からの `/photos/uploaded` である。
- * `lax` はトップレベルの GET ナビゲーションでは別サイト起点でも Cookie を送るので
- * どちらも成立するが、`strict` にすると**どちらも未認証として扱われる**。
+ * **`sameSite` を `strict` にしてはいけない。** Google の認証を終えて
+ * `/auth/callback` に戻ってくる要求は、別サイトを起点とするトップレベルの GET
+ * ナビゲーションである。`lax` はこの場合に Cookie を送るが、`strict` は送らない。
+ * 変えると**認証を終えた直後に未認証として扱われる**。
  */
 export function setSessionCookie(cookies: AstroCookies, session: Session, key: string): void {
   cookies.set(SESSION_COOKIE, encodeSession(session, key), {

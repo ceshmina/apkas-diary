@@ -48,6 +48,14 @@ module "photos" {
 
   domain_name      = "photos.dev.apkas.net"
   hosted_zone_name = "dev.apkas.net"
+
+  # 編集アプリケーションの画面から元写真を直接送る。**権限ではなく、応答を読ませて
+  # よい相手の宣言である。** staging には手元での開発に使う localhost も入れる
+  # （`npm run dev:editor -- staging` は staging のバケットへ送る）。
+  upload_cors_origins = [
+    "https://admin.dev.apkas.net",
+    "http://localhost:4321",
+  ]
 }
 
 # 編集アプリケーション。ブラウザから日記を書くための入口。

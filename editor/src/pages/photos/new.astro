@@ -5,7 +5,6 @@ import { createUploadTicket, MAX_UPLOAD_BYTES } from '../../lib/photo-upload.js'
 
 export const prerender = false
 
-const config = Astro.locals.config
 const session = Astro.locals.session
 
 // 一時的な資格が載るページなので、どこにも残さない。
@@ -20,43 +19,28 @@ const date = requested !== null && isValidDate(requested) ? requested : todayJst
 const rawReturn = Astro.url.searchParams.get('return')
 const returnTo = rawReturn?.startsWith('/entries/') ? rawReturn : undefined
 
-/**
- * 保存に成功した S3 が 303 で戻す先。
- *
- * 署名した時刻を持たせるのは、戻ったあとに「この投入から作られた派生画像か」を
- * 判定するためである（`probeDerivative`）。日付は、S3 が付ける `key` を受け取って
- * よいか確かめるために要る。
- */
-function redirectTo(signedAt: number): string {
-  const url = new URL('/photos/uploaded', `${config.baseUrl}/`)
-  url.searchParams.set('date', date)
-  url.searchParams.set('t', String(signedAt))
-  if (returnTo) url.searchParams.set('return', returnTo)
-  return url.toString()
-}
-
 let ticket: Awaited<ReturnType<typeof createUploadTicket>> | undefined
 let ticketError: string | undefined
 
 try {
-  ticket = await createUploadTicket(date, redirectTo)
+  ticket = await createUploadTicket(date)
 } catch (error) {
   ticketError = error instanceof Error ? error.message : String(error)
 }
 
 const maxMegabytes = Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024)
+
+/** 送り終えたあとに向かう先。キーはスクリプトが足す。 */
+const resultBase = `/photos/uploaded?date=${date}&t=${ticket?.signedAt ?? 0}${
+  returnTo ? `&return=${encodeURIComponent(returnTo)}` : ''
+}`
 ---
 
-<Base title="写真を投入する" email={session?.email}>
+<Base title="写真を追加" email={session?.email}>
   <div class="head">
-    <h1>写真を投入する</h1>
+    <h1>写真を追加</h1>
     <a href={returnTo ?? '/'}>{returnTo ? '編集へ戻る' : '一覧へ戻る'}</a>
   </div>
-
-  <p class="muted lead">
-    元写真は<strong>このアプリケーションを経由せず</strong>、ブラウザから直接置かれる。
-    置いたあと、縮小された4つのサイズが自動で作られる。数秒かかる。
-  </p>
 
   {invalidDate && <p class="notice error">日付が不正だったので、今日の日付にした。</p>}
 
@@ -69,83 +53,142 @@ const maxMegabytes = Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024)
     <button type="submit">この日付にする</button>
   </form>
 
-  <p class="muted note">
-    写真は <code>{date.replaceAll('-', '/')}/&lt;ファイル名&gt;</code> に置かれる。
-    手元から <code>npm run photo</code> で入れた場合と同じ場所である。
-  </p>
-
   {
     ticketError ? (
       <p class="notice error">
-        投入の準備ができなかった（{ticketError}）。設定か権限を確認すること。
+        いま写真を追加できない（{ticketError}）。しばらくしてから試すこと。
       </p>
     ) : (
       ticket && (
-        <form
-          method="post"
-          action={ticket.url}
-          enctype="multipart/form-data"
-          data-max-bytes={String(MAX_UPLOAD_BYTES)}
-        >
-          {/*
-            隠しフィールドは file より前に置く。**S3 は POST のフィールドを順に読み、
-            ファイルより後ろにあるものを見ない。** 並べ替えると署名が届かなくなる。
-          */}
-          {Object.entries(ticket.fields).map(([name, value]) => (
-            <input type="hidden" name={name} value={value} />
-          ))}
+        <>
+          <noscript>
+            <p class="notice error">
+              写真の追加には JavaScript が必要。有効にして開き直すこと。
+            </p>
+          </noscript>
 
-          <label>
-            写真
-            <input type="file" name="file" accept="image/*" required />
-          </label>
+          <form
+            id="upload"
+            data-url={ticket.url}
+            data-fields={JSON.stringify(ticket.fields)}
+            data-max-bytes={String(MAX_UPLOAD_BYTES)}
+            data-result={resultBase}
+          >
+            <label>
+              写真
+              <input type="file" name="file" accept="image/*" multiple required />
+            </label>
 
-          <div class="actions">
-            <button type="submit" class="primary">投入する</button>
-          </div>
-        </form>
+            <div class="actions">
+              <button type="submit" class="primary">追加する</button>
+              <span id="progress" class="muted" />
+            </div>
+
+            <p id="failures" class="notice error" hidden />
+          </form>
+        </>
       )
     )
   }
 
   <p class="muted note">
-    上限は {maxMegabytes}MB。これを超えるものは手元から
-    <code>npm run photo -- {config.environment} --file &lt;path&gt; --date {date}</code>
-    で入れる。
+    1枚あたり {maxMegabytes}MB まで。まとめて選べる。
   </p>
 
-  {/*
-    HEIC は投入そのものは通るが、変換 Lambda が読めないため派生画像が永遠に
-    現れない（sharp の libheif が HEVC をデコードできない）。**投入の前に言う**
-    ほうが、待つ画面で気づくより手数が少ない。
-  */}
   <p class="muted note">
-    <strong>iPhone の HEIC は変換できない。</strong>
-    置くところまでは通るが、縮小された写真は作られない。
-    <code>sips -s format jpeg IMG_1234.heic --out IMG_1234.jpg</code> で JPEG にしてから入れる。
+    <strong>HEIC には対応していない。</strong>
+    iPhone で撮った写真は、設定を「互換性優先」にするか、JPEG で保存し直してから選ぶこと。
   </p>
 
-  {/*
-    押す前に大きさを見るだけの上乗せ。**無くても投入は成立する。** 動かない場合、
-    上限を超えたファイルは S3 に断られ、利用者はこのアプリケーションの画面ではなく
-    S3 のエラー文書を見ることになる。それを減らすためだけのもので、フォームの本体を
-    これに依存させてはいけない（design.md 決定2）。
-  */}
   <script>
-    const form = document.querySelector<HTMLFormElement>('form[data-max-bytes]')
+    /**
+     * 元写真を S3 へ直接送る。
+     *
+     * **S3 の POST は1回に1枚しか受け取らない**ので、選ばれた枚数だけ要求を出す。
+     * 署名は1枚ぶんで足りる（policy の条件は日付の接頭辞と大きさだけで、ファイル名を
+     * 含まない）。
+     *
+     * 置かれたキーは応答の XML から読む。`${filename}` の置換は S3 が行うもので、
+     * **その規則をこちら側に写さない**ため。
+     */
+    const form = document.querySelector<HTMLFormElement>('#upload')
     const file = form?.querySelector<HTMLInputElement>('input[type="file"]')
+    const button = form?.querySelector<HTMLButtonElement>('button[type="submit"]')
+    const progress = document.querySelector<HTMLElement>('#progress')
+    const failures = document.querySelector<HTMLElement>('#failures')
 
-    if (form && file) {
-      const max = Number(form.dataset.maxBytes)
+    if (form && file && button && progress && failures) {
+      const url = form.dataset.url as string
+      const fields = JSON.parse(form.dataset.fields as string) as Record<string, string>
+      const maxBytes = Number(form.dataset.maxBytes)
+      const result = form.dataset.result as string
+      const limit = Math.floor(maxBytes / 1024 / 1024)
 
-      form.addEventListener('submit', (event) => {
-        const chosen = file.files?.[0]
-        if (!chosen || chosen.size <= max) return
+      /** 1枚送って、S3 が返したキーを取り出す。 */
+      async function put(chosen: File): Promise<string> {
+        const body = new FormData()
+        // 署名済みのフィールドが先、file が最後。S3 はファイルより後ろを見ない。
+        for (const [name, value] of Object.entries(fields)) body.append(name, value)
+        body.append('file', chosen)
 
+        const response = await fetch(url, { method: 'POST', body })
+        const text = await response.text()
+
+        if (!response.ok) {
+          const message = /<Message>([^<]*)<\/Message>/.exec(text)?.[1]
+          throw new Error(message ?? `${response.status}`)
+        }
+
+        const key = new DOMParser()
+          .parseFromString(text, 'application/xml')
+          .querySelector('Key')?.textContent
+        if (!key) throw new Error('置かれた場所を読み取れなかった')
+        return key
+      }
+
+      form.addEventListener('submit', async (event) => {
         event.preventDefault()
-        const size = (chosen.size / 1024 / 1024).toFixed(1)
-        const limit = Math.floor(max / 1024 / 1024)
-        window.alert(`${size}MB は上限の ${limit}MB を超えている。手元の CLI から入れること。`)
+
+        const chosen = [...(file.files ?? [])]
+        if (chosen.length === 0) return
+
+        const tooBig = chosen.filter((f) => f.size > maxBytes)
+        if (tooBig.length > 0) {
+          failures.hidden = false
+          failures.textContent = `${limit}MB を超えている: ${tooBig.map((f) => f.name).join('、')}`
+          return
+        }
+
+        button.disabled = true
+        file.disabled = true
+        failures.hidden = true
+
+        const keys: string[] = []
+        const failed: string[] = []
+
+        // **1枚の失敗が他の枚を巻き戻さない。** 送り終えたものはそのまま使える。
+        for (const [index, one] of chosen.entries()) {
+          progress.textContent = `${chosen.length} 枚中 ${index + 1} 枚目を送っている...`
+          try {
+            keys.push(await put(one))
+          } catch (error) {
+            failed.push(`${one.name}（${error instanceof Error ? error.message : error}）`)
+          }
+        }
+
+        if (keys.length === 0) {
+          button.disabled = false
+          file.disabled = false
+          progress.textContent = ''
+          failures.hidden = false
+          failures.textContent = `追加できなかった: ${failed.join('、')}`
+          return
+        }
+
+        // 失敗したぶんは結果の画面へ持っていく。成功したものを見せないほうが困る。
+        const query = keys.map((key) => `&key=${encodeURIComponent(key)}`).join('')
+        const note = failed.length > 0 ? `&failed=${encodeURIComponent(failed.join('、'))}` : ''
+        window.location.assign(`${result}${query}${note}`)
       })
     }
   </script>
@@ -158,7 +201,6 @@ const maxMegabytes = Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024)
       gap: 1rem;
     }
 
-    .lead,
     .note {
       font-size: 0.9rem;
     }
@@ -205,6 +247,7 @@ const maxMegabytes = Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024)
       display: flex;
       align-items: center;
       gap: 1rem;
+      font-size: 0.9rem;
     }
 
     button {
@@ -220,6 +263,12 @@ const maxMegabytes = Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024)
     button.primary {
       border-color: var(--accent);
       color: var(--accent);
+    }
+
+    button:disabled {
+      border-color: var(--border);
+      color: var(--fg-muted);
+      cursor: default;
     }
   </style>
 </Base>

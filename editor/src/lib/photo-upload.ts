@@ -6,9 +6,12 @@
  * （design.md 決定1）。実行基盤が1つの要求として受け取れる大きさに、写真が縛られ
  * ないのはこのためである。
  *
- * 資格は presigned POST として発行する。素の HTML フォームがそのまま S3 へ POST
- * できる形なので、CORS の設定も client script も要らない（決定2）。加えて policy
- * の条件として、置ける場所と大きさを**署名の中に**閉じ込められる。
+ * 資格は presigned POST として発行する。policy の条件として、置ける場所と大きさを
+ * **署名の中に**閉じ込められるためで、`PUT` の署名には大きさを縛る手段がない（決定2）。
+ *
+ * **1枚ぶんの署名を、選ばれた N 枚すべてに使い回す。** S3 の POST Object は1回に
+ * 1枚しか受け取らないので複数枚は N 回の要求になるが、policy の条件は日付の接頭辞と
+ * 大きさだけでファイル名を含まないため、同じ資格がそのまま使える。
  *
  * キーの規約は `src/lib/photo.ts` が持つ。手元の CLI と同じ関数を通るので、どちらの
  * 入口から入れても同じ場所に置かれる。
@@ -83,10 +86,10 @@ function client(): S3Client {
 }
 
 export interface UploadTicket {
-  /** フォームの `action`。アップロード先バケットへの POST 先。 */
+  /** POST 先。アップロード先バケットの URL。 */
   url: string
   /**
-   * 隠しフィールドとして並べるもの。
+   * 本文に並べるフィールド。
    *
    * **`file` はこれらより後ろに置くこと。** S3 は POST のフィールドを順に読み、
    * ファイルより後ろにあるものを見ない。
@@ -97,6 +100,9 @@ export interface UploadTicket {
    *
    * 完了の判定に使う（`probeDerivative`）。**署名は元写真が置かれるより必ず前**
    * なので、これより新しい派生画像があれば、それはこの投入から作られたものである。
+   *
+   * 1枚ぶんの署名を N 枚に使い回すため、この時刻も N 枚に共通のものになる。何枚目
+   * であっても署名より後に置かれることに変わりはないので、判定はそのまま成り立つ。
    */
   signedAt: number
 }
@@ -112,17 +118,14 @@ export interface UploadTicket {
  *
  * **`Content-Type` のフィールドは置かない**（design.md 決定9）。置かないと元写真は
  * `binary/octet-stream` になるが、元写真は配信されないので表示に影響せず、変換は
- * 中身を見て行われる。ブラウザが埋める形にすると、スクリプトが動かない環境で空の
- * 値が条件に反し、投入そのものが失敗する。
+ * 中身を見て行われる。スクリプトから `file.type` を埋めることはできるが、その値を
+ * 読む相手がいない。
  *
- * 戻り先を文字列ではなく関数で受け取るのは、**その URL に署名の時刻を載せる必要が
- * ある**ため。時刻を先に決めてから署名するので、URL に書いた時刻と署名の時刻が
- * 食い違うことが起こりえない。
+ * `success_action_status` に 201 を指定すると、S3 は保存に成功したときに 201 と、
+ * `Key` を含む XML を返す。**結果のキーは S3 が返したものを使う**ので、`${filename}`
+ * の置換の規則がスクリプト側に写らない。
  */
-export async function createUploadTicket(
-  date: string,
-  redirectTo: (signedAt: number) => string,
-): Promise<UploadTicket> {
+export async function createUploadTicket(date: string): Promise<UploadTicket> {
   assertValidDate(date)
 
   const prefix = photoDatePrefixOf(date)
@@ -139,9 +142,9 @@ export async function createUploadTicket(
       ['content-length-range', MIN_UPLOAD_BYTES, MAX_UPLOAD_BYTES],
     ],
 
-    // 保存に成功したら S3 がここへ 303 で戻し、bucket / key / etag を query に足す。
-    // 既に query を持つ URL でも S3 が正しく繋ぐ。
-    Fields: { success_action_redirect: redirectTo(signedAt) },
+    // 既定（204、本文なし）だと、置かれたキーを応答から読めない。201 にすると
+    // S3 が Key を含む XML を返す。
+    Fields: { success_action_status: '201' },
     Expires: TICKET_TTL_SECONDS,
   })
 
