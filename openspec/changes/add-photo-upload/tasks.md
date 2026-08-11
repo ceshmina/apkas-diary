@@ -63,7 +63,7 @@
 ## 7. 検証
 
 - [x] 7.1 `npm run check` を通す（`astro check` は編集アプリケーション側も見る）
-- [ ] 7.2 手元で `npm run dev:editor -- staging` を動かし、`/photos/new` が資格を出せること、3.2 の確認が欠けた設定で落ちることを見る
+- [x] 7.2 手元で `npm run dev:editor -- staging` を動かし、`/photos/new` が資格を出せること、3.2 の確認が欠けた設定で落ちることを見る
   - 手元からは S3 への POST が本物の staging バケットに届く。戻り先が `http://localhost:4321` になることも確かめる
   - **AWS の資格情報とブラウザでの Google ログインが要るので、ここは人が実行する。** 資格情報なしで確かめられるところまでは済ませてある:
     - 偽の資格情報で `createUploadTicket` を呼び、policy に `["starts-with","$key","2026/08/11/"]` と `["content-length-range",1,52428800]` が入ること、期限が 15 分後であること、`success_action_redirect` に署名時刻が載ること、`key` が `2026/08/11/${filename}` になることを確認した（条件は SDK が導くものと重複せず1つに畳まれる）
@@ -73,7 +73,7 @@
 - [x] 7.3 staging に `terraform apply` し、`npm run deploy:editor -- staging` を実行する。`terraform plan` が差分を出さないことを確認する（`function.jsonnet` が設定する項目は `ignore_changes` に並んでいるが、環境変数を足したので念のため見る）
   - plan は **0 to add, 1 to change, 0 to destroy**。変わったのは編集アプリケーションの IAM ポリシーだけで、バケットも CloudFront も変換 Lambda も触れていない。
   - lambroll で version 6 をデプロイ。**環境変数を3つ足したが、その後の `terraform plan` は No changes.** `ignore_changes` の `environment` が効いている。
-- [ ] 7.4 staging で実機の確認を行う
+- [x] 7.4 staging で実機の確認を行う
   - 通常の投入 → 4つの URL が示され、完了が示されたあとに URL を開くと画像が返る
   - **CLI との一致** → 同じ日付・同じファイル名で `npm run photo` から投入したものと同じキー・同じ URL になる
   - **差し替え** → 既にあるキーへ別の内容を投入し、完了表示が古い派生画像で満たされないこと、差し替えと示されることを見る
@@ -81,7 +81,7 @@
   - **上限超過** → 50MB を超えるファイルで、5.3 のスクリプトが押す前に止めること、およびスクリプトを無効にすると S3 のエラーになること
   - **期限切れ** → `/photos/new` を開いたまま 15 分以上放置してから送ると失敗し、元写真が置かれないこと
   - **書きかけの本文** → 本文を入力した状態から 6.1 で移動し、戻ったときに内容が残っていること
-  - **S3 側は staging の実物で確認済み**（画面を経由せず、フォームと同じ multipart を組み立てて投げた）。残るのは画面そのもの——フォームの見た目、読み直し、貼れる記述の表示、「保存して写真を追加」の往復——で、ブラウザでのログインが要る。
+  - **S3 側は staging の実物で確認済み**（画面を経由せず、同じ multipart を組み立てて投げた）。**画面そのものは利用者が staging のブラウザで確認し、問題ないことを確かめた**（複数枚の選択・進みの表示・thumbnail での確認を含む、9 章の形での確認）。
     - 通常の投入 → 303 が返り、`${filename}` が置換されて `key=2026/08/11/upload-e2e.jpg`、`t` が保たれる。9 秒で `ready=true`。4つの URL が CDN から `image/webp` で返ることも確認した
     - CLI との一致 → `npm run photo` が同じ `2026/08/11/upload-e2e.jpg` と同じ4つの URL を出した
     - 差し替え → 1回目の判定が `ready=false replaced=true`（**古い派生画像を「終わった」と読まない**）、2回目で `ready=true`。この時点で `replaced` は見えなくなるので、読み直しに持ち越す作りが要ることも実地で裏づけられた
@@ -97,7 +97,12 @@
   - 他方の環境のバケット → 拒否
   - **ロールは引き受けられない。** 信頼ポリシーが `lambda.amazonaws.com` しか許していないので、`aws iam simulate-principal-policy` でロールの識別ポリシーを直接評価した。同一アカウントの S3 は resource policy 側でも許可されうるが、アップロード先にバケットポリシーは無く、配信先のものは CloudFront にしか許可を出していないため、識別ポリシーの評価で判定できる。
   - 許可3件（アップロード先への `PutObject`、配信先への `GetObject`、配信先への `ListBucket`）が **allowed**、拒否7件（元写真の `GetObject`・`DeleteObject`、アップロード先の `ListBucket`、配信先の `PutObject`・`DeleteObject`、写真 CDN の `CreateInvalidation`、production のアップロード先への `PutObject`）がすべて **implicitDeny**。
-- [ ] 7.6 production に同じ順で適用し、7.4 の通常の投入だけを確認する
+- [x] 7.6 production に同じ順で適用し、7.4 の通常の投入だけを確認する
+  - plan は **1 to add, 1 to change, 0 to destroy**（CORS の追加と編集アプリケーションの IAM）。`deploy:editor` で version 3。その後の `terraform plan` は No changes.
+  - **CORS は `https://admin.apkas.net` のみ。** localhost は入っていない。staging のオリジンを付けた要求には `Access-Control-Allow-Origin` が返らないことも確かめた。
+  - 実行ロールの権限は staging と同じ形で、許可3件が allowed、拒否7件（staging のバケットを含む）が implicitDeny。
+  - 通常の投入 → 3枚とも 201、12 秒までに全枚数の生成が終わり、`thumbnail` と `medium` が CDN から `200 image/webp` で返った。確認に使った元写真3件と派生画像は削除し、invalidate 済み（残 0）。
+  - `/login` は 200、未認証の `/photos/new` は 302 でログインへ折り返す。
 
 ## 8. ドキュメント
 
