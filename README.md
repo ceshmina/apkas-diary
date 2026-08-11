@@ -266,17 +266,18 @@ Terraform で認可まで済ませられないのは、GitHub 側で当該アカ
 Connector アプリを入れる操作が要るためで、これは資格情報ではなく人の同意にあたる。
 
 ```bash
-cd terraform/envs/staging
-terraform output publish_connection_status   # PENDING なら未承認
-terraform output publish_connection_arn
+ARN=$(cd terraform/envs/staging && terraform output -raw publish_connection_arn)
+aws codestar-connections get-connection --connection-arn "$ARN" \
+  --profile apkas-staging.admin --query Connection.ConnectionStatus --output text   # PENDING
 ```
 
 AWS コンソールの **Developer Tools → 設定 → 接続**でその接続を開き、「保留中の接続を
-更新」から GitHub の認可を通す。`AVAILABLE` になれば完了。
+更新」から GitHub の認可を通す。同じコマンドが `AVAILABLE` を返せば完了。
 
-```bash
-terraform output publish_connection_status   # AVAILABLE
-```
+状態を `terraform output` に出していないのは、認可が Terraform の外で行われるためである。
+出力に置くと `terraform plan` が「PENDING -> AVAILABLE」の差分を出し続け、**差分の有無を
+見張るという運用そのものが効かなくなる**（この plan は lambroll の設定が黙って戻されて
+いないかを知る唯一の手段でもある）。
 
 **承認しないまま「公開」を押すと、ビルドはソースの取得で失敗する。** 黙って古い
 内容を配り続けることはない。失敗は編集アプリケーションの画面に出る。

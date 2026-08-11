@@ -104,7 +104,11 @@ output "editor_api_endpoint" {
 # --- 公開手続き ---
 #
 # いずれも転記しない。プロジェクト名は editor/function.jsonnet が state から
-# 直接読み、接続の ARN は認可の確認に使う。
+# 直接読み、接続の ARN は認可の確認（aws codestar-connections get-connection）に使う。
+#
+# **接続の状態は output にしない。** 認可は Terraform の外で行われるため、
+# 置くと plan が「PENDING -> AVAILABLE」の差分を出し続け、差分の有無を
+# 見張るという運用そのものが効かなくなる。
 
 output "publish_project_name" {
   description = "公開手続きの CodeBuild プロジェクト名。編集アプリケーションが起動する対象"
@@ -117,11 +121,6 @@ output "publish_connection_arn" {
     AVAILABLE でないあいだ、公開手続きはソースを取得できない。
   EOT
   value       = module.publish.connection_arn
-}
-
-output "publish_connection_status" {
-  description = "接続の状態。PENDING なら認可がまだ済んでいない"
-  value       = module.publish.connection_status
 }
 
 output "publish_role_arn" {

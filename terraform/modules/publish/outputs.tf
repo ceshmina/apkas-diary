@@ -22,13 +22,14 @@ output "connection_arn" {
     次のコマンドで確認できる。AVAILABLE でなければビルドはソースを取得できない。
 
       aws codestar-connections get-connection --connection-arn <この値> --profile <profile>
+
+    **状態そのものは output にしない。** 認可は Terraform の外で行われるので、
+    出力に置くと `terraform plan` が「PENDING -> AVAILABLE」の差分を出し続ける。
+    このリポジトリは「plan が差分を出さないこと」を、lambroll の設定が
+    黙って戻されていないかの唯一の検出手段にしている。常に差分が出る状態を
+    作ると、その信号が読まれなくなる。
   EOT
   value       = aws_codestarconnections_connection.github.arn
-}
-
-output "connection_status" {
-  description = "接続の状態。PENDING のあいだは公開手続きが成功しない。"
-  value       = aws_codestarconnections_connection.github.connection_status
 }
 
 output "role_arn" {
