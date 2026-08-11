@@ -106,17 +106,44 @@
 
 ## 6. staging での確認
 
-- [ ] 6.1 `cd terraform/envs/staging && terraform apply`。接続が `PENDING` で作られることを確認する
-- [ ] 6.2 AWS コンソールで GitHub 接続を承認し、状態が `AVAILABLE` になることを確認する
-- [ ] 6.3 承認前の状態でビルドを起動し、**ソースの取得で失敗する**ことを確認する（`deployment-environments` の「未認可の接続」のシナリオ）
-- [ ] 6.4 `npm run deploy:editor -- staging` のあと、ボタンからビルドを起動して成功することを確認する。**手元から `npm run build -- staging && npm run deploy -- staging` した生成物と、ボタンから配られた生成物が一致すること**を確かめる（`site-publishing` の「異なる場所からの起動」）
-- [ ] 6.5 実行中に再度押し、2つ目が起動しないことを確認する
-- [ ] 6.6 生成が失敗する状態を作って起動し、配信中の内容が変化しないことを確認する
-- [ ] 6.7 未認証の状態で `/publish` に POST し、401 で止まることを確認する
-- [ ] 6.8 編集アプリケーションの実行ロールを引き受けて、配信元バケットへの書き込みと CloudFront の invalidate が**拒否される**ことを確認する（`editor-hosting` の「配信物への直接の到達」）
-- [ ] 6.9 CodeBuild の実行ロールを引き受けて、DynamoDB への書き込みが拒否されること、写真のバケットに到達できないことを確認する
-- [ ] 6.10 `terraform plan` が差分を出さないことを確認する
-- [ ] 6.11 ビルドの所要時間と、1回あたりのおおよその費用を記録する（README に書く値）
+**この章の途中で判明した順序の制約**: CodeBuild は GitHub から clone するため、`buildspec.yml` と改修した `scripts/` が**共有された版に載るまで実機確認ができない**。これは `site-publishing` の「共有された版に由来する」がそのまま効いた結果である。ブランチを push し、`start-build --source-version <ブランチ>` で検証した（**Terraform の設定は変えていない**。プロジェクトの既定は `main` のまま）。
+
+- [x] 6.1 `cd terraform/envs/staging && terraform apply`。接続が `PENDING` で作られることを確認する
+  - **6 added / 1 changed / 0 destroyed。** 追加は publish の6つ、変更は `module.editor.aws_iam_role_policy.editor` の in-place のみ。破壊も再作成も無い。
+  - `publish_connection_status = "PENDING"` を確認。
+- [x] 6.2 AWS コンソールで GitHub 接続を承認し、状態が `AVAILABLE` になることを確認する
+  - **この確認が設計の欠陥を1つ炙り出した。** 承認後に `terraform plan` を打つと `publish_connection_status = "PENDING" -> "AVAILABLE"` の差分が出た。認可は Terraform の外で行われるので、状態を output に置くと**差分が出続ける**。このリポジトリは「plan が差分を出さないこと」を lambroll の設定が黙って戻されていないかの唯一の検出手段にしており、常に差分が出る状態はその信号を潰す。**output から外し**、状態は `aws codestar-connections get-connection` で見る形に直した（README も同様に修正）。
+- [x] 6.3 承認前の状態でビルドを起動し、**ソースの取得で失敗する**ことを確認する（`deployment-environments` の「未認可の接続」のシナリオ）
+  - **順序を入れ替えて 6.2 の前に実施した。** 承認してしまうと二度と確認できない。
+  - `DOWNLOAD_SOURCE` で FAILED。メッセージは `Connection apkas-diary-staging is not available`。生成にも反映にも到達していない。
+  - 副次的に、接続を使う IAM 権限が効いていることも分かった（「権限が無い」ではなく「接続が使えない」で止まっている）。
+- [x] 6.4 `npm run deploy:editor -- staging` のあと、ボタンからビルドを起動して成功することを確認する。**手元から `npm run build -- staging && npm run deploy -- staging` した生成物と、ボタンから配られた生成物が一致すること**を確かめる（`site-publishing` の「異なる場所からの起動」）
+  - ビルド成功。フェーズ内訳は PROVISIONING 3 秒 / DOWNLOAD_SOURCE 51 秒 / INSTALL 6 秒 / BUILD 15 秒。
+  - **生成物は 409 ファイルすべて、パスも内容の MD5 も完全に一致した。** 手元の `dist/` と S3 上のオブジェクトの ETag を突き合わせて確認（`src/` は `main` と差分が無いため、手元のビルドは `main` のビルドと同じ入力になる）。
+  - 編集アプリケーションの経路も実機で確認した。SSM の署名鍵から 15 分で失効する検証用セッションを作り、配備済みの `https://admin.dev.apkas.net/publish` を叩いた。**画面に出た commit は実際にビルドしたブランチ HEAD と一致**し、時刻も JST で正しく出た。
+  - **`s3:GetObject` は要らなかった。** 与えていない状態で `aws s3 sync --delete` が通っている。3.7 の判断（使っていない権限を置かない）が正しかったことが実測で確かめられた。
+- [x] 6.5 実行中に再度押し、2つ目が起動しないことを確認する
+  - 実行中にボタンを3回押し、3回とも `?busy=1` へ 303。**プロジェクトのビルド総数は1つも増えていない**（押す前後で 2→3 は、この検証のために CLI から起動した1件のみ）。画面には「すでに実行中だった。」「終わるまで押せない。」が出て、ボタンは `disabled`。
+- [x] 6.6 生成が失敗する状態を作って起動し、配信中の内容が変化しないことを確認する
+  - 存在しないモジュールを import するページを持つ一時ブランチを作って push し、それをビルドした。
+  - **`BUILD` フェーズの `scripts/build.sh` で FAILED。** 同じフェーズの次のコマンドである `scripts/deploy.sh` は実行されていない（2.3 で文書から確認した挙動が実機でも成立した）。
+  - **配信物 409 ファイルは1つも変化しなかった。** 画面にも「失敗した実行は配信物に届いていない」が出る。
+  - 検証用ブランチは remote・local とも削除済み。
+- [x] 6.7 未認証の状態で `/publish` に POST し、401 で止まることを確認する
+  - 配備済みの staging で確認。`Origin` なしの POST は 403（Astro の CSRF 判定）、`Origin` ありの未認証 POST は 401「認証が必要です。」、GET は `/login?redirect=%2Fpublish` へ 302。
+- [x] 6.8 編集アプリケーションの実行ロールを引き受けて、配信元バケットへの書き込みと CloudFront の invalidate が**拒否される**ことを確認する（`editor-hosting` の「配信物への直接の到達」）
+  - **ロールを引き受ける代わりに `iam simulate-principal-policy` を使った。** editor の実行ロールは `lambda.amazonaws.com` しか信頼しないので人からは引き受けられず、また実際に書き込みを試すと成功した場合に配信物が壊れる。シミュレーションなら副作用なしに、資源ごとの判定を正確に読める。
+  - 許可: 自環境の公開手続きへの `StartBuild` / `BatchGetBuilds` / `ListBuildsForProject`、日記への `PutItem`。
+  - 拒否（すべて `implicitDeny`）: サイト配信元への `PutObject` / `DeleteObject`、写真バケットへの `PutObject` / `GetObject`、CloudFront の `CreateInvalidation`、**production の公開手続きへの `StartBuild`**、日記の `DeleteItem`。
+- [x] 6.9 CodeBuild の実行ロールを引き受けて、DynamoDB への書き込みが拒否されること、写真のバケットに到達できないことを確認する
+  - 許可: GSI1 への `Query`、ベーステーブルへの `Scan`、サイト配信元への `PutObject` / `DeleteObject` / `ListBucket`、サイトの CDN への `CreateInvalidation`。
+  - 拒否: 日記への `PutItem` / `UpdateItem` / `DeleteItem` / `BatchWriteItem`（**書き込みは1つも無い**）、ベーステーブルへの `Query`（索引しか要らない）、サイト配信元への `GetObject`、写真バケットの読み書き、写真の CDN への `CreateInvalidation`。
+- [x] 6.10 `terraform plan` が差分を出さないことを確認する
+  - 6.2 で見つかった output を外したあと、**No changes. Your infrastructure matches the configuration.**
+- [x] 6.11 ビルドの所要時間と、1回あたりのおおよその費用を記録する（README に書く値）
+  - **実測 48〜79 秒**（成功 2 件、平均 63 秒）。design.md の見込みは「2〜3 分」だったので、実際はその半分以下。
+  - **時間の半分以上は GitHub からのソース取得**（51 秒）で、サイトの生成そのものは 15 秒、`npm ci` は 6 秒。速くしたいならキャッシュではなくソース取得を見る場所だと分かった。
+  - 費用は課金が分単位切り上げで1回1〜2分。**`arm1.small` には月 100 分の無料枠**があり、1日数回の公開なら収まる。超過分も分あたり $0.005 未満（Tokyo の `general1.small` が $0.005/分、arm はそれ以下）。README を実測値に置き換えた。
 
 ## 7. production への展開
 
