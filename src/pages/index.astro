@@ -16,11 +16,13 @@ const yearList = await years()
   {
     yearList.length > 0 && (
       <>
-        <h2>年別</h2>
+        <h2 class="section-title">年別</h2>
         <ul class="year-list">
           {yearList.map((year) => (
             <li>
-              <a href={`/${year}`}>{year}年</a>
+              <a class="pill" href={`/${year}`}>
+                {year}年
+              </a>
             </li>
           ))}
         </ul>
@@ -33,7 +35,7 @@ const yearList = await years()
   .year-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem 1.25rem;
+    gap: 0.5rem;
     list-style: none;
     margin: 0;
     padding: 0;

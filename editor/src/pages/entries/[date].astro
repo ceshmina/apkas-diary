@@ -139,7 +139,7 @@ const heading = isValidDate(date) ? formatDateJa(date) : '日付が不正です'
         {
           preview !== undefined && (
             <section class="preview">
-              <h2>表示の確認</h2>
+              <h2 class="section-title">表示の確認</h2>
               <p class="muted">
                 公開サイトと同じ整形で表示している。まだ保存されていない。
               </p>
@@ -152,13 +152,6 @@ const heading = isValidDate(date) ? formatDateJa(date) : '日付が不正です'
   }
 
   <style>
-    .head {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 1rem;
-    }
-
     .head h1 {
       margin-bottom: 0.5rem;
     }
@@ -169,55 +162,13 @@ const heading = isValidDate(date) ? formatDateJa(date) : '日付が不正です'
       font-variant-numeric: tabular-nums;
     }
 
-    .notice {
-      padding: 0.75rem 1rem;
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
-      border-radius: 4px;
-    }
-
     form {
       display: flex;
       flex-direction: column;
       gap: 1.25rem;
     }
 
-    label {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      font-size: 0.9rem;
-    }
-
-    input[type='text'],
-    textarea {
-      padding: 0.5rem;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: var(--bg);
-      color: var(--fg);
-      font: inherit;
-    }
-
-    textarea {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.95rem;
-      line-height: 1.7;
-      resize: vertical;
-    }
-
-    fieldset {
-      margin: 0;
-      padding: 0.75rem 1rem;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-    }
-
-    legend {
-      padding: 0 0.4rem;
-      font-size: 0.9rem;
-    }
-
+    /* 公開状態の選択。入力欄の見出しと違い、印と語が横に並ぶ。 */
     .radio {
       flex-direction: row;
       align-items: center;
@@ -230,31 +181,8 @@ const heading = isValidDate(date) ? formatDateJa(date) : '日付が不正です'
       font-size: 0.85rem;
     }
 
-    .actions {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .actions button {
-      padding: 0.45rem 1.25rem;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: none;
-      color: var(--fg);
-      font: inherit;
-      cursor: pointer;
-    }
-
-    .actions button.primary {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
     .preview {
       margin-top: 3rem;
-      padding-top: 1rem;
-      border-top: 1px solid var(--border);
     }
   </style>
 </Base>
