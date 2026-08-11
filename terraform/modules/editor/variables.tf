@@ -40,6 +40,18 @@ variable "table_arn" {
   type        = string
 }
 
+variable "publish_project_arn" {
+  description = <<-EOT
+    公開手続きの CodeBuild プロジェクトの ARN。
+
+    編集アプリケーションに与えるのは、**このプロジェクト1つを起動する権限と、
+    その状況を読む権限だけ**である。配信元ストレージと CDN への権限はこれを
+    足しても増えない（editor-hosting の「実行基盤の権限は自環境の日記データと
+    公開手続きの起動に限られる」）。
+  EOT
+  type        = string
+}
+
 variable "log_retention_days" {
   description = <<-EOT
     Lambda のログを残す日数。

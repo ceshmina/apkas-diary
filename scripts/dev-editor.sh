@@ -35,10 +35,16 @@ export EDITOR_BASE_URL="http://localhost:${PORT}"
 # パラメータの置き場所は環境名から決まる。config/<環境>.env に転記を増やさない。
 export EDITOR_PARAM_PREFIX="${EDITOR_PARAM_PREFIX:-/apkas-diary/${DIARY_ENV}/editor}"
 
+# 公開手続きのプロジェクト名も同じく環境名から決まる（terraform/modules/publish
+# の local.name と同じ規則）。**手元でも本物のプロジェクトを指す。** 押せば
+# 実際にビルドが走るので、staging で試すこと。
+export PUBLISH_PROJECT_NAME="${PUBLISH_PROJECT_NAME:-apkas-diary-publish-${DIARY_ENV}}"
+
 cat <<EOF
   環境        : $DIARY_ENV
   テーブル    : $DIARY_TABLE_NAME
   パラメータ  : $EDITOR_PARAM_PREFIX
+  公開手続き  : $PUBLISH_PROJECT_NAME
   URL         : $EDITOR_BASE_URL
 
 EOF

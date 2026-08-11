@@ -8,9 +8,17 @@ interface Props {
   title: string
   /** ログイン中の利用者。未認証の画面（ログイン）では渡さない。 */
   email?: string
+  /**
+   * 指定すると、その秒数後にページを読み直す。
+   *
+   * 進行中の公開手続きを見ているときだけ使う。数分に一度しか押されない操作に
+   * 常時接続の仕組みを持ち込まないための、いちばん軽い手段。終わった状態を
+   * 表示しているあいだは指定しないこと（読み直しても何も変わらない）。
+   */
+  refreshSeconds?: number
 }
 
-const { title, email } = Astro.props
+const { title, email, refreshSeconds } = Astro.props
 const appTitle = 'apkas-diary 編集'
 const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
 ---
@@ -22,6 +30,7 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="robots" content="noindex, nofollow" />
+    {refreshSeconds && <meta http-equiv="refresh" content={String(refreshSeconds)} />}
     <link rel="icon" href="data:," />
   </head>
   <body>

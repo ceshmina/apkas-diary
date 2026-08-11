@@ -29,10 +29,21 @@ const PARAMS = {
   allowedEmail: 'allowed-email',
 } as const
 
+/** 対象環境。production だけは公開の前に確認の一段を挟む。 */
+export type Environment = 'staging' | 'production'
+
 export interface EditorConfig {
   /** 自分の URL。Google に渡す redirect URI の組み立てに使う。末尾にスラッシュを持たない。 */
   baseUrl: string
+  environment: Environment
   tableName: string
+  /**
+   * 起動できる公開手続きの名前。
+   *
+   * **実行ロールが起動を許されているのもこの1つだけ**なので、ここが別の環境を
+   * 指しても、その先で権限に阻まれる。名前と権限の出どころは同じ state にある。
+   */
+  publishProjectName: string
   googleClientId: string
   googleClientSecret: string
   /** セッション Cookie の署名鍵。 */
@@ -103,16 +114,34 @@ function take(values: Map<string, string>, name: string, prefix: string): string
   return value
 }
 
+const SET_BY =
+  '手元では scripts/dev-editor.sh が、Lambda では editor/function.jsonnet が設定します。'
+
+/**
+ * 対象環境。
+ *
+ * 知らない値を通さないのは、`production` かどうかで確認の一段が付くか決まる
+ * ため。綴りを間違えた値が「production ではない」と解釈されると、確認なしで
+ * 本番に配れてしまう。**判定を通す前に落とす。**
+ */
+function environment(): Environment {
+  const raw = requiredEnv('DIARY_ENV', SET_BY)
+
+  if (raw !== 'staging' && raw !== 'production') {
+    throw new Error(`環境変数 DIARY_ENV は staging または production です: ${raw}`)
+  }
+  return raw
+}
+
 async function load(): Promise<EditorConfig> {
   const prefix = paramPrefix()
   const values = await fetchParameters(prefix)
 
   return {
-    baseUrl: requiredEnv(
-      'EDITOR_BASE_URL',
-      '手元では scripts/dev-editor.sh が、Lambda では editor/function.jsonnet が設定します。',
-    ).replace(/\/+$/, ''),
+    baseUrl: requiredEnv('EDITOR_BASE_URL', SET_BY).replace(/\/+$/, ''),
+    environment: environment(),
     tableName: tableName(),
+    publishProjectName: requiredEnv('PUBLISH_PROJECT_NAME', SET_BY),
     googleClientId: take(values, PARAMS.clientId, prefix),
     googleClientSecret: take(values, PARAMS.clientSecret, prefix),
     sessionKey: take(values, PARAMS.sessionKey, prefix),
