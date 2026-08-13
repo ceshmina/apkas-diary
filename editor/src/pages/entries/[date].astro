@@ -25,7 +25,6 @@ let title = existing?.title ?? ''
 let body = existing?.body ?? ''
 let status = existing?.status ?? 'draft'
 
-let preview: string | undefined
 let error: string | undefined
 const saved = Astro.url.searchParams.has('saved')
 
@@ -40,9 +39,9 @@ if (isValidDate(date) && Astro.request.method === 'POST') {
 
   const action = String(form.get('action') ?? 'save')
 
-  if (action === 'preview') {
-    preview = await renderMarkdown(body)
-  } else {
+  // `preview` は保存を行わないだけで、他に何もしない。整形はこの下でどのみち
+  // 行うため、この分岐に固有の処理は持たない。
+  if (action !== 'preview') {
     try {
       // 書き込みは CLI と同じ経路を通す。GSI キー属性の付け外しも作成日時の
       // 引き継ぎも putEntry が持っており、ここでは持たない。
@@ -67,6 +66,19 @@ if (isValidDate(date) && Astro.request.method === 'POST') {
     }
   }
 }
+
+/**
+ * プレビューの初期内容。**サーバが描く**（design.md 決定3）。
+ *
+ * これにより3つが同時に片付く。**(1)** スクリプトが動かない環境でも、開いた瞬間から
+ * 整形結果が見えている（`entry-editing` の「追随が働かない環境」）。**(2)** 保存に
+ * 失敗して入力を描き直すときも、その本文の整形結果が並ぶ。**(3)** 追随の最初の1往復を
+ * 待つあいだ、空の面を見せずに済む。
+ *
+ * 以降の更新はブラウザから `/api/preview` を叩いて行うが、**通る整形は同じ**
+ * `renderMarkdown()` である。
+ */
+const preview = isValidDate(date) ? await renderMarkdown(body) : ''
 
 const session = Astro.locals.session
 const heading = isValidDate(date) ? formatDateJa(date) : '日付が不正です'
@@ -119,7 +131,8 @@ if (isValidDate(date)) {
 // 「保存して写真を追加」だけに保つ（`entry-editing` の「保存が起きることの明示」）。
 ---
 
-<Base title={heading} email={session?.email}>
+{/* 入力とプレビューを左右に並べるため、この画面だけ紙面を広く取る（決定8）。 */}
+<Base title={heading} email={session?.email} wide={isValidDate(date)}>
   {
     !isValidDate(date) ? (
       <>
@@ -147,62 +160,117 @@ if (isValidDate(date)) {
           </p>
         )}
 
-        <form method="post">
-          <label>
-            タイトル
-            <input type="text" name="title" value={title} autocomplete="off" />
-          </label>
+        {/*
+          入力とプレビューを1つの grid に載せる。**プレビューはフォームの外にある。**
+          本文には生の HTML を書けるため、整形結果に `<button>` や `<input>` が現れうる。
+          それがフォームの中にあると、押した瞬間に保存が走ったり、身に覚えのない値が
+          送られたりする（design.md 決定5）。読み取り専用のものをフォームの外に置くのは、
+          この画面が写真の一覧で既に採っている形でもある。
 
-          <label>
-            本文（Markdown）
-            <textarea name="body" rows="20">{body}</textarea>
-          </label>
-
-          <fieldset>
-            <legend>公開状態</legend>
-            <label class="radio">
-              <input type="radio" name="status" value="draft" checked={status === 'draft'} />
-              下書き
+          `data-active` はここに**書かない**。スクリプトが起動時に入れる。属性が無い
+          あいだは2つの面が両方見えており、切り替えが働かない環境でも双方に到達できる
+          （`entry-editing` の「切り替えが働かない環境」）。
+        */}
+        <div class="editor" data-editor>
+          <form method="post">
+            <label class="title-field">
+              タイトル
+              <input type="text" name="title" value={title} autocomplete="off" />
             </label>
-            <label class="radio">
-              <input type="radio" name="status" value="published" checked={status === 'published'} />
-              公開
-            </label>
-            <p class="muted hint">
-              公開にすると、次のサイト生成から公開サイトに現れる。下書きに戻すと消える。
-              保存しただけでは反映されない。<a href="/publish">公開</a>から反映する。
-            </p>
-          </fieldset>
 
-          <div class="actions">
-            <button type="submit" name="action" value="save" class="primary">保存</button>
-            <button type="submit" name="action" value="preview">表示を確認</button>
             {/*
-              写真の投入はこの画面を離れるので、先に保存する。**押す前にそれが
-              分かるよう、文言に書いてある**（entry-editing の「保存が起きること
-              の明示」）。
+              タブ帯。**既定では隠してある。** 切り替えを担うスクリプトが動いて初めて
+              現れる。出しておいて押しても何も起きない、という状態を作らない。
             */}
-            <button type="submit" name="action" value="photo">保存して写真を追加</button>
-            <a href="/">一覧へ戻る</a>
-          </div>
-        </form>
+            <div class="tabs" role="tablist" hidden data-tabs>
+              <button
+                type="button"
+                role="tab"
+                id="tab-edit"
+                aria-controls="pane-edit"
+                aria-selected="true"
+                data-tab="edit"
+              >
+                編集
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="tab-preview"
+                aria-controls="pane-preview"
+                aria-selected="false"
+                data-tab="preview"
+              >
+                プレビュー
+              </button>
+            </div>
 
-        {
-          preview !== undefined && (
-            <section class="preview">
-              <h2 class="section-title">表示の確認</h2>
-              <p class="muted">
-                公開サイトと同じ整形で表示している。まだ保存されていない。
+            <div class="pane pane-edit" id="pane-edit" role="tabpanel" aria-labelledby="tab-edit">
+              <div class="pane-head">
+                <label class="section-title pane-title" for="body">
+                  本文（Markdown）
+                </label>
+              </div>
+              <textarea id="body" name="body" rows="20" data-body>{body}</textarea>
+            </div>
+
+            <fieldset class="status-field">
+              <legend>公開状態</legend>
+              <label class="radio">
+                <input type="radio" name="status" value="draft" checked={status === 'draft'} />
+                下書き
+              </label>
+              <label class="radio">
+                <input type="radio" name="status" value="published" checked={status === 'published'} />
+                公開
+              </label>
+              <p class="muted hint">
+                公開にすると、次のサイト生成から公開サイトに現れる。下書きに戻すと消える。
+                保存しただけでは反映されない。<a href="/publish">公開</a>から反映する。
               </p>
-              <article set:html={preview} />
-            </section>
-          )
-        }
+            </fieldset>
+
+            <div class="actions">
+              <button type="submit" name="action" value="save" class="primary">保存</button>
+              {/*
+                追随が働けばこのボタンは要らなくなるが、**マークアップからは消さない。**
+                スクリプトが起動した時点で隠す。押せば正しく働くものが、要らなくなった
+                ときにだけ消える形にしておく（決定3）。
+              */}
+              <button type="submit" name="action" value="preview" data-preview-submit>
+                表示を確認
+              </button>
+              {/*
+                写真の投入はこの画面を離れるので、先に保存する。**押す前にそれが
+                分かるよう、文言に書いてある**（entry-editing の「保存が起きること
+                の明示」）。
+              */}
+              <button type="submit" name="action" value="photo">保存して写真を追加</button>
+              <a href="/">一覧へ戻る</a>
+            </div>
+          </form>
+
+          <section class="pane pane-preview" id="pane-preview" role="tabpanel" aria-labelledby="tab-preview">
+            <div class="pane-head">
+              <h2 class="section-title">プレビュー</h2>
+              {/*
+                追随の状態。速く返っているあいだは何も出さない。出るのは遅れている
+                ときと、更新できなかったときだけである（決定6）。
+              */}
+              <span class="pane-state" aria-live="polite" data-preview-state />
+            </div>
+
+            <article class="preview-body" data-preview set:html={preview} />
+
+            <p class="pane-note muted">公開サイトと同じ整形で表示している。保存はしていない。</p>
+          </section>
+        </div>
 
         {/*
           この日の写真。**フォームの外に置く。** どれも読み取り専用の要素であり、
           入力中のタイトルと本文にいっさい触れない（`entry-editing` の「写真の提示は
-          編集中の内容を失わせない」）。
+          編集中の内容を失わせない」）。入力とプレビューのどちらを見ていても、ここは
+          常に画面にある。
         */}
         <section class="photos">
           <h2 class="section-title">この日の写真</h2>
@@ -276,6 +344,166 @@ if (isValidDate(date)) {
     )
   }
 
+  <script>
+    /**
+     * 入力に追随するプレビューと、狭い画面でのタブの切り替え。
+     *
+     * **入力欄に書き戻す処理をここに書かないこと。** プレビューは読むだけである
+     * （`entry-editing` の「表示の更新は編集中の内容を失わせない」）。整形はサーバで
+     * 行い、ここが受け取るのは HTML の断片だけになる（design.md 決定1）。
+     *
+     * スクリプトが読み込まれない・失敗する環境でも、開いた時点の整形結果は既に画面に
+     * あり、「表示を確認」も従来どおり働く。ここで足しているのは手数を減らすことだけで、
+     * 確認を得る唯一の経路にはしない。
+     */
+
+    /** 手が止まったと見なすまでの時間。打鍵の合間には送らない。 */
+    const DEBOUNCE_MS = 400
+
+    /** これを超えて返らないときだけ「更新中」を出す。速いときには出さない。 */
+    const SLOW_MS = 1000
+
+    const editor = document.querySelector<HTMLElement>('[data-editor]')
+    const textarea = document.querySelector<HTMLTextAreaElement>('[data-body]')
+    const target = document.querySelector<HTMLElement>('[data-preview]')
+    const stateText = document.querySelector<HTMLElement>('[data-preview-state]')
+    const tabs = document.querySelector<HTMLElement>('[data-tabs]')
+    const previewSubmit = document.querySelector<HTMLElement>('[data-preview-submit]')
+
+    // 日付が不正な画面には編集の要素が無い。
+    if (editor && textarea && target && stateText && tabs) {
+      const tabButtons = [...tabs.querySelectorAll<HTMLButtonElement>('[data-tab]')]
+
+      /** サーバが描いた、いま画面に出ている整形結果のもとになった本文。 */
+      let rendered = textarea.value
+
+      let timer: ReturnType<typeof setTimeout> | undefined
+      let inflight = false
+      /** 応答を待つあいだに入力があった。返ってきたらもう1度送る。 */
+      let queued = false
+      /** 送るたびに増える通し番号。**古い応答で新しい表示を上書きしない**ために使う。 */
+      let ticket = 0
+      let shown = 0
+
+      function setState(message: string, warn = false) {
+        stateText!.textContent = message
+        stateText!.classList.toggle('warn', warn && message !== '')
+      }
+
+      async function update() {
+        // 同時に1つ。待っているあいだの入力は、返ってきてから最新の本文で送る。
+        if (inflight) {
+          queued = true
+          return
+        }
+
+        const body = textarea!.value
+
+        // 変わっていなければ送らない。カーソルを動かしただけ、書いて消して元に
+        // 戻しただけ、で往復しない。
+        if (body === rendered) {
+          setState('')
+          return
+        }
+
+        inflight = true
+        const id = ++ticket
+        const slow = setTimeout(() => {
+          if (id === ticket) setState('更新中')
+        }, SLOW_MS)
+
+        try {
+          const response = await fetch('/api/preview', {
+            method: 'POST',
+            // `text/plain` で本文をそのまま送る。保存のフォームと同じ CSRF の
+            // 関門を通る content type である（決定2）。
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+            body,
+          })
+
+          if (response.status === 401) {
+            // 更新できないだけでなく、**このまま保存しても失敗する**。他の失敗と
+            // 書き分ける意味がここにある。
+            setState('ログインが切れている。保存の前に入り直すこと', true)
+            return
+          }
+
+          if (!response.ok) {
+            setState('最新の内容ではない（更新できなかった）', true)
+            return
+          }
+
+          const html = await response.text()
+
+          // 往復の時間は一定ではない。順に返る保証がないので、追い越された応答は捨てる。
+          if (id > shown) {
+            shown = id
+            // 差し込むのは**サーバが返した断片だけ**。ブラウザで組み立てた文字列を
+            // 混ぜない（決定7）。同じ HTML は保存を経て公開サイトにも出る。
+            target!.innerHTML = html
+            rendered = body
+            setState('')
+          }
+        } catch {
+          // **直前の整形結果は残す。** 空にすると、書いた文章が消えたように見える。
+          setState('最新の内容ではない（更新できなかった）', true)
+        } finally {
+          clearTimeout(slow)
+          inflight = false
+          if (queued) {
+            queued = false
+            void update()
+          }
+        }
+      }
+
+      function schedule() {
+        clearTimeout(timer)
+        timer = setTimeout(() => void update(), DEBOUNCE_MS)
+      }
+
+      textarea.addEventListener('input', schedule)
+
+      function activate(name: string) {
+        editor!.dataset.active = name
+
+        for (const button of tabButtons) {
+          const on = button.dataset.tab === name
+          button.setAttribute('aria-selected', String(on))
+          // 選ばれていないタブは Tab キーの巡回から外す。矢印で移る。
+          button.tabIndex = on ? 0 : -1
+        }
+
+        // 見に行くのだから、待たせずに最新にする。
+        if (name === 'preview') {
+          clearTimeout(timer)
+          void update()
+        }
+      }
+
+      for (const button of tabButtons) {
+        button.addEventListener('click', () => activate(button.dataset.tab ?? 'edit'))
+
+        button.addEventListener('keydown', (event) => {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+
+          const next = tabButtons[(tabButtons.indexOf(button) + 1) % tabButtons.length]
+          if (!next) return
+
+          event.preventDefault()
+          activate(next.dataset.tab ?? 'edit')
+          next.focus()
+        })
+      }
+
+      // ここから先は追随が働く。切り替えの帯を出し、押す必要のなくなったボタンを
+      // 隠す（決定3・決定9）。**開いた直後は書ける状態にする。**
+      tabs.hidden = false
+      previewSubmit?.setAttribute('hidden', '')
+      activate('edit')
+    }
+  </script>
+
   <style>
     .head h1 {
       margin-bottom: 0.5rem;
@@ -287,10 +515,154 @@ if (isValidDate(date)) {
       font-variant-numeric: tabular-nums;
     }
 
+    /*
+     * 入力とプレビューの並び。
+     *
+     * **フォームは箱を持たない**（`display: contents`）。プレビューはフォームの外に
+     * ありながら、フォームの中のタイトル・本文・公開状態・操作と同じ grid の上に
+     * 並ぶ。これで「読み取り専用のものをフォームに入れない」と「左右に並べる」の
+     * 両方が立つ（design.md 決定5）。
+     */
     form {
+      display: contents;
+    }
+
+    .editor {
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        'title'
+        'tabs'
+        'edit'
+        'preview'
+        'status'
+        'actions';
+      gap: 1.25rem;
+    }
+
+    .title-field {
+      grid-area: title;
+    }
+
+    .tabs {
+      grid-area: tabs;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    /*
+     * `[hidden]` は UA の指定なので、`display` を宣言した時点で**負ける**。
+     * 隠れているべきものが隠れるよう、こちらで消す。
+     */
+    .tabs[hidden],
+    .actions button[hidden] {
+      display: none;
+    }
+
+    .tabs button {
+      flex: 1;
+      /* 指で押す。細い帯にしない。 */
+      padding-block: 0.55rem;
+    }
+
+    .tabs button[aria-selected='true'] {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .pane {
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
+      min-width: 0;
+    }
+
+    .pane-edit {
+      grid-area: edit;
+    }
+
+    .pane-preview {
+      grid-area: preview;
+    }
+
+    /*
+     * 面の見出し。左右で同じ字面にすることで、入力欄とプレビューの上端が揃う。
+     * `.section-title` は `label` の縦積み（base.css）に上書きされるので、
+     * 横並びに戻す。
+     */
+    .pane-head {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .pane-head .section-title {
+      flex: 1;
+      min-width: 0;
+      /*
+       * 左は `label`、右は `h2` である。**素のままでは上端が揃わない**——`h2` は
+       * 上下に余白を持ち、行送りも `label` と違う。同じ見出しとして並ぶのだから、
+       * 両方をここで揃える。
+       */
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .pane-title {
+      flex-direction: row;
+    }
+
+    .pane-state {
+      flex: none;
+      font-size: 0.8rem;
+      color: var(--fg-muted);
+      white-space: nowrap;
+    }
+
+    /* 最新でないことは、目に付く色で言う。 */
+    .pane-state.warn {
+      color: var(--accent);
+    }
+
+    /*
+     * 面の中身は、面に丈があるときはそれを埋め、無いときは中身なりの高さになる。
+     *
+     * `flex: 1`（= `1 1 0%`）にすると、丈の決まっていない狭い画面で**基準が 0 に
+     * なって潰れる**。伸びしろだけを与え、基準は中身に置く。
+     */
+    .pane-edit textarea {
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+    }
+
+    .preview-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    /* 本文が空のときに、ただの空箱に見えないようにする。 */
+    .preview-body:empty::before {
+      content: '本文を書くと、ここに公開後の姿が出る。';
+      color: var(--fg-muted);
+      font-size: 0.9rem;
+    }
+
+    .pane-note {
+      margin: 0.5rem 0 0;
+      font-size: 0.8rem;
+    }
+
+    .status-field {
+      grid-area: status;
+    }
+
+    .actions {
+      grid-area: actions;
     }
 
     /* 公開状態の選択。入力欄の見出しと違い、印と語が横に並ぶ。 */
@@ -306,8 +678,59 @@ if (isValidDate(date)) {
       font-size: 0.85rem;
     }
 
-    .preview {
-      margin-top: 3rem;
+    /*
+     * 切り替え。**どちらを隠すかは CSS が決める。** スクリプトは `data-active` を
+     * 置くだけで、画面の広さを知らない（決定9）。属性が無いあいだ（スクリプトが
+     * 動いていない）は、どちらの規則も当たらず両方が見える。
+     */
+    .editor[data-active='edit'] .pane-preview,
+    .editor[data-active='preview'] .pane-edit {
+      display: none;
+    }
+
+    /*
+     * 広い画面。ここが**このプロジェクト初の幅の分岐**である。値をこの画面に閉じて
+     * いるのは、分岐がまだ1つしかないため。2つ目の画面に現れたときに共有へ引き上げる
+     * （決定8）。
+     */
+    @media (min-width: 60rem) {
+      .editor {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+          'title title'
+          'edit preview'
+          'status status'
+          'actions actions';
+        column-gap: 2rem;
+      }
+
+      /* 並んでいるのだから、切り替える必要がない。 */
+      .tabs {
+        display: none;
+      }
+
+      .editor[data-active='edit'] .pane-preview,
+      .editor[data-active='preview'] .pane-edit {
+        display: flex;
+      }
+
+      /*
+       * 2つの面の高さを揃え、それぞれの中でスクロールさせる。上端が揃っていないと、
+       * 書いている段落と整形結果を目で往復するたびに探すことになる。
+       *
+       * 丈を与えるのは**面ではなく箱のほう**である。面に与えると、下に一言を持つ
+       * プレビューの側だけ箱が短くなり、下端が揃わない。
+       */
+      .pane-edit textarea,
+      .preview-body {
+        flex: none;
+        height: clamp(28rem, 70vh, 46rem);
+      }
+
+      /* 片方だけ伸びると対応が崩れる。分割しているあいだは丈を変えさせない。 */
+      .pane-edit textarea {
+        resize: none;
+      }
     }
 
     .photos {
