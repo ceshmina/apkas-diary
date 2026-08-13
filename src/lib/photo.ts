@@ -16,7 +16,7 @@
  * いない。**どちらかを変えるときは両方を直す。**
  */
 
-import { dayOf, monthOf, yearOf } from './date.js'
+import { dayOf, isValidDate, monthOf, yearOf } from './date.js'
 
 export const PHOTO_SIZES = ['thumbnail', 'small', 'medium', 'large'] as const
 
@@ -44,6 +44,36 @@ export function photoDatePrefixOf(date: string): string {
  */
 export function photoSourceKeyOf(date: string, filename: string): string {
   return `${photoDatePrefixOf(date)}${filename}`
+}
+
+/** `photoSourceKeyOf` が作る形。日付の3段と、区切りを含まないファイル名。 */
+const SOURCE_KEY_PATTERN = /^(\d{4})\/(\d{2})\/(\d{2})\/([^/]+)$/
+
+export interface PhotoSource {
+  /** JST の暦日。`YYYY-MM-DD`。 */
+  date: string
+  filename: string
+}
+
+/**
+ * 元写真のキーから、属する日付とファイル名を取り出す。`photoSourceKeyOf` の逆。
+ *
+ * 日付の規約に沿わないキーでは `undefined` を返す。手元の CLI には `--key` で
+ * **日付という軸から外れた場所へ置ける**入口があり、そこへ置かれた写真は属する日を
+ * 持たない。目録は日付を軸に引くものなので、載せられるかどうかがこの戻り値で決まる
+ * （`photo-catalog` の「日付の軸から外れたキーへの投入」）。
+ *
+ * 暦上実在しない日付（`2026/02/30/a.jpg` など）も外す。目録のキーになる値であり、
+ * エントリの日付と突き合わせられなければ意味がない。
+ */
+export function photoSourceOf(sourceKey: string): PhotoSource | undefined {
+  const m = SOURCE_KEY_PATTERN.exec(sourceKey)
+  if (!m) return undefined
+
+  const date = `${m[1]}-${m[2]}-${m[3]}`
+  if (!isValidDate(date)) return undefined
+
+  return { date, filename: m[4] as string }
 }
 
 /**

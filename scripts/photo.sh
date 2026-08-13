@@ -21,6 +21,11 @@ fi
 shift
 
 load_env "$ENV_NAME"
-require_env_vars PHOTO_UPLOAD_BUCKET PHOTO_BUCKET PHOTO_URL
+
+# DIARY_TABLE_NAME は目録への記録に要る。**config/<環境>.env に既にある値なので
+# 転記は増えない**（サイト生成と編集アプリケーションが読んでいるものと同じ）。
+# ここで確かめるのは、欠けたまま投入して**記録の段になって初めて落ちる**のを
+# 避けるためである。
+require_env_vars DIARY_TABLE_NAME PHOTO_UPLOAD_BUCKET PHOTO_BUCKET PHOTO_URL
 
 exec npx tsx src/cli/put-photo.ts "$@"

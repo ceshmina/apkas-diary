@@ -7,9 +7,13 @@
  *   npm run photo -- staging --file ~/photos/IMG_1234.jpg --date 2026-08-08
  *   npm run photo -- staging --file ~/photos/walk.jpg --key 2026/08/08/walk.jpg
  *
- * ここがするのはアップロード用バケットへ置くところまでで、派生画像を作るのは
- * S3 のイベントで起動する Lambda である。生成は非同期なので、投入した URL が
- * すぐに読めるとは限らない。読めるようになるまで短いあいだ待ってから URL を出す。
+ * ここがするのはアップロード用バケットへ置くところと、目録に記録するところまでで、
+ * 派生画像を作るのは S3 のイベントで起動する Lambda である。生成は非同期なので、
+ * 投入した URL がすぐに読めるとは限らない。読めるようになるまで短いあいだ待ってから
+ * URL を出す。
+ *
+ * 目録（`photo-catalog`）に書くのは、置いた場所と日付と配信 URL まで。撮影に関する
+ * 情報は変換 Lambda が読み取って書き足す。**どちらが先に走っても記録は同じになる。**
  */
 
 import { readFile } from 'node:fs/promises'
@@ -18,6 +22,7 @@ import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s
 import { assertValidDate } from '../lib/date.js'
 import { awsRegion, photoDeliveryBucket, photoUploadBucket, photoUrl } from '../lib/env.js'
 import { PHOTO_SIZES, photoKeyOf, photoSourceKeyOf, photoUrlOf } from '../lib/photo.js'
+import { putPhoto } from '../lib/store/photo.js'
 
 interface Args {
   file?: string
@@ -32,6 +37,7 @@ const USAGE = `使い方:
   --file <path>          投入する元写真（必須）。
   --date <YYYY-MM-DD>    この日付から YYYY/MM/DD/<ファイル名> をキーにする。
   --key <key>            キーを直接指定する。--date とは排他。
+                         日付の規約から外れた場所へ置いたものは目録に載らない。
 
 例:
   npm run photo -- staging --file ~/photos/IMG_1234.jpg --date 2026-08-08
@@ -126,6 +132,31 @@ function statusOf(error: unknown): number | undefined {
 }
 
 /**
+ * 目録に記録する。
+ *
+ * **失敗しても投入そのものを失敗にしない。** 元写真は既に置かれており、生成は走って
+ * いる。目録は配信されているものの写しであり（`photo-catalog`）、写しを作れなかった
+ * ことで元のほうを失敗として扱う理由がない。同じ写真を投入し直せば記録は揃う。
+ *
+ * `--key` で日付の軸から外れた場所へ置いた写真は属する日を持たず、日付を軸に引く
+ * 目録には載せられない。**黙って落とさず、載せなかったことを出す。**
+ */
+async function record(key: string): Promise<void> {
+  try {
+    const photo = await putPhoto(key)
+
+    if (photo) {
+      console.log(`目録に記録しました: ${photo.id}`)
+    } else {
+      console.log('目録には記録しませんでした（日付の規約に沿わないキーのため）。')
+    }
+  } catch (error) {
+    console.error(`目録に記録できませんでした: ${error instanceof Error ? error.message : error}`)
+    console.error('投入と派生画像の生成は影響を受けません。')
+  }
+}
+
+/**
  * 配信先の `medium` の最終更新時刻。まだ無ければ undefined。
  *
  * 4つは常に揃って書かれるので、1つ見れば残りの状態も決まる。
@@ -212,6 +243,10 @@ async function main(): Promise<void> {
   console.log(`投入しました: ${key}`)
   console.log(`  bucket  : ${photoUploadBucket()}`)
   console.log(`  size    : ${(body.length / 1024).toFixed(0)} KB`)
+
+  // 生成を**待つ前に**記録する。記録が先にあることで、まだ派生画像の無い写真も
+  // 編集画面の一覧に「準備中」として並ぶ。
+  await record(key)
   console.log()
 
   process.stdout.write('派生画像の生成を待っています...')

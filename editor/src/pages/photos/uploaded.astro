@@ -2,6 +2,7 @@
 import { formatDateJa, isValidDate } from '../../../../src/lib/date.js'
 import { photoUrl } from '../../../../src/lib/env.js'
 import { PHOTO_SIZES, photoUrlOf } from '../../../../src/lib/photo.js'
+import { putPhoto } from '../../../../src/lib/store/photo.js'
 import Base from '../../layouts/Base.astro'
 import { acceptReturnedKey, probeDerivative, WAIT_TIMEOUT_MS } from '../../lib/photo-upload.js'
 
@@ -58,6 +59,22 @@ const photos: Photo[] = await Promise.all(
       snippet: `![](${photoUrlOf(base, 'medium', key)})`,
       thumbnail: photoUrlOf(base, 'thumbnail', key),
       urls: PHOTO_SIZES.map((size) => ({ size, url: photoUrlOf(base, size, key) })),
+    }
+
+    // 目録に登録する。**編集アプリケーションがキーを知るのはここが最初**である。
+    // 元写真はブラウザから S3 へ直接送られるので、置かれた場所は S3 の応答を持って
+    // きたブラウザからしか分からない（design.md 決定9）。
+    //
+    // この画面は生成を待つあいだ数秒ごとに読み直され、そのたびにここを通る。
+    // `putPhoto` は何度実行しても同じ結果になる（`if_not_exists`）。
+    //
+    // **登録に失敗しても結果の表示は止めない。** 投入も生成も既に済んでおり、
+    // 示すべき URL は目録と関係なく組み立てられる。目録は配信されているものの
+    // 写しであり（`photo-catalog`）、写しを作れなかったことで貼れる記述を隠さない。
+    try {
+      await putPhoto(key)
+    } catch (error) {
+      console.error(`目録に記録できませんでした: ${key}`, error)
     }
 
     try {

@@ -49,6 +49,11 @@ module "photos" {
   domain_name      = "photos.apkas.net"
   hosted_zone_name = "apkas.net"
 
+  # 写真の目録を書き込む先。**日記と同じテーブル**である。渡すのは ARN だけで、
+  # 変換 Lambda に与える権限を `PHOTO#` で始まるパーティションに限るために使う。
+  # 日記のエントリへは届かない（modules/photos の WriteCatalog）。
+  table_arn = module.storage.table_arn
+
   # 編集アプリケーションの画面から元写真を直接送る。**権限ではなく、応答を読ませて
   # よい相手の宣言である。** production には localhost を入れない。手元から
   # production を触る作業は CLI（`npm run photo`）で足りる。
