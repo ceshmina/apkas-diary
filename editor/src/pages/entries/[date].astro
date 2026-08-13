@@ -1,9 +1,13 @@
 ---
 import { formatDateJa, isValidDate } from '../../../../src/lib/date.js'
+import { photoUrl } from '../../../../src/lib/env.js'
 import { renderMarkdown } from '../../../../src/lib/markdown.js'
+import { PHOTO_SIZES, photoUrlOf } from '../../../../src/lib/photo.js'
 import { isEntryStatus } from '../../../../src/lib/store/entry.js'
+import { listPhotosByDate } from '../../../../src/lib/store/photo.js'
 import { putEntry } from '../../../../src/lib/store/put.js'
 import { getEntry } from '../../../../src/lib/store/queries.js'
+import CopyField from '../../components/CopyField.astro'
 import Base from '../../layouts/Base.astro'
 
 export const prerender = false
@@ -66,6 +70,53 @@ if (isValidDate(date) && Astro.request.method === 'POST') {
 
 const session = Astro.locals.session
 const heading = isValidDate(date) ? formatDateJa(date) : '日付が不正です'
+
+/**
+ * この日に投入した写真。
+ *
+ * 目録（`photo-catalog`）を日付で1回引く。**投入した直後の画面を閉じたあとでも、
+ * 貼れる記述と URL がここから得られる**（`entry-editing`）。
+ *
+ * 表示する URL は記録された `url` ではなく `sourceKey` から組み立てる。配信ドメインが
+ * 変わったあとも、常に今の配信先を指すため。
+ */
+interface PhotoView {
+  name: string
+  /** 派生画像が出来ている。まだのものは画像を出さない。 */
+  ready: boolean
+  /** 本文に貼る記述。拡大表示が成り立つよう medium を使う（投入直後の画面と同じ）。 */
+  snippet: string
+  thumbnail: string
+  large: string
+  urls: { size: string; url: string }[]
+}
+
+let photos: PhotoView[] = []
+let photosError: string | undefined
+
+if (isValidDate(date)) {
+  try {
+    const base = photoUrl()
+
+    photos = (await listPhotosByDate(date)).map((photo) => ({
+      name: photo.filename,
+      // 生成の完了は目録が持つ写しで見る。1枚ごとに配信元へ問い合わせると、10枚
+      // 並ぶ日の編集画面が10回の往復を待つことになる（design.md 決定8）。
+      ready: photo.renderedAt !== undefined,
+      snippet: `![](${photoUrlOf(base, 'medium', photo.sourceKey)})`,
+      thumbnail: photoUrlOf(base, 'thumbnail', photo.sourceKey),
+      large: photoUrlOf(base, 'large', photo.sourceKey),
+      urls: PHOTO_SIZES.map((size) => ({ size, url: photoUrlOf(base, size, photo.sourceKey) })),
+    }))
+  } catch (error) {
+    // **一覧を出せなくても編集そのものは止めない。** 日記を書けることのほうが重い。
+    photosError = error instanceof Error ? error.message : String(error)
+  }
+}
+
+// この節から投入の画面へ直接リンクしない。**素のリンクはこの画面を離れる**ので、
+// 入力中のタイトルと本文が保存されないまま失われる。投入へ進む入口はフォームの
+// 「保存して写真を追加」だけに保つ（`entry-editing` の「保存が起きることの明示」）。
 ---
 
 <Base title={heading} email={session?.email}>
@@ -147,6 +198,80 @@ const heading = isValidDate(date) ? formatDateJa(date) : '日付が不正です'
             </section>
           )
         }
+
+        {/*
+          この日の写真。**フォームの外に置く。** どれも読み取り専用の要素であり、
+          入力中のタイトルと本文にいっさい触れない（`entry-editing` の「写真の提示は
+          編集中の内容を失わせない」）。
+        */}
+        <section class="photos">
+          <h2 class="section-title">この日の写真</h2>
+
+          {
+            photosError ? (
+              <p class="muted small">
+                写真の一覧を読めなかった（{photosError}）。編集と保存には影響しない。
+              </p>
+            ) : photos.length === 0 ? (
+              <p class="muted small">
+                この日の写真はまだない。上の<strong>「保存して写真を追加」</strong>から入れる。
+              </p>
+            ) : (
+              <>
+                <ul class="photo-list">
+                  {photos.map((photo) => (
+                    <li>
+                      <div class="figure">
+                        {/*
+                          **生成が終わったものだけを出す。** まだ無いうちに img を
+                          置くと、ブラウザが配信 URL を取りにいき、まだ無いあいだの
+                          403 が CDN に載る。順序を入れ替えないこと。
+                        */}
+                        {photo.ready ? (
+                          <a href={photo.large} target="_blank" rel="noreferrer noopener">
+                            <img src={photo.thumbnail} alt={photo.name} loading="lazy" />
+                          </a>
+                        ) : (
+                          <span class="placeholder muted">準備中</span>
+                        )}
+                      </div>
+
+                      <div class="body">
+                        <p class="name">{photo.name}</p>
+
+                        {photo.ready ? (
+                          <>
+                            <CopyField value={photo.snippet} />
+                            <details>
+                              <summary class="muted small">ほかのサイズ</summary>
+                              <ul class="urls">
+                                {photo.urls.map(({ size, url }) => (
+                                  <li>
+                                    <span class="size muted">{size}</span>
+                                    <a href={url} target="_blank" rel="noreferrer noopener">
+                                      {url}
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            </details>
+                          </>
+                        ) : (
+                          <p class="muted small">準備できるまで、この写真はまだ表示できない。</p>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                <p class="muted small">
+                  本文に貼るとその写真が表示される。<code>[]</code> の中に書いた文は写真の下に出る。
+                  さらに追加するときは上の<strong>「保存して写真を追加」</strong>から。
+                </p>
+              </>
+            )
+          }
+        </section>
       </>
     )
   }
@@ -183,6 +308,97 @@ const heading = isValidDate(date) ? formatDateJa(date) : '日付が不正です'
 
     .preview {
       margin-top: 3rem;
+    }
+
+    .photos {
+      margin-top: 3rem;
+    }
+
+    .small {
+      margin: 0;
+      font-size: 0.9rem;
+    }
+
+    .photo-list {
+      margin: 1rem 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .photo-list > li {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .figure {
+      flex: none;
+      width: 120px;
+    }
+
+    .figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: var(--radius-sm);
+    }
+
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 90px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+    }
+
+    .body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .name {
+      margin: 0 0 0.5rem;
+      font-size: 0.9rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    details {
+      margin-top: 0.5rem;
+    }
+
+    summary {
+      cursor: pointer;
+    }
+
+    .urls {
+      margin: 0.5rem 0 0;
+      padding: 0;
+      list-style: none;
+      font-size: 0.8rem;
+    }
+
+    .urls li {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      padding: 0.2rem 0;
+      min-width: 0;
+    }
+
+    .size {
+      flex: none;
+      width: 5rem;
+    }
+
+    .urls a {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   </style>
 </Base>

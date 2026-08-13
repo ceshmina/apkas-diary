@@ -11,6 +11,7 @@
 import { CloudFrontClient, CreateInvalidationCommand } from '@aws-sdk/client-cloudfront'
 import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import sharp from 'sharp'
+import { type Rendering, readExif, recordRendering } from './catalog.js'
 
 /**
  * 生成するサイズと、その長辺の px 数。
@@ -108,6 +109,27 @@ export async function renderDerivatives(input: Buffer): Promise<Derivative[]> {
 }
 
 /**
+ * 元写真から、目録に残すものを読み取る。
+ *
+ * **付随情報を除去する前に読む。** 除去は出力の側で起きること（`renderDerivatives`
+ * が引き継ぐ指定を書かないこと）であり、入力にはまだ残っている。読み取りは生成に
+ * いっさい影響しない——ここで作るパイプラインは画素を出力せず、ヘッダだけを読む。
+ *
+ * 寸法は `metadata()` の `autoOrient` から取る。素の `width` / `height` は EXIF の
+ * 回転を考慮しない値であり、縦位置の写真では配信される画像と縦横が入れ替わる。
+ * `renderDerivatives` が `rotate()` を通しているのと同じ向きを、目録も持つ。
+ */
+async function readSource(input: Buffer): Promise<Rendering> {
+  const metadata = await sharp(input).metadata()
+
+  return {
+    exif: readExif(metadata.exif),
+    width: metadata.autoOrient.width,
+    height: metadata.autoOrient.height,
+  }
+}
+
+/**
  * 配信先のキー。サイズ名を先頭に置き、拡張子を webp に替える。
  *
  * サイズ名以外がすべて一致するので、参照する側はその部分だけを差し替えれば
@@ -196,6 +218,34 @@ async function processRecord(
   if (replacing) {
     await invalidate(distributionId, sourceKey)
     console.log(`差し替えのため invalidate しました: ${sourceKey}`)
+  }
+
+  await recordInCatalog(sourceKey, input)
+}
+
+/**
+ * 目録に書き足す。
+ *
+ * **派生画像を置いたあとに行う。順序を入れ替えない。** 書くのは「生成が終わった」
+ * ことであり、終わる前に書けば嘘になる。
+ *
+ * **失敗しても投げない。** 例外を投げると Lambda が再試行し、既に済んでいる生成を
+ * もう一度やり直すことになる。目録は配信されているものの写しであり（`photo-catalog`）、
+ * 写しを作れなかったことで元のほうを繰り返さない。同じ元写真を投入し直せば記録は
+ * 揃う（`photo-ingest` の「目録への記録の失敗は派生画像の生成を妨げない」）。
+ */
+async function recordInCatalog(sourceKey: string, input: Buffer): Promise<void> {
+  try {
+    const rendering = await readSource(input)
+    const recorded = await recordRendering(sourceKey, rendering, new Date().toISOString())
+
+    if (recorded) {
+      console.log(`目録に記録しました: ${sourceKey}`)
+    } else {
+      console.log(`目録には記録しません（日付の規約に沿わないキー）: ${sourceKey}`)
+    }
+  } catch (error) {
+    console.error(`目録に記録できませんでした: ${sourceKey}`, error)
   }
 }
 

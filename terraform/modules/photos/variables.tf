@@ -37,6 +37,20 @@ variable "hosted_zone_name" {
   type        = string
 }
 
+variable "table_arn" {
+  description = <<-EOT
+    写真の目録を書き込む DynamoDB テーブルの ARN。日記エントリと同じテーブルである。
+
+    変換 Lambda の権限を、このテーブルの **PHOTO# で始まるパーティション**への
+    書き込みだけに限るために使う。日記のエントリへは届かない。
+
+    **名前は受け取らない。** 変換 Lambda が環境変数として受け取るテーブル名は
+    lambda/photo-resize/function.jsonnet が tfstate から直接読む。同じ値が2経路で
+    渡る状態を作らない（編集アプリケーションのバケットと同じ扱い）。
+  EOT
+  type        = string
+}
+
 variable "upload_cors_origins" {
   description = <<-EOT
     アップロード用バケットへブラウザから直接 POST できるオリジン。

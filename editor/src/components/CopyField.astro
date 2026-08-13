@@ -1,0 +1,92 @@
+---
+/**
+ * 本文に貼る記述と、それを1操作で写すボタン。
+ *
+ * 投入した直後の画面（`/photos/uploaded`）と記事の編集画面（`/entries/<日付>`）の
+ * 双方が使う。`entry-editing` は両者が**同じものを示す**ことを要件にしており、
+ * 写しではなくこの1つの部品で満たしている。
+ *
+ * **入力欄は残す。** 複製が働かない環境——`navigator.clipboard` は安全な文脈でしか
+ * 使えず、スクリプトが読み込まれていないこともある——でも、記述そのものが読み取れて
+ * 手で写せる状態でなければならない（`entry-editing` の「複製が使えない環境」）。
+ * ボタンは手数を減らすだけのもので、貼れる記述を得る唯一の手段にはしない。
+ */
+
+interface Props {
+  /** 本文に貼る記述。 */
+  value: string
+}
+
+const { value } = Astro.props
+---
+
+<div class="copy-field">
+  <input type="text" value={value} readonly />
+  <button type="button">コピー</button>
+</div>
+
+<script>
+  /**
+   * 押されたボタンの隣の入力欄を写す。
+   *
+   * 部品ごとにスクリプトを持たせず、**1枚のスクリプトが画面上のすべてを受け持つ**。
+   * Astro は同じ部品を何度使ってもこれを1度だけ読み込むので、写真が10枚並んでも
+   * 増えるのは要素だけである。
+   */
+  for (const field of document.querySelectorAll<HTMLElement>('.copy-field')) {
+    const input = field.querySelector('input')
+    const button = field.querySelector('button')
+    if (!input || !button) continue
+
+    const label = button.textContent
+
+    button.addEventListener('click', async () => {
+      let done: string
+
+      try {
+        // 安全な文脈でなければ clipboard そのものが存在しない。`?.` で黙って
+        // 素通りさせると、写せていないのに「写した」と出てしまう。
+        if (!navigator.clipboard) throw new Error('クリップボードを使えない')
+        await navigator.clipboard.writeText(input.value)
+        done = 'コピーした'
+      } catch {
+        // 写せないときは選択だけしておく。あとは利用者の手に委ねる。
+        // **何も起きないまま終わらせない。**
+        input.select()
+        done = '選んだ。Ctrl+C で写す'
+      }
+
+      button.textContent = done
+      setTimeout(() => {
+        button.textContent = label
+      }, 2000)
+    })
+  }
+</script>
+
+<style>
+  .copy-field {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  /* 記述は読むのではなく写すものなので等幅にする。 */
+  .copy-field input {
+    flex: 1;
+    min-width: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.85rem;
+  }
+
+  /*
+   * ボタンは押したあとに文言が伸びる（「コピーした」「選んだ。Ctrl+C で写す」）。
+   * 幅が変わると隣の入力欄が縮み、写真ごとに幅の違う列になってしまうので、
+   * 折り返さずに切らない幅を確保しておく。
+   */
+  .copy-field button {
+    flex: none;
+    padding-inline: 0.9rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+</style>

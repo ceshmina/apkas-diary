@@ -29,6 +29,13 @@ local tfstate = std.native('tfstate');
     Variables: {
       DELIVERY_BUCKET: tfstate('module.photos.aws_s3_bucket.delivery.bucket'),
       DISTRIBUTION_ID: tfstate('module.photos.aws_cloudfront_distribution.photos.id'),
+
+      // 写真の目録を書き足す先。**日記と同じテーブル**である。
+      //
+      // 実行ロールが触れるのは `PHOTO#` で始まるパーティションだけなので、ここが
+      // 別の環境を指してもその先で権限に阻まれる。名前と権限の出どころが同じ
+      // state にあり、片方だけずれた状態は作れない。
+      DIARY_TABLE_NAME: tfstate('module.storage.aws_dynamodb_table.diary.name'),
     },
   },
 }

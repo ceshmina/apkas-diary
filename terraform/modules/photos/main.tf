@@ -485,6 +485,33 @@ data "aws_iam_policy_document" "resize" {
     resources = [aws_cloudfront_distribution.photos.arn]
   }
 
+  # 写真の目録に、読み取った撮影情報と生成の完了を書き足すために要る。
+  #
+  # **与えるのは UpdateItem ひとつだけ。** GetItem / Query / PutItem / DeleteItem は
+  # 与えないので、この関数は目録を読むことも消すこともできない。書き足す先は自分が
+  # 変換した写真のアイテムであり、それ以外を見る必要がない。
+  #
+  # 条件の dynamodb:LeadingKeys は、その要求が触れるパーティションキーを見る。
+  # `PHOTO#*` に限ることで、**日記のエントリ（`ENTRY#<年>`）へは届かない**。
+  # 日記はこのシステムでいちばん失いたくないものであり、写真の記録を足すという理由で
+  # そこへ触れる主体を増やさない（design.md 決定7）。
+  #
+  # **書けたことをもって担保としない。** IAM の条件は、書けてはいるが効いていない
+  # 形がありうる。staging で、このロールからエントリへの書き込みが実際に拒否される
+  # ことを確かめてから production へ進む（tasks 8.2）。
+  statement {
+    sid       = "WriteCatalog"
+    effect    = "Allow"
+    actions   = ["dynamodb:UpdateItem"]
+    resources = [var.table_arn]
+
+    condition {
+      test     = "ForAllValues:StringLike"
+      variable = "dynamodb:LeadingKeys"
+      values   = ["PHOTO#*"]
+    }
+  }
+
   statement {
     sid     = "WriteLogs"
     effect  = "Allow"
