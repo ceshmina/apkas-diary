@@ -81,7 +81,13 @@ AWS の資格が無い環境のため、`npm run dev:editor -- staging` の代�
 
 ## 7. staging での確認とデプロイ
 
-- [ ] 7.1 `npm run deploy:editor -- staging` で反映する
+反映のあと、外から見える範囲は確かめた。**ログインを要する確認（7.2・7.3・7.4）は残っている。**
+
+- `POST /api/preview` は未認証で 401（「認証が必要です。」）。新しい経路が素通りになっていない
+- `/` は `/login?redirect=%2F` へ、`/login` は 200
+- `terraform plan` に差分なし（実行時設定を lambroll が変えても Terraform の ignore_changes と食い違っていない）
+
+- [x] 7.1 `npm run deploy:editor -- staging` で反映する（version 11 / alias current）
 - [ ] 7.2 実機（スマートフォン）でタブの切り替えを確かめる。指で押せる大きさか、切り替えたときに画面が飛ばないか
 - [ ] 7.3 PC の実画面で左右の並びを確かめる。コールドスタート直後の1回目の更新でも、開いた時点の整形結果が見えており空にならない
 - [ ] 7.4 追随の間隔（400ms）と面の高さを、実際に1本書いてみて詰める（design.md の Open Questions）
