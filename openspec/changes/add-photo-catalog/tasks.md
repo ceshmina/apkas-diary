@@ -30,6 +30,11 @@
   - **`GetItem` / `Query` / `PutItem` / `DeleteItem` は与えない。** 読むことも消すこともできないことをコメントに残す
   - 条件が日記のエントリ（`ENTRY#<年>`）への到達を断つものであること、**書けたことをもって担保としない**（8.2 で実際に確かめる）ことを書き残す
 - [x] 3.3 `terraform/envs/staging/main.tf` と `terraform/envs/production/main.tf` で、`module.storage` のテーブル ARN を `module.photos` に渡す
+- [x] 3.5 `terraform/modules/editor/main.tf` に編集アプリケーションが目録を扱うための権限を足す。**既に持っているのは `GetItem` / `PutItem` / `Scan` の3つだけで、`Query` も `UpdateItem` も無かった**
+  - `dynamodb:Query`（条件なし）: その日の写真を引く。条件を付けない理由（`Scan` で同じテーブルを丸ごと読めるので、読み取りの片方だけを絞っても境界にならない）をコメントに残す
+  - `dynamodb:UpdateItem`（`LeadingKeys` を `PHOTO#*` に限る）: 目録に記録する。**こちらは絞る**理由（エントリへの書き込みを `putEntry` の `PutItem` 1本に保ち、GSI キー属性の付け外しを飛ばした半端な更新の経路を作らない）をコメントに残す
+  - 同じ `LeadingKeys` でも変換 Lambda とは狙いが違うことを書き分ける
+  - `DeleteItem` / `BatchWriteItem` を与えないことは変えない
 - [x] 3.4 `terraform fmt -recursive` と、backend を外した複製での `terraform validate` を staging・production の両方で通す
 
 ## 4. 変換 Lambda: EXIF の読み取りと目録への書き足し

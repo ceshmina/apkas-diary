@@ -178,10 +178,17 @@ data "aws_iam_policy_document" "editor" {
   # 無ければ、足そうとした時点で失敗する（entry-editing の「削除する手段を
   # 持たない」）。DeleteItem も BatchWriteItem も与えない。
   #
-  # 与えるのは編集アプリケーションが実際に使う3つだけ。UpdateItem を持たない
-  # のは putEntry が PutItem しか使わないため、Query を持たないのは一覧が
-  # ベーステーブルの走査で足りているため（tasks 1.4）。使っていない権限を
+  # 与えるのは編集アプリケーションが実際に使うものだけ。使っていない権限を
   # 「将来のため」に置かない。必要になったら、そこで失敗して気づけばよい。
+  #
+  # Query は写真の目録のために足した。記事の編集画面がその日の写真を
+  # `pk = PHOTO#<日付>` の1パーティションで引く（`listPhotosByDate`）。エントリの
+  # 一覧は従来どおり走査で足りており、そちらが Query に変わったわけではない。
+  #
+  # **Query に `dynamodb:LeadingKeys` の条件は付けない。** 編集アプリケーションは
+  # Scan で同じテーブルを丸ごと読める——エントリを読むのが仕事なので当然である
+  # ——から、読み取りの片方だけを絞っても境界にならない。書き込みのほうは事情が
+  # 違うので、下の WritePhotoCatalog では絞ってある。
   statement {
     sid    = "ReadWriteEntries"
     effect = "Allow"
@@ -189,10 +196,39 @@ data "aws_iam_policy_document" "editor" {
     actions = [
       "dynamodb:GetItem",
       "dynamodb:PutItem",
+      "dynamodb:Query",
       "dynamodb:Scan",
     ]
 
     resources = [var.table_arn]
+  }
+
+  # 写真の目録への記録（`putPhoto`）。投入を終えた画面がここを通る。
+  #
+  # 目録は投入と変換の2つが別々の面を書くため、全体置換ではなく UpdateItem で
+  # 自分の持ち分だけを SET する（design.md 決定3）。エントリの書き込みが PutItem
+  # なのと逆になるのはそのためで、**エントリ側が UpdateItem を使うようになった
+  # わけではない。**
+  #
+  # そこで `PHOTO#` の下に限る。**エントリを部分的に書き換える経路をこの主体に
+  # 作らない。** エントリへの書き込みは putEntry の PutItem 1本のままにしておく
+  # ——アイテム全体を組み立て直す経路しか無ければ、GSI キー属性の付け外しを
+  # 飛ばした半端な更新が生まれない（`toItem` がそれを一手に持っている）。
+  #
+  # 同じ条件でも、変換 Lambda（modules/photos の WriteCatalog）とは狙いが違う。
+  # あちらは日記に届かないこと自体が要件で、こちらは日記への書き方を1つに保つため。
+  statement {
+    sid    = "WritePhotoCatalog"
+    effect = "Allow"
+
+    actions   = ["dynamodb:UpdateItem"]
+    resources = [var.table_arn]
+
+    condition {
+      test     = "ForAllValues:StringLike"
+      variable = "dynamodb:LeadingKeys"
+      values   = ["PHOTO#*"]
+    }
   }
 
   # 自分の設定だけを読む。他の環境のパスには届かない。
