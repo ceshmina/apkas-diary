@@ -3,6 +3,7 @@ import { formatDateJa, isValidDate } from '../../../../src/lib/date.js'
 import { photoUrl } from '../../../../src/lib/env.js'
 import { PHOTO_SIZES, photoUrlOf } from '../../../../src/lib/photo.js'
 import { putPhoto } from '../../../../src/lib/store/photo.js'
+import CopyField from '../../components/CopyField.astro'
 import Base from '../../layouts/Base.astro'
 import { acceptReturnedKey, probeDerivative, WAIT_TIMEOUT_MS } from '../../lib/photo-upload.js'
 
@@ -185,7 +186,7 @@ const heading = keys.length === 0 ? '結果を表示できない' : '追加し�
                   <p class="muted small">準備できるまで、この写真はまだ表示できない。</p>
                 ) : (
                   <>
-                    <input class="snippet" type="text" value={photo.snippet} readonly />
+                    <CopyField value={photo.snippet} />
                     <details>
                       <summary class="muted small">ほかのサイズ</summary>
                       <ul class="urls">
@@ -277,13 +278,6 @@ const heading = keys.length === 0 ? '結果を表示できない' : '追加し�
 
     .tag {
       margin-left: 0.5rem;
-    }
-
-    /* 本文に貼る記述。読むのではなく写すものなので等幅にする。 */
-    .snippet {
-      width: 100%;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.85rem;
     }
 
     details {

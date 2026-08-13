@@ -7,6 +7,7 @@ import { isEntryStatus } from '../../../../src/lib/store/entry.js'
 import { listPhotosByDate } from '../../../../src/lib/store/photo.js'
 import { putEntry } from '../../../../src/lib/store/put.js'
 import { getEntry } from '../../../../src/lib/store/queries.js'
+import CopyField from '../../components/CopyField.astro'
 import Base from '../../layouts/Base.astro'
 
 export const prerender = false
@@ -240,7 +241,7 @@ if (isValidDate(date)) {
 
                         {photo.ready ? (
                           <>
-                            <input class="snippet" type="text" value={photo.snippet} readonly />
+                            <CopyField value={photo.snippet} />
                             <details>
                               <summary class="muted small">ほかのサイズ</summary>
                               <ul class="urls">
@@ -364,13 +365,6 @@ if (isValidDate(date)) {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-
-    /* 本文に貼る記述。読むのではなく写すものなので等幅にする。 */
-    .snippet {
-      width: 100%;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.85rem;
     }
 
     details {
