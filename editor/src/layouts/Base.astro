@@ -25,9 +25,21 @@ interface Props {
    * もう見えない）。
    */
   refreshTo?: string
+  /**
+   * 紙面を広く取る。
+   *
+   * 既定は公開サイトと同じ `--page`（40rem）である。**広げるのは、2つのものを
+   * 横に並べる画面だけ**にする。記事の編集画面が入力とプレビューを左右に並べる
+   * ためにこれを使う（`entry-editing`）。40rem のまま2列に割ると1列 19rem ほどに
+   * なり、書くにも読むにも足りない。
+   *
+   * 画面ごとに明示して渡す形にしてあるのは、広さが意図せず他の画面へ広がらない
+   * ようにするため。一覧・公開・写真は 40rem のままでよい。
+   */
+  wide?: boolean
 }
 
-const { title, email, refreshSeconds, refreshTo } = Astro.props
+const { title, email, refreshSeconds, refreshTo, wide } = Astro.props
 const appTitle = 'apkas-diary 編集'
 const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
 ---
@@ -52,7 +64,7 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
     }
     <link rel="icon" href="data:," />
   </head>
-  <body>
+  <body class={wide ? 'wide' : undefined}>
     <header>
       <a href="/" class="app-title">{appTitle}</a>
       {
@@ -85,6 +97,18 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
       main {
         max-width: var(--page);
         margin: 0 auto;
+      }
+
+      /*
+       * 広い紙面（`wide`）。値は 40rem の紙面を2列に割っても読み書きに耐える幅
+       * として置いている。`--page` を書き換えないのは、あれが公開サイトと共有して
+       * いる本文の幅であり、編集の都合で動かすものではないため。
+       *
+       * 題と本体で幅が違うと、画面の中に段差が出る。header にも同じだけ効かせる。
+       */
+      .wide header,
+      .wide main {
+        max-width: 64rem;
       }
 
       header {
