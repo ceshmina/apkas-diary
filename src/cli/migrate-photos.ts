@@ -84,7 +84,8 @@ const USAGE = `使い方:
   --only <日付,日付,...>  指定した日付だけを対象にする。
   --concurrency <n>      並行して走らせる数。既定は 6。
   --dry-run              書き込まず、対象と件数だけを表示する。
-  --force                plan で既存の台帳を作り直す（進み具合を捨てる）。
+  --force                plan では既存の台帳を作り直す（進み具合を捨てる）。
+                         ingest では投入済みの行もやり直す。
 
 例:
   npm run migrate-photos -- staging plan
@@ -331,6 +332,7 @@ async function commandIngest(
       region: awsRegion(),
       concurrency: concurrencyOf(args),
       dryRun: args.dryRun,
+      force: args.force,
     },
     progressOf('投入'),
   )

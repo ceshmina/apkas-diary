@@ -86,10 +86,12 @@ export async function verifyPhotos(
         record,
         check: {
           sizes,
-          // 記録があることと、変換が記録を書いたこととは別である。投入の側だけが書いた
-          // 記録は `renderedAt` を持たない。移行では投入の側から目録を書かないので、
-          // 記録があること自体が変換の到達を意味するが、条件として明示しておく。
-          catalog: photo !== undefined && photo.renderedAt !== undefined,
+          // 記録の書き手は投入と変換の2つあり、**両方が届いて初めて記録が揃う**。
+          // `url` は投入の側だけが、`renderedAt` は変換の側だけが書くので、この2つが
+          // あることが両方の到達を示す。片方だけで通すと、配信 URL を持たない記録
+          // （`photo-catalog` の「記録は配信 URL と元写真のキーを持つ」を満たさない）を
+          // 揃ったものとして数えてしまう。
+          catalog: photo !== undefined && photo.url !== undefined && photo.renderedAt !== undefined,
           exif: photo?.exif !== undefined,
           at: nowUtcIso(),
         },
