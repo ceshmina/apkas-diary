@@ -17,11 +17,17 @@
  */
 
 import { readFile } from 'node:fs/promises'
-import { basename, extname } from 'node:path'
+import { basename } from 'node:path'
 import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { assertValidDate } from '../lib/date.js'
 import { awsRegion, photoDeliveryBucket, photoUploadBucket, photoUrl } from '../lib/env.js'
-import { PHOTO_SIZES, photoKeyOf, photoSourceKeyOf, photoUrlOf } from '../lib/photo.js'
+import {
+  PHOTO_SIZES,
+  photoContentTypeOf,
+  photoKeyOf,
+  photoSourceKeyOf,
+  photoUrlOf,
+} from '../lib/photo.js'
 import { putPhoto } from '../lib/store/photo.js'
 
 interface Args {
@@ -52,23 +58,6 @@ const USAGE = `使い方:
  */
 const WAIT_TIMEOUT_MS = 30_000
 const WAIT_INTERVAL_MS = 2_000
-
-/**
- * 元写真の Content-Type。
- *
- * 元写真は公開されないため表示には影響しない。手元に落として開いたときのために
- * 付けておくだけで、変換は中身を見て行われる。
- */
-const CONTENT_TYPES: Record<string, string> = {
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.webp': 'image/webp',
-  '.tif': 'image/tiff',
-  '.tiff': 'image/tiff',
-  '.heic': 'image/heic',
-  '.heif': 'image/heif',
-}
 
 function parseArgs(argv: string[]): Args {
   const args: Args = {}
@@ -236,7 +225,7 @@ async function main(): Promise<void> {
       Bucket: photoUploadBucket(),
       Key: key,
       Body: body,
-      ContentType: CONTENT_TYPES[extname(args.file).toLowerCase()] ?? 'application/octet-stream',
+      ContentType: photoContentTypeOf(args.file),
     }),
   )
 
