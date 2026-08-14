@@ -95,3 +95,31 @@ export function photoUrlOf(base: string, size: PhotoSize, sourceKey: string): st
   const path = photoKeyOf(size, sourceKey).split('/').map(encodeURIComponent).join('/')
   return `${base.replace(/\/+$/, '')}/${path}`
 }
+
+/**
+ * 元写真の Content-Type。パスでもファイル名でも受け取る。
+ *
+ * 元写真は公開されないため表示には影響しない。手元に落として開いたときのために付けて
+ * おくだけで、変換は中身を見て行われる。知らない拡張子でも投入は止めない。
+ *
+ * 拡張子を最後の区切りより後ろだけで探すのは、`2026/08.old/a` のようにディレクトリ名に
+ * 点があっても、そちらを拡張子と読み違えないため（`photoKeyOf` と同じ理由）。
+ */
+export function photoContentTypeOf(path: string): string {
+  const filename = path.slice(path.lastIndexOf('/') + 1)
+  const dot = filename.lastIndexOf('.')
+  if (dot < 0) return 'application/octet-stream'
+
+  return CONTENT_TYPES[filename.slice(dot).toLowerCase()] ?? 'application/octet-stream'
+}
+
+const CONTENT_TYPES: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.tif': 'image/tiff',
+  '.tiff': 'image/tiff',
+  '.heic': 'image/heic',
+  '.heif': 'image/heif',
+}

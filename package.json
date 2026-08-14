@@ -15,6 +15,7 @@
     "entry": "scripts/entry.sh",
     "photo": "scripts/photo.sh",
     "import-legacy": "scripts/import-legacy.sh",
+    "migrate-photos": "scripts/migrate-photos.sh",
     "deploy:lambda": "scripts/deploy-lambda.sh",
     "dev:editor": "scripts/dev-editor.sh",
     "deploy:editor": "scripts/deploy-editor.sh",

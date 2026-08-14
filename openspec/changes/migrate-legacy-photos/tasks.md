@@ -1,19 +1,19 @@
 ## 1. 棚卸し（manifest 生成）
 
-- [ ] 1.1 `src/cli/` に棚卸しスクリプトを追加する。DynamoDB の全エントリ本文から `photos.old.apkas.net` の URL を抽出し、旧 URL → 参照元エントリ日付 → sourceKey（エントリ日付 + basename）→ 新 URL の対応を JSON Lines の manifest として出力する（`--env` で staging / production を切り替え、`import-legacy` と同じ流儀）
-- [ ] 1.2 manifest 生成時の検証を実装する: パターン逸脱（フラット / 階層のどちらにも合致しない URL）、sourceKey の衝突、同一写真の複数エントリ参照を検出し、1件でもあればエラーで停止する
-- [ ] 1.3 `apkas` プロファイルで旧 S3 のバケット構成（バケット名・`original/` プレフィックス）を確認し、`original/` を手元に sync する
-- [ ] 1.4 manifest と sync 結果を basename で突き合わせ、各行に元写真の取得元（original のローカルパス / `/large/` WebP フォールバック）を記録し、充足率レポートを出す。フォールバック率が高い（1割超）場合は停止して原因を確認する
+- [x] 1.1 `src/cli/` に棚卸しスクリプトを追加する。DynamoDB の全エントリ本文から `photos.old.apkas.net` の URL を抽出し、旧 URL → 参照元エントリ日付 → sourceKey（エントリ日付 + basename）→ 新 URL の対応を JSON Lines の manifest として出力する（`--env` で staging / production を切り替え、`import-legacy` と同じ流儀）
+- [x] 1.2 manifest 生成時の検証を実装する: パターン逸脱（フラット / 階層のどちらにも合致しない URL）、sourceKey の衝突、同一写真の複数エントリ参照を検出し、1件でもあればエラーで停止する
+- [ ] 1.3 `apkas.admin` プロファイルで旧 S3 のバケット構成（バケット名・`original/` プレフィックス）を確認し、`original/` を手元に sync する（旧ホストの `/original/` から取れることは確認済みのため、これは速さのための任意の手順）
+- [ ] 1.4 `fetch` を実行して各行に元写真の取得元を記録し、充足率レポートを出す。フォールバック率が高い（1割超）場合は停止して原因を確認する
 
 ## 2. 取り込み
 
-- [ ] 2.1 `src/cli/` に取り込みスクリプトを追加する。manifest の各行について元写真（フォールバック時は `/large/` WebP をダウンロード）を upload バケットへ sourceKey で PutObject する。並列度4〜8、`--dry-run` 対応、投入済み行のスキップ（冪等）、進捗と失敗の manifest への記録を含む
-- [ ] 2.2 検証スクリプトを追加する。manifest 全行について delivery バケットの派生4サイズを HeadObject で確認し、目録レコードの存在・`renderedAt`・`exif` の有無を照合して結果を manifest に記録する（CDN 経由の HEAD は使わない）
+- [x] 2.1 `src/cli/` に取り込みスクリプトを追加する。manifest の各行について元写真（フォールバック時は `/large/` WebP をダウンロード）を upload バケットへ sourceKey で PutObject する。並列度4〜8、`--dry-run` 対応、投入済み行のスキップ（冪等）、進捗と失敗の manifest への記録を含む
+- [x] 2.2 検証スクリプトを追加する。manifest 全行について delivery バケットの派生4サイズを HeadObject で確認し、目録レコードの存在・`renderedAt`・`exif` の有無を照合して結果を manifest に記録する（CDN 経由の HEAD は使わない）
 
 ## 3. 本文の書き換え
 
-- [ ] 3.1 `src/cli/` に書き換えスクリプトを追加する。検証済みの manifest を入力に、対象エントリの本文スナップショットを保存してから旧 URL → 新 URL の完全一致置換を行い、`putEntry()` 経由で書き戻す。`--dry-run` で置換前後の diff を出す。実行直前に本文の再取得を行い、棚卸し時点から変わっていないことを確認する
-- [ ] 3.2 スナップショットからの逆置換（ロールバック）スクリプトを用意する
+- [x] 3.1 `src/cli/` に書き換えスクリプトを追加する。検証済みの manifest を入力に、対象エントリの本文スナップショットを保存してから旧 URL → 新 URL の完全一致置換を行い、`putEntry()` 経由で書き戻す。`--dry-run` で置換前後の diff を出す。実行直前に本文の再取得を行い、棚卸し時点から変わっていないことを確認する
+- [x] 3.2 スナップショットからの逆置換（ロールバック）スクリプトを用意する
 
 ## 4. staging リハーサル
 
