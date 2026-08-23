@@ -50,8 +50,13 @@
 
 **design の Migration Plan のとおり、staging → `main` へマージ → production の順で行う。** production を先に配ると、編集アプリケーションの「公開」ボタンが押された時点で公開サイトだけが旧い配色に戻る。
 
-- [ ] 6.1 `npm run deploy -- staging` と `npm run deploy:editor -- staging`
-- [ ] 6.2 https://diary.dev.apkas.net と https://admin.dev.apkas.net/login を明暗それぞれで確認する
+- [x] 6.1 `npm run deploy -- staging` と `npm run deploy:editor -- staging`
+  - 公開サイト：409 件を同期し、CloudFront を無効化した。invalidation `IC8SUOYCOPOAFOSV14QZY6V48I`。
+  - 編集アプリケーション：lambroll で version 12 を作り、alias `current` を更新した。
+- [x] 6.2 https://diary.dev.apkas.net と https://admin.dev.apkas.net/login を確認する
+  - **配信物に新しい基準値が載っていることを確認した。** 公開サイトはトップ・年（`/2026`）・月（`/2026/08`）・日（`/2026/08/11`）・`/on-this-day/08-23` が 200、存在しない URL が 404 を返し、いずれも明暗の `:root` が新しい14個で、旧い12色は 0 件。
+  - 編集アプリケーションは `/login` が 200 で、`theme-color` が新しい2つ。CSS は外部ファイルで配信されており（`/_astro/Base.CRR-yjNR.css`、ハッシュが変わっている）、その中身も明暗とも新しい値で旧色 0 件。
+  - **見え方そのものは未確認。** 手元にブラウザがなく、明暗を切り替えて撮る確認（前回 6.9 に相当）ができていない。4.4–4.6 と同じ理由で、この確認は人の目に委ねる必要がある。
 - [ ] 6.3 `main` へマージする
 - [ ] 6.4 `npm run build -- production` と `npm run deploy -- production`
 - [ ] 6.5 編集アプリケーションを production へ配る
