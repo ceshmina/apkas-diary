@@ -12,17 +12,30 @@
  *   --fg = --ink   --fg-muted = --muted   --border = --line
  *   --bg / --accent / --surface / --accent-soft は同じ名前
  *
+ * 配色は Sirka Blue のパレットに合わせてある。
+ *
+ *   #2F5FA7 Sirka Blue / #172D4F Midnight Sirka / #243B5A Blue Shadow /
+ *   #A9BDD9 Mist Blue / #DCE6F2 Blue Haze / #F5F6F4 Cloud White /
+ *   #181A1D Ink / #9A7894 Dusk Mauve
+ *
+ * 淡い文字とアクセントは、パレットの色をそのまま置くと小さい文字で
+ * コントラストが 4.5:1 に届かない。あちらが明度だけを寄せた値を持っており、
+ * こちらもその調整後の値を写している。パレットの原色に戻さないこと。
+ *
+ * Dusk Mauve は写していない。あちらでの使い道は経歴の期間で、日記に対応する
+ * 要素がない。円形アイコンの影に使う --shadow も同じ理由で持っていない。
+ *
  * Web フォントは読み込まない。これもあちらに合わせている。
  */
 
 :root {
-  --fg: #1c1a18;
-  --fg-muted: #6d655d;
-  --bg: #faf8f5;
+  --fg: #181a1d; /* Ink */
+  --fg-muted: #566a85; /* Blue Shadow を明るく寄せたもの */
+  --bg: #f5f6f4; /* Cloud White */
   --surface: #fff;
-  --accent: #b0512a;
-  --accent-soft: #f3e6dd;
-  --border: #e5ded4;
+  --accent: #2f5fa7; /* Sirka Blue */
+  --accent-soft: #cfdef2; /* ピルの地。パレットの原色ではない */
+  --border: #dce6f2; /* Blue Haze */
 
   /* 40rem ≒ 日本語で 40 字/行。本文も一覧もこの1列に収める */
   --page: 40rem;
@@ -44,12 +57,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --fg: #ece6de;
-    --fg-muted: #a2988c;
-    --bg: #15120f;
-    --surface: #1d1916;
-    --accent: #e39264;
-    --accent-soft: #2a1f18;
-    --border: #2e2822;
+    --fg: #f5f6f4; /* Cloud White */
+    --fg-muted: #a9bdd9; /* Mist Blue */
+    --bg: #172d4f; /* Midnight Sirka */
+    --surface: #243b5a; /* Blue Shadow */
+    --accent: #8fb4e2; /* Sirka Blue を明るく寄せたもの */
+    --accent-soft: #22406b;
+    --border: #355073;
   }
 }
