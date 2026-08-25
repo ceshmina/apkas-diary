@@ -58,7 +58,7 @@ function hrefOf(date: string): string {
       {entry.title || <time datetime={entry.date}>{dateJa}</time>}
     </h1>
 
-    <div class="body" set:html={html} />
+    <div class="body prose" set:html={html} />
   </article>
 
   {/*

@@ -260,7 +260,7 @@ if (isValidDate(date)) {
               <span class="pane-state" aria-live="polite" data-preview-state />
             </div>
 
-            <article class="preview-body" data-preview set:html={preview} />
+            <article class="preview-body prose" data-preview set:html={preview} />
 
             <p class="pane-note muted">公開サイトと同じ整形で表示している。保存はしていない。</p>
           </section>
@@ -764,7 +764,7 @@ if (isValidDate(date)) {
       display: block;
       width: 100%;
       height: auto;
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius);
     }
 
     .placeholder {
@@ -773,7 +773,7 @@ if (isValidDate(date)) {
       justify-content: center;
       height: 90px;
       border: 1px dashed var(--border);
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius);
       font-size: 0.8rem;
     }
 
