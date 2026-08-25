@@ -29,26 +29,52 @@ html {
   accent-color: var(--accent);
 }
 
+/* 地はゴシック。明朝にするものだけを、この下で名指しする。 */
 body {
   margin: 0;
   padding: 0 1.5rem;
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--font);
+  font-family: var(--font-sans);
   font-size: 1rem;
   line-height: 1.9;
   letter-spacing: 0.02em;
   -webkit-font-smoothing: antialiased;
 }
 
+/*
+ * 明朝で組む要素。当てるのは名前・見出し・本文だけで、0.9rem 以下のラベルや
+ * 注記はゴシックのままにする（小さい字の明朝はかすれる）。日付・件数・ピル・
+ * フォーム・前後の導線がその側にあたる。
+ *
+ * 游明朝は太さの指定がないと Light を拾って痩せて見えるので 500 を当てる。
+ * 見出しも太らせず、強さは字の大きさと字送りで出す。
+ *
+ * サイトの題（`.site-title` / `.app-title`）と一覧のエントリ題は、ここで
+ * 共有していない要素なので、それぞれの側で同じ指定を当てている。
+ */
+h1,
+h2,
+.prose {
+  font-family: var(--font-serif);
+  font-weight: 500;
+}
+
+/*
+ * 見出しは約物を詰める。全角の括弧や句読点まわりの空きが減り、字面が締まって
+ * 見える。本文（`.prose`）には当てない。長い文で行うものではない。
+ */
+h1,
+h2 {
+  font-feature-settings: 'palt' 1;
+}
+
 a {
   color: var(--accent);
 }
 
-/* 見出しの太さは 600。既定の bold（700）より一段軽い。 */
 h1 {
   font-size: 1.5rem;
-  font-weight: 600;
   line-height: 1.5;
   letter-spacing: 0.01em;
   margin: 0 0 1.5rem;
@@ -56,10 +82,22 @@ h1 {
 
 h2 {
   font-size: 1.2rem;
-  font-weight: 600;
   line-height: 1.4;
   letter-spacing: 0.01em;
   margin: 2rem 0 0.75rem;
+}
+
+/*
+ * エントリの本文。公開サイトの日別ページと編集アプリケーションのプレビューが
+ * 共に当てる。片方だけに書くと、プレビューで見たものと公開後の字面がずれる。
+ *
+ * 明朝は同じ級数でもゴシックより小さく見えるので、地の 1rem より少し上げ、
+ * 行送りと字送りも本文の側へ広げてある。書体と太さは上の宣言から来る。
+ */
+.prose {
+  font-size: 1.05rem;
+  line-height: 2.05;
+  letter-spacing: 0.04em;
 }
 
 img {
@@ -71,7 +109,7 @@ pre {
   overflow-x: auto;
   padding: 0.9rem 1rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   line-height: 1.6;
 }
 
@@ -82,28 +120,39 @@ pre {
 /*
  * 短い語をひとかたまりで示すピル。公開サイト（年・月の並び）と編集
  * アプリケーション（公開状態、実行状態、差し替え）の両方に現れるので、
- * どちらか一方ではなくここに置く。ポートフォリオの `.tags` と同じ体裁。
+ * どちらか一方ではなくここに置く。ポートフォリオの `.tags` と同じ体裁で、
+ * 塗りは持たず、細い枠と字送りで見せる。
  *
- * `is-quiet` は、際立たせる必要のない側（下書き、実行していない状態）。
- * 地を持たず、境界線と淡い文字で示す。
+ * 日記のピルは、あちらのタグと違って状態を示す。塗りが無い以上、際立たせる
+ * 側とそうでない側は枠で分ける。
+ *
+ *   `is-quiet`     囲みを持たない側（下書き、実行していない状態、いま見て
+ *                  いない年）。枠は残したまま透明にするので、並んだときの
+ *                  箱の大きさは変わらない。
+ *   `aria-current` いま居る場所。ここだけ枠がアクセント色になる。
+ *
+ * 字の色だけで分けないのは、`--accent` と `--fg-muted` の輝度がほとんど
+ * 並んでおり、色を頼りにできない見え方では区別が付かないため。
  */
 .pill {
   display: inline-block;
-  padding: 0.3rem 0.85rem;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: var(--accent-soft);
+  padding: 0.28rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   color: var(--accent);
-  font-size: 0.8rem;
-  letter-spacing: 0.04em;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
   line-height: 1.5;
   text-decoration: none;
 }
 
 .pill.is-quiet {
-  border-color: var(--border);
-  background: none;
+  border-color: transparent;
   color: var(--fg-muted);
+}
+
+.pill[aria-current] {
+  border-color: var(--accent);
 }
 
 /*
@@ -116,17 +165,21 @@ pre {
  * 同じ字面にするため）。`label` は base.css で縦積みにしてあるので、当てた側で
  * 横並びに戻している。
  *
- * ポートフォリオの `.section__title` は、小さな大文字ラベルの右へ罫線を
- * 伸ばす。日本語には大文字化が効かないので、罫線のほうを目印として持って
- * きている。
+ * `h2` に当てる以上、明朝に落ちないようゴシックを明示する。ポートフォリオの
+ * `.section__title` も同じ理由で書体を明示している。
+ *
+ * あちらは、小さな大文字ラベルの右へ罫線を伸ばす。日本語には大文字化が効かない
+ * ので、罫線のほうを目印として持ってきている。
  */
 .section-title {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.15rem;
   color: var(--accent);
-  font-size: 0.8rem;
-  letter-spacing: 0.2em;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.24em;
 }
 
 .section-title::after {
@@ -138,15 +191,15 @@ pre {
 
 /* キーボードで辿っている位置。地の色によらず見えている必要がある。 */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 1px solid var(--accent);
   outline-offset: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius);
 }
 
 /*
- * 動きを減らす設定。体裁のために足した動き（ホバーの浮き上がり、色の遷移）
- * だけを止める。写真の拡大表示はこの設定を自前で見ており、動きを伴わずに
- * 切り替わる（src/components/photo-zoom.ts）。
+ * 動きを減らす設定。体裁のために足した動き（色や枠の遷移）だけを止める。
+ * 写真の拡大表示はこの設定を自前で見ており、動きを伴わずに切り替わる
+ * （src/components/photo-zoom.ts）。
  *
  * `*` は最も弱い指定なので、`!important` がないと個別の宣言に負けて何も
  * 止まらない。この打ち消しに限っては、それが目的である。

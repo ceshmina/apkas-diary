@@ -52,8 +52,11 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} | ${siteTitle}`
         border-bottom: 1px solid var(--border);
       }
 
+      /* サイトの題は名前にあたるので明朝で組む（ポートフォリオの `.hero__name`）。 */
       .site-title {
-        font-weight: 600;
+        font-family: var(--font-serif);
+        font-weight: 500;
+        font-feature-settings: 'palt' 1;
         font-size: 1.1rem;
         letter-spacing: 0.04em;
         text-decoration: none;

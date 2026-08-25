@@ -10,7 +10,7 @@
  * ものを保っており、対応は次のとおり。
  *
  *   --fg = --ink   --fg-muted = --muted   --border = --line
- *   --bg / --accent / --surface / --accent-soft は同じ名前
+ *   --bg / --surface / --accent / --font-sans / --font-serif / --radius は同じ名前
  *
  * 配色は Sirka Blue のパレットに合わせてある。
  *
@@ -24,8 +24,11 @@
  *
  * Dusk Mauve は写していない。あちらでの使い道は経歴の期間で、日記に対応する
  * 要素がない。円形アイコンの影に使う --shadow も同じ理由で持っていない。
+ * ピルの地だった --accent-soft も、ピルが塗りをやめたことで使い道がなくなり、
+ * あちらと同じく持っていない。
  *
- * Web フォントは読み込まない。これもあちらに合わせている。
+ * Web フォントは読み込まない。これもあちらに合わせている。階層は、OS が
+ * 持っている明朝とゴシックを使い分けることで付ける。
  */
 
 :root {
@@ -34,25 +37,31 @@
   --bg: #f5f6f4; /* Cloud White */
   --surface: #fff;
   --accent: #2f5fa7; /* Sirka Blue */
-  --accent-soft: #cfdef2; /* ピルの地。パレットの原色ではない */
   --border: #dce6f2; /* Blue Haze */
 
   /* 40rem ≒ 日本語で 40 字/行。本文も一覧もこの1列に収める */
   --page: 40rem;
 
-  --font:
+  /*
+   * 書体。地はゴシックで、名前・見出し・本文だけを明朝で組む。どの要素を
+   * 明朝にするかは base.css にまとめてある。
+   *
+   * 0.9rem 以下のラベルや注記を明朝にしないこと。小さい字でかすれる。
+   */
+  --font-serif:
+    'Hiragino Mincho ProN', 'Hiragino Mincho Pro', 'Yu Mincho', YuMincho, '游明朝', 'Noto Serif JP',
+    'Source Han Serif JP', 'MS PMincho', serif;
+
+  --font-sans:
     -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Hiragino Sans',
     'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic Medium', Meiryo, sans-serif;
 
   /*
-   * 角丸。囲みが --radius、ボタンと入力欄が --radius-sm、ピルは 999px。
-   *
-   * ポートフォリオは囲みとピルの2つしか持たない（入力欄もボタンもないため）。
-   * --radius-sm はこちらで決めた値で、12px をそのまま当てると、横に長い箱ほど
-   * 角丸が目立ち、フォームだけが丸くなるのを避けている。
+   * 角丸。囲み・ボタン・入力欄・ピル・写真・フォーカス環のすべてがこれ1つを
+   * 使う。丸みが強いほど印象が柔らかくなるので、紙面に近い硬さの残る値に
+   * とどめている。
    */
-  --radius: 12px;
-  --radius-sm: 8px;
+  --radius: 2px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -62,7 +71,6 @@
     --bg: #172d4f; /* Midnight Sirka */
     --surface: #243b5a; /* Blue Shadow */
     --accent: #8fb4e2; /* Sirka Blue を明るく寄せたもの */
-    --accent-soft: #22406b;
     --border: #355073;
   }
 }

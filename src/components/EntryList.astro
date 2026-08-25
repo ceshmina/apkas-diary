@@ -80,8 +80,15 @@ function hrefOf(date: string): string {
     color: var(--accent);
   }
 
+  /*
+   * エントリの題。並んだリンクの題にあたるので明朝で組む（ポートフォリオの
+   * `.link__label`）。左に添えた日付は 0.85rem なのでゴシックのまま。
+   */
   .entry-title {
     flex: 1 1 12rem;
     color: var(--accent);
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-feature-settings: 'palt' 1;
   }
 </style>

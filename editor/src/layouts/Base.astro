@@ -121,8 +121,11 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
         border-bottom: 1px solid var(--border);
       }
 
+      /* 題は名前にあたるので明朝で組む。公開サイトの `.site-title` と同じ。 */
       .app-title {
-        font-weight: 600;
+        font-family: var(--font-serif);
+        font-weight: 500;
+        font-feature-settings: 'palt' 1;
         font-size: 1.1rem;
         letter-spacing: 0.04em;
         text-decoration: none;
@@ -176,16 +179,17 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
        * ボタン。`.primary` はその画面で主となる操作で、境界線と文字が
        * アクセント色になる。
        *
-       * ホバーで浮くのは箱のリンク（`a.button`）だけにしている。押す位置が
-       * 動くと、連続して押すときに狙いが外れるため。動きを減らす設定では
-       * base.css の抑制ブロックが効き、色の変化だけが残る。
+       * ホバーでは枠の色だけが変わる。以前は箱のリンク（`a.button`）だけを
+       * 浮かせていたが、ポートフォリオが `.link:hover` から浮き上がりを外した
+       * ので、こちらも外した。押す位置が動かないという、ボタンを浮かせなかった
+       * 理由がそのまま全体に及んだ形になる。
        */
       button,
       .button {
         display: inline-block;
         padding: 0.45rem 1.25rem;
         border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius);
         background: var(--surface);
         color: var(--fg);
         font: inherit;
@@ -194,8 +198,7 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
         cursor: pointer;
         transition:
           color 0.18s ease,
-          border-color 0.18s ease,
-          transform 0.18s ease;
+          border-color 0.18s ease;
       }
 
       button.primary,
@@ -207,10 +210,6 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
       button:hover:not(:disabled),
       .button:hover {
         border-color: var(--accent);
-      }
-
-      a.button:hover {
-        transform: translateY(-2px);
       }
 
       button:disabled {
@@ -239,7 +238,7 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
       textarea {
         padding: 0.45rem 0.5rem;
         border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius);
         background: var(--surface);
         color: var(--fg);
         font: inherit;
@@ -257,7 +256,7 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
         margin-right: 0.75rem;
         padding: 0.25rem 0.9rem;
         border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius);
         background: var(--bg);
         color: var(--fg);
         font: inherit;

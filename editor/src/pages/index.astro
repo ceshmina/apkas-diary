@@ -77,7 +77,7 @@ const heading = selectedYear ? `${selectedYear}年のエントリ` : 'エント�
           ))}
         </ul>
 
-        {/* いま見ている年だけがアクセント色のピルになる。他は地を持たない側。 */}
+        {/* いま見ている年だけが枠のあるピルになる（`aria-current` でアクセント色）。他は囲みを持たない側。 */}
         <nav class="years">
           {selectedYear && (
             <a class="pill is-quiet" href="/">
