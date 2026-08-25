@@ -86,10 +86,16 @@
 
 design の Migration Plan は staging → `main` へマージ → production の順である。**前回はこの順を守らず、マージまでのあいだ「公開」ボタンを押せない窓を開けた。今回は開けない。**
 
-**5.6–5.12 の目視が済むまで、この節には入らない。**
+**staging へは、5.6–5.12 の目視より先に配った**（利用者の指示）。staging は `main` と結び付いておらず、公開サイトに影響しない。むしろ目視はここで行うことになるので、順序として無理がない。**`main` へのマージ（7.3）と production（7.4 以降）は、目視が済むまで進めない。**
 
-- [ ] 7.1 `npm run deploy -- staging` と `npm run deploy:editor -- staging`
-- [ ] 7.2 https://diary.dev.apkas.net と https://admin.dev.apkas.net/login を確認する
+- [x] 7.1 `npm run deploy -- staging` と `npm run deploy:editor -- staging`
+  - 公開サイト：409 件を同期し、CloudFront を無効化した。invalidation `ICVIFYYHH1ZNJS488PHCV796W7`。
+  - 編集アプリケーション：lambroll で version 13 を作り、alias `current` を更新した。
+- [x] 7.2 https://diary.dev.apkas.net と https://admin.dev.apkas.net/login を確認する
+  - **配信物に新しい体裁が載っていることを確認した。** 公開サイトはトップ・年（`/2026`）・月（`/2026/08`）・`/on-this-day/08-25`・`/404.html` が 200、存在しない URL が 404 を返し、いずれも明朝のスタック・`--radius:2px`・`palt` を持ち、旧いもの（`radius-sm` / `accent-soft` / `999px` / `translateY(-2px)` / `#cfdef2` / `#22406b`）は 0 件。
+  - 日別ページ（`/2026/08/11`）は `class="body prose"` を持ち、`.prose` が2つの規則（書体・太さ／1.05rem・2.05・0.04em）で出ている。
+  - 編集アプリケーションは `/login` が 200。CSS は `/_astro/Base.CIzpnXbD.css` で、手元のビルドと同じハッシュ。中身に明朝と `--radius:2px` があり、`.pill` の3つの規則（枠・`is-quiet` の透明枠・`aria-current` のアクセント枠）が揃っている。旧いものは 0 件。
+  - **見え方そのものは未確認。** 手元にブラウザがない。5.6–5.12 はこの staging を人が見て行うことになる。
 - [ ] 7.3 `main` へマージする
 - [ ] 7.4 `npm run build -- production` と `npm run deploy -- production`
 - [ ] 7.5 編集アプリケーションを production へ配る
