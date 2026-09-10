@@ -36,7 +36,7 @@
     "@aws-sdk/client-ssm": "^3.1106.0",
     "@aws-sdk/lib-dynamodb": "^3.1101.0",
     "@aws-sdk/s3-presigned-post": "^3.1106.0",
-    "astro": "^7.1.6"
+    "astro": "^7.3.2"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
