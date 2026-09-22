@@ -1,0 +1,1497 @@
+<title>apkas-diary デザイン案</title>
+<meta name="description" content="日記サイトの新しい体裁（書体と配色）を3案、実際の Web フォントで組んだ見本で比べるページ">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+JP:wght@300;400;500&family=Instrument+Sans:wght@400..700&family=Instrument+Serif:ital@0;1&family=Noto+Sans+JP:wght@300..700&family=Noto+Serif+JP:wght@500..600&family=Shippori+Mincho:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@300;400;500&family=Zen+Antique&family=Zen+Old+Mincho:wght@600;700&display=swap">
+<style>
+  /* ───────── このページ自体（見本を載せる台） ───────── */
+  :root {
+    --canvas: #e9eaec;
+    --ink: #1b1d20;
+    --sub: #555a61;
+    --line: #d3d5d9;
+    --strong: #111214;
+    --shadow: 0 1px 2px rgb(15 17 20 / 0.06), 0 14px 36px -10px rgb(15 17 20 / 0.18);
+    --chrome-font: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", "Noto Sans JP", ui-monospace, Menlo, monospace;
+    color-scheme: light;
+  }
+
+  body {
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: var(--chrome-font);
+    font-size: 15px;
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 76rem;
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 2.75rem 5rem;
+  }
+
+  .intro { max-width: 47rem; }
+
+  .kicker {
+    margin: 0 0 0.7rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    color: var(--sub);
+  }
+
+  .intro-title {
+    margin: 0;
+    font-size: clamp(1.45rem, 1.05rem + 1.5vw, 2.05rem);
+    font-weight: 700;
+    line-height: 1.45;
+    letter-spacing: 0.02em;
+    text-wrap: balance;
+  }
+
+  .lede { margin: 1rem 0 0; color: #30343a; }
+
+  .premises {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 1.2rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .premises li {
+    padding: 0.1rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.6);
+    font-size: 0.78rem;
+    color: #30343a;
+  }
+
+  .tabs {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 10;
+    display: flex;
+    gap: 0.35rem;
+    margin: 2.2rem -20px 0;
+    padding: 0.7rem 20px;
+    overflow-x: auto;
+    background: rgb(233 234 236 / 0.94);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .tab {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.45rem 0.95rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .tab:hover { border-color: var(--line); background: rgb(255 255 255 / 0.65); }
+  .tab[aria-selected="true"] { border-color: var(--strong); background: var(--strong); color: #fff; }
+  .tab .k { font-family: var(--mono); font-size: 0.72rem; opacity: 0.75; }
+  .tab:focus-visible { outline: 2px solid var(--strong); outline-offset: 2px; }
+
+  .panel { padding-top: 2.2rem; }
+
+  .brief {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 1.75rem 3.5rem;
+    align-items: start;
+  }
+
+  @media (max-width: 54rem) {
+    .brief { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .brief-key {
+    margin: 0 0 0.3rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    color: var(--sub);
+  }
+
+  .brief-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .concept { margin: 0.6rem 0 0; font-size: 0.98rem; }
+
+  .procon {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.5rem;
+    margin-top: 1.3rem;
+  }
+
+  @media (max-width: 36rem) {
+    .procon { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .procon-title {
+    margin: 0 0 0.3rem;
+    font-size: 0.74rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--sub);
+  }
+
+  .procon ul { margin: 0; padding-left: 1.1em; font-size: 0.86rem; line-height: 1.75; }
+  .procon li + li { margin-top: 0.3rem; }
+
+  .spec { margin: 0; border-top: 1px solid var(--line); }
+
+  .spec > div {
+    display: grid;
+    grid-template-columns: 7.2rem minmax(0, 1fr);
+    gap: 0.15rem 1rem;
+    align-items: baseline;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .spec dt { font-size: 0.74rem; letter-spacing: 0.05em; color: var(--sub); }
+  .spec dd { margin: 0; }
+  .fname { display: block; font-size: 1.2rem; line-height: 1.45; color: var(--strong); }
+  .fmeta { display: block; font-size: 0.74rem; color: var(--sub); }
+
+  .fn-cormorant { font-family: "Cormorant Garamond", serif; font-weight: 500; font-style: italic; font-size: 1.35rem; }
+  .fn-shippori { font-family: "Shippori Mincho", serif; font-weight: 500; }
+  .fn-zenkaku { font-family: "Zen Kaku Gothic New", sans-serif; font-weight: 300; }
+  .fn-zenkaku-400 { font-family: "Zen Kaku Gothic New", sans-serif; font-weight: 400; }
+  .fn-instrument { font-family: "Instrument Serif", serif; font-size: 1.4rem; }
+  .fn-notoserif { font-family: "Noto Serif JP", serif; font-weight: 600; }
+  .fn-notosans { font-family: "Noto Sans JP", sans-serif; font-weight: 300; }
+  .fn-instsans { font-family: "Instrument Sans", sans-serif; font-weight: 500; }
+  .fn-bodoni { font-family: "Bodoni Moda", serif; font-weight: 500; }
+  .fn-zenold { font-family: "Zen Old Mincho", serif; font-weight: 700; }
+  .fn-zenold-600 { font-family: "Zen Old Mincho", serif; font-weight: 600; }
+  .fn-plex { font-family: "IBM Plex Sans JP", sans-serif; font-weight: 300; }
+  .fn-plexmono { font-family: "IBM Plex Mono", monospace; font-size: 1.05rem; }
+
+  .swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem 1.1rem;
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .swatches li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.76rem; }
+  .chip { flex: 0 0 auto; width: 1.55rem; height: 1.55rem; border-radius: 50%; border: 1px solid rgb(0 0 0 / 0.14); }
+  .swatches code { font-family: var(--mono); font-size: 0.7rem; color: var(--sub); }
+
+  .frames { display: grid; gap: 2.25rem; margin-top: 2.4rem; }
+  .win { margin: 0; min-width: 0; }
+
+  .win-cap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.2rem 0.7rem;
+    margin: 0 0 0.6rem;
+    font-size: 0.8rem;
+    color: var(--sub);
+  }
+
+  .win-cap b { color: var(--ink); font-weight: 700; }
+
+  .win-body {
+    overflow: hidden;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: var(--shadow);
+    outline: 1px solid rgb(0 0 0 / 0.06);
+  }
+
+  .win-bar {
+    display: flex;
+    justify-content: center;
+    padding: 0.45rem 0.75rem;
+    background: #f3f4f5;
+    border-bottom: 1px solid #e2e4e7;
+  }
+
+  .win-url {
+    max-width: 100%;
+    overflow: hidden;
+    padding: 0.05rem 0.9rem;
+    border-radius: 999px;
+    background: #fff;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: #5b6068;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .win-view {
+    height: min(44rem, 82vh);
+    overflow: auto;
+    overscroll-behavior: contain;
+    background: #fff;
+  }
+
+  .win-view:focus-visible { outline: 2px solid var(--strong); outline-offset: -2px; }
+
+  .phones { display: flex; flex-wrap: wrap; gap: 2rem 2.25rem; }
+  .win-phone { width: min(100%, 390px); }
+  .win-phone .win-body { border-radius: 22px; }
+  .win-phone .win-view { height: min(46rem, 86vh); }
+
+  .specimen-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1.25rem;
+    margin: 2rem 0 1rem;
+  }
+
+  .seg {
+    display: inline-flex;
+    margin: 0;
+    padding: 0.2rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.6);
+  }
+
+  .seg legend {
+    float: left;
+    padding: 0.35rem 0.8rem 0 0.7rem;
+    font-size: 0.78rem;
+    color: var(--sub);
+  }
+
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+
+  .size-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    margin-top: 2rem;
+  }
+
+  .tools-label { margin: 0; font-size: 0.8rem; color: var(--sub); }
+  .size-tools .seg { flex-wrap: wrap; max-width: 100%; }
+  .size-tools + .frames,
+  .title-notes + .frames { margin-top: 1.4rem; }
+  .size-tools + .size-tools { margin-top: 0.8rem; }
+  .title-notes { max-width: 52rem; margin-top: 1rem; font-size: 0.84rem; }
+  .title-notes b { font-weight: 700; }
+
+  .seg label {
+    padding: 0.3rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .seg input:checked + label { background: var(--strong); color: #fff; }
+  .seg input:focus-visible + label { outline: 2px solid var(--strong); outline-offset: 2px; }
+
+  .specimens {
+    --w: 400;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 21rem), 1fr));
+    gap: 1rem;
+  }
+
+  .specimen {
+    min-width: 0;
+    padding: 1.4rem 1.5rem 1.2rem;
+    border-radius: 10px;
+    background: #fff;
+    color: #161616;
+    box-shadow: var(--shadow);
+  }
+
+  .sp-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid #ececec;
+  }
+
+  .sp-name { margin: 0; font-size: 0.95rem; font-weight: 700; }
+  .sp-note { margin: 0; font-family: var(--mono); font-size: 0.7rem; color: var(--sub); }
+
+  .sp-text {
+    font-size: 16px;
+    line-height: 2;
+    letter-spacing: 0.04em;
+    font-weight: var(--w);
+  }
+
+  .sp-text p { margin: 0 0 1em; }
+  .s-zen .sp-text { font-family: "Zen Kaku Gothic New", "Hiragino Sans", sans-serif; }
+  .s-noto .sp-text { font-family: "Noto Sans JP", "Hiragino Sans", sans-serif; }
+  .s-plex .sp-text { font-family: "IBM Plex Sans JP", "Hiragino Sans", sans-serif; }
+  .s-mincho .sp-text { font-family: "Shippori Mincho", "Hiragino Mincho ProN", serif; font-weight: 400; font-size: 17px; line-height: 2.05; }
+
+  .notes { margin: 1rem 0 0; padding-left: 1.1em; font-size: 0.88rem; }
+  .notes li + li { margin-top: 0.4rem; }
+
+  .outro {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    gap: 2rem 3.5rem;
+    margin-top: 4.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .outro-title { margin: 0 0 0.8rem; font-size: 1.05rem; font-weight: 700; }
+  .outro-gap { margin-top: 2rem; }
+  .outro-text { margin: 0; font-size: 0.9rem; }
+  .outro ol, .outro ul { margin: 0; padding-left: 1.2em; font-size: 0.9rem; }
+  .outro li + li { margin-top: 0.55rem; }
+  .outro b { font-weight: 700; }
+
+  /* ───────── 見本の共通部分 ───────── */
+  .mock {
+    min-height: 100%;
+    container-type: inline-size;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .mock :where(h1, h2, p, ul, figure) { margin: 0; padding: 0; }
+  .mock :where(ul) { list-style: none; }
+  .mock :where(a) { color: inherit; }
+  .mock .ph { display: block; width: 100%; aspect-ratio: 3 / 2; background: #ddd; }
+
+  /* 見た目からは外し、読み上げには残す（英語で見せる日付の、和文の読み） */
+  .mock .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .mock .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem; }
+  .mock .pair .ph { aspect-ratio: 4 / 5; }
+  .mock .pair-cap { grid-column: 1 / -1; }
+
+  .mock .ph-temple {
+    background:
+      linear-gradient(180deg, #e7e4dd 0 21%, #4a3f36 21% 30%, transparent 30%),
+      repeating-linear-gradient(90deg, transparent 0 13%, rgb(48 38 30 / 0.5) 13% 15%),
+      linear-gradient(180deg, #9d8b75 0 80%, #6f6355 80% 100%);
+  }
+
+  .mock .ph-sea { background: linear-gradient(180deg, #d5dde2 0 44%, #8199a6 44% 62%, #dad0bc 62% 100%); }
+  .mock .ph-train { background: linear-gradient(180deg, #dde1e2 0 33%, #365f54 33% 58%, #e8e0ca 58% 71%, #3c3c3c 71% 100%); }
+  .mock .ph-coffee { background: radial-gradient(circle at 50% 52%, #3a2a20 0 16%, #f4f0e9 16.5% 26%, #d1c6b8 26.5% 100%); }
+
+  /* ───────── A 静かな誌面 ───────── */
+  .pA {
+    --bg: #ffffff;
+    --ink: #161616;
+    --sub: #6e6e6e;
+    --line: #e7e7e7;
+    --uline: #c4c4c4;
+    --f-label: "Cormorant Garamond", "Shippori Mincho", serif;
+    --f-date: "Cormorant Garamond", "Shippori Mincho", "Hiragino Mincho ProN", serif;
+    --f-title: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+    --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+
+    padding: 0 20px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 2.05;
+    letter-spacing: 0.05em;
+    font-variant-numeric: lining-nums;
+  }
+
+  .pA .m-header,
+  .pA .m-main,
+  .pA .m-footer { max-width: 38rem; margin: 0 auto; }
+
+  .pA .m-header { padding-top: 2.4rem; }
+
+  .pA .m-title {
+    font-family: var(--f-label);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 1.8rem;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    text-decoration: none;
+  }
+
+  .pA .m-main { padding: 3.4rem 0 4.5rem; }
+
+  .pA .m-eyebrow {
+    margin-bottom: 0.3rem;
+    font-family: var(--f-label);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 1.1rem;
+    line-height: 1.2;
+    color: var(--sub);
+  }
+
+  .pA .m-h1 {
+    margin-bottom: 2.2rem;
+    font-family: var(--f-title);
+    font-weight: 500;
+    font-size: 1.6rem;
+    line-height: 1.55;
+    letter-spacing: 0.08em;
+    font-feature-settings: "palt" 1;
+    text-wrap: balance;
+  }
+
+  .pA .m-list { border-top: 1px solid var(--ink); }
+  .pA .m-list li { border-bottom: 1px solid var(--line); }
+
+  .pA .m-list a {
+    display: grid;
+    gap: 0.1rem;
+    padding: 1.05rem 0;
+    text-decoration: none;
+  }
+
+  .pA .m-date {
+    font-family: var(--f-date);
+    font-weight: 500;
+    font-size: 1.05rem;
+    letter-spacing: 0.06em;
+    color: var(--sub);
+  }
+
+  .pA .m-list .m-date:only-child { color: var(--ink); }
+
+  .pA .m-etitle {
+    font-family: var(--f-title);
+    font-weight: 500;
+    font-size: 1.05rem;
+    letter-spacing: 0.06em;
+    line-height: 1.75;
+    font-feature-settings: "palt" 1;
+  }
+
+  .pA .m-list a:hover .m-etitle,
+  .pA .m-list a:hover .m-date:only-child {
+    text-decoration: underline 1px;
+    text-underline-offset: 0.35em;
+  }
+
+  @container (min-width: 40rem) {
+    .pA .m-list a { grid-template-columns: 12rem minmax(0, 1fr); align-items: baseline; gap: 1.5rem; }
+  }
+
+  .pA .m-section { display: flex; align-items: baseline; gap: 0.9rem; margin: 3.6rem 0 1rem; }
+  .pA .m-section-en { font-family: var(--f-label); font-style: italic; font-weight: 500; font-size: 1.45rem; line-height: 1.2; }
+  .pA .m-section-ja { font-size: 0.76rem; font-weight: 400; letter-spacing: 0.2em; color: var(--sub); }
+  .pA .m-years { display: flex; flex-wrap: wrap; gap: 0.2rem 1.7rem; }
+
+  .pA .m-pill {
+    font-family: var(--f-date);
+    font-weight: 500;
+    font-size: 1.35rem;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+  }
+
+  .pA .m-pill:hover { text-decoration: underline 1px; text-underline-offset: 0.3em; }
+
+  .pA .m-dateline {
+    margin-bottom: 0.45rem;
+    font-family: var(--f-date);
+    font-weight: 500;
+    font-size: 1.05rem;
+    letter-spacing: 0.08em;
+    color: var(--sub);
+  }
+
+  .pA article .m-h1 { margin-bottom: 2.8rem; font-size: 1.8rem; }
+  .pA .m-h1.is-date { font-family: var(--f-date); letter-spacing: 0.05em; }
+
+  @container (max-width: 30rem) {
+    .pA article .m-h1.is-date { font-size: 1.5rem; }
+  }
+
+  .pA .m-prose p { margin: 0 0 1.35em; }
+
+  .pA .m-prose hr {
+    height: auto;
+    overflow: visible;
+    margin: 2.6rem 0;
+    border: 0;
+    text-align: center;
+  }
+
+  .pA .m-prose hr::before {
+    content: "*\2003*\2003*";
+    font-family: var(--f-label);
+    font-size: 1.05rem;
+    color: var(--sub);
+  }
+
+  .pA .m-prose figure,
+  .pA .m-prose .pair { margin: 2.4rem 0; }
+
+  .pA .m-prose figcaption,
+  .pA .m-prose .pair-cap {
+    margin-top: 0.55rem;
+    font-weight: 400;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    letter-spacing: 0.06em;
+    color: var(--sub);
+  }
+
+  .pA .m-adjacent {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem 2rem;
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    line-height: 1.7;
+  }
+
+  .pA .m-adjacent a { display: flex; flex: 1 1 13rem; gap: 0.7rem; min-width: 0; text-decoration: none; }
+  .pA .m-adjacent .older { justify-content: flex-end; text-align: right; }
+  .pA .m-adjacent .label { display: flex; flex-direction: column; min-width: 0; }
+  .pA .m-adjacent time { font-family: var(--f-date); font-weight: 500; font-size: 0.98rem; letter-spacing: 0.06em; color: var(--sub); }
+  .pA .m-adjacent time:only-child { color: var(--ink); }
+  .pA .m-adjacent .m-etitle { font-size: 0.98rem; }
+  .pA .m-adjacent .arrow { font-family: var(--f-label); color: var(--sub); }
+
+  .pA .m-adjacent a:hover .m-etitle,
+  .pA .m-adjacent a:hover time:only-child { text-decoration: underline 1px; text-underline-offset: 0.35em; }
+
+  .pA .m-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.7rem;
+    margin-top: 1.7rem;
+    font-weight: 400;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+  }
+
+  .pA .m-links a { text-decoration: underline 1px var(--uline); text-underline-offset: 0.4em; }
+  .pA .m-links a:hover { text-decoration-color: var(--ink); }
+  .pA .m-footer { padding: 1.5rem 0 3rem; border-top: 1px solid var(--line); }
+
+  /* ───────── B 朱の一点 ───────── */
+  .pB {
+    --bg: #ffffff;
+    --ink: #111111;
+    --sub: #6a6a6a;
+    --line: #e5e5e5;
+    --accent: #c73e1d;
+    --f-display: "Instrument Serif", "Noto Serif JP", serif;
+    --f-title: "Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", serif;
+    --f-body: "Noto Sans JP", "Hiragino Sans", sans-serif;
+    --f-ui: "Instrument Sans", "Noto Sans JP", sans-serif;
+
+    padding: 0 20px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 2;
+    letter-spacing: 0.04em;
+  }
+
+  /* B′：本文と、ラベルに混ざる和文を Zen角ゴシック New にそろえる */
+  .pB.is-zen {
+    --f-body: "Zen Kaku Gothic New", "Hiragino Sans", sans-serif;
+    --f-ui: "Instrument Sans", "Zen Kaku Gothic New", sans-serif;
+    font-weight: 400;
+  }
+
+  /* B′：日付を英語の略記で見せる。狭い幅では月・年と曜日が1行に並ぶので、間に点を置く */
+  .pB.is-en .m-list .b-meta span + span::before { content: "· "; }
+
+  @container (min-width: 40rem) {
+    .pB.is-en .m-list .b-meta span + span::before { content: none; }
+  }
+
+  /* 欧文のラベル（一覧への導線）は Instrument Sans で組む。月・曜日は Sep / Mon の小文字交じりのまま */
+  .pB.is-en .m-links a { font-family: var(--f-ui); font-weight: 500; letter-spacing: 0.04em; }
+
+  /* B′：題の明朝。見本の上の切り替えから書体と太さを渡す（太さは書体ごとに1つ） */
+  .pB.is-zen { --f-title: var(--b2-title, "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif); }
+
+  .pB.is-zen article .m-h1,
+  .pB.is-zen .m-list .m-etitle,
+  .pB.is-zen .m-adjacent .m-etitle { font-weight: var(--b2-title-weight, 600); }
+
+  /* 本文の大きさ。スマートフォンと PC で分け、見本の上の切り替えから値を渡す */
+  .pB.is-zen .m-prose { font-size: var(--body-sp, 15px); }
+
+  @container (min-width: 40rem) {
+    .pB.is-zen .m-prose { font-size: var(--body-pc, 15.5px); }
+  }
+
+  .pB .m-header,
+  .pB .m-main,
+  .pB .m-footer { max-width: 40rem; margin: 0 auto; }
+
+  .pB .m-header { padding: 1.7rem 0 0.75rem; border-bottom: 1px solid var(--ink); }
+
+  .pB .m-title {
+    font-family: var(--f-display);
+    font-size: 1.95rem;
+    line-height: 1;
+    letter-spacing: -0.005em;
+    text-decoration: none;
+  }
+
+  .pB .m-title::after {
+    content: "";
+    display: inline-block;
+    width: 0.3rem;
+    height: 0.3rem;
+    margin-left: 0.12rem;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .pB .m-main { padding: 2.8rem 0 4.5rem; }
+
+  .pB .m-pagehead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 1rem; margin-bottom: 1.5rem; }
+  .pB .m-eyebrow { font-family: var(--f-display); font-style: italic; font-size: 3.1rem; line-height: 1; letter-spacing: -0.01em; }
+  .pB .m-pagehead .m-h1 { font-weight: 500; font-size: 0.78rem; letter-spacing: 0.24em; color: var(--sub); }
+
+  .pB .m-list { border-top: 1px solid var(--ink); }
+  .pB .m-list li { border-bottom: 1px solid var(--line); }
+
+  .pB .m-list a {
+    display: grid;
+    grid-template-columns: 3.2rem minmax(0, 1fr);
+    grid-template-areas: "d meta" "d title";
+    column-gap: 0.9rem;
+    align-items: center;
+    padding: 0.8rem 0;
+    text-decoration: none;
+  }
+
+  .pB .m-list .m-date { display: contents; }
+  .pB .m-list .b-d { grid-area: d; font-family: var(--f-display); font-size: 2.55rem; line-height: 1; letter-spacing: -0.02em; }
+  .pB .m-list .b-meta { grid-area: meta; align-self: end; font-family: var(--f-ui); font-weight: 500; font-size: 0.7rem; line-height: 1.6; letter-spacing: 0.12em; color: var(--sub); }
+  .pB .m-list .m-date:only-child .b-meta { grid-row: 1 / span 2; align-self: center; }
+  .pB .m-list .m-etitle { grid-area: title; align-self: start; font-family: var(--f-title); font-weight: 500; font-size: 1rem; line-height: 1.6; letter-spacing: 0.04em; font-feature-settings: "palt" 1; }
+  .pB .m-list a:hover .b-d { color: var(--accent); }
+  .pB .m-list a:hover .m-etitle { text-decoration: underline 1px var(--accent); text-underline-offset: 0.35em; }
+
+  @container (min-width: 40rem) {
+    .pB .m-list a { grid-template-columns: 3.6rem 8rem minmax(0, 1fr); grid-template-areas: "d meta title"; column-gap: 1.2rem; }
+    .pB .m-list .b-d { font-size: 2.8rem; }
+    .pB .m-list .b-meta span { display: block; }
+    .pB .m-list .b-meta,
+    .pB .m-list .m-etitle { align-self: center; }
+    .pB .m-list .m-date:only-child .b-meta { grid-row: auto; }
+  }
+
+  .pB .m-section { display: flex; align-items: baseline; gap: 1rem; margin: 3.6rem 0 1.1rem; }
+  .pB .m-section-en { font-family: var(--f-display); font-style: italic; font-size: 2.2rem; line-height: 1; }
+  .pB .m-section-ja { font-weight: 500; font-size: 0.76rem; letter-spacing: 0.24em; color: var(--sub); }
+  .pB .m-years { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+  .pB .m-pill {
+    display: inline-block;
+    padding: 0.28rem 1rem;
+    border: 1px solid var(--ink);
+    border-radius: 999px;
+    font-family: var(--f-ui);
+    font-weight: 500;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+  }
+
+  .pB .m-pill:hover { border-color: var(--accent); color: var(--accent); }
+
+  .pB .b-head { display: flex; align-items: flex-end; gap: 0.9rem; }
+  .pB .b-head .b-d { font-family: var(--f-display); font-weight: 400; font-size: 5.4rem; line-height: 0.78; letter-spacing: -0.02em; }
+  .pB .b-head .b-meta { padding-bottom: 0.2rem; font-family: var(--f-ui); font-weight: 500; font-size: 0.74rem; line-height: 1.65; letter-spacing: 0.14em; }
+  .pB .b-head .b-meta span { display: block; }
+
+  .pB .b-head .b-meta::before {
+    content: "";
+    display: block;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-bottom: 0.55rem;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .pB .m-dateline { margin-bottom: 1.7rem; }
+
+  .pB article .m-h1 {
+    margin-bottom: 2.6rem;
+    font-family: var(--f-title);
+    font-weight: 600;
+    font-size: 1.85rem;
+    line-height: 1.5;
+    letter-spacing: 0.04em;
+    font-feature-settings: "palt" 1;
+    text-wrap: balance;
+  }
+
+  .pB .m-prose p { margin: 0 0 1.3em; }
+  .pB .m-prose hr { width: 1.6rem; height: 2px; margin: 2.6rem 0; border: 0; background: var(--accent); }
+  .pB .m-prose figure,
+  .pB .m-prose .pair { margin: 2.4rem 0; }
+
+  .pB .m-prose figcaption,
+  .pB .m-prose .pair-cap {
+    margin-top: 0.55rem;
+    font-weight: 400;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    letter-spacing: 0.04em;
+    color: var(--sub);
+  }
+
+  .pB .m-prose figcaption::before,
+  .pB .m-prose .pair-cap::before { content: "— "; color: var(--accent); }
+
+  .pB .m-adjacent { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 4rem; border-top: 1px solid var(--ink); }
+  .pB .m-adjacent a { display: flex; padding: 1.1rem 0; border-bottom: 1px solid var(--line); text-decoration: none; }
+  .pB .m-adjacent .older { justify-content: flex-end; text-align: right; }
+  .pB .m-adjacent .label { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+  .pB .m-adjacent .lab { font-family: var(--f-display); font-style: italic; font-size: 1.45rem; line-height: 1.2; }
+  .pB .m-adjacent time { font-family: var(--f-ui); font-weight: 500; font-size: 0.74rem; letter-spacing: 0.08em; color: var(--sub); }
+  .pB .m-adjacent .m-etitle { font-family: var(--f-title); font-weight: 500; font-size: 0.95rem; letter-spacing: 0.04em; }
+  .pB .m-adjacent a:hover .lab { color: var(--accent); }
+
+  @container (min-width: 36rem) {
+    .pB .m-adjacent { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pB .m-adjacent .older { grid-column: 2; }
+  }
+
+  .pB .m-links { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.4rem; }
+
+  .pB .m-links a {
+    padding: 0.2rem 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-weight: 400;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+  }
+
+  .pB .m-links a:hover { border-color: var(--accent); color: var(--accent); }
+  .pB .m-footer { padding: 1.5rem 0 3rem; }
+
+  /* ───────── C 白黒の索引 ───────── */
+  .pC {
+    --bg: #ffffff;
+    --ink: #000000;
+    --sub: #666666;
+    --hair: #dadada;
+    --f-display: "Bodoni Moda", "Zen Old Mincho", serif;
+    --f-title: "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+    --f-body: "IBM Plex Sans JP", "Hiragino Sans", sans-serif;
+    --f-mono: "IBM Plex Mono", "IBM Plex Sans JP", monospace;
+
+    padding: 0 20px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 1.95;
+    letter-spacing: 0.03em;
+  }
+
+  .pC .m-header,
+  .pC .m-main,
+  .pC .m-footer { max-width: 42rem; margin: 0 auto; }
+
+  .pC .m-header { padding: 1.9rem 0 0.8rem; border-bottom: 2px solid var(--ink); }
+
+  .pC .m-title {
+    font-family: var(--f-display);
+    font-weight: 500;
+    font-size: 1.85rem;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+
+  .pC .m-main { padding: 2.4rem 0 4.5rem; }
+
+  .pC .m-pagehead { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+  .pC .m-eyebrow { order: 2; font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; }
+
+  .pC .m-h1 {
+    font-family: var(--f-title);
+    font-weight: 700;
+    font-size: 1.9rem;
+    line-height: 1.4;
+    letter-spacing: 0.04em;
+    font-feature-settings: "palt" 1;
+    text-wrap: balance;
+  }
+
+  .pC .m-list { border-top: 1px solid var(--ink); }
+  .pC .m-list li { border-bottom: 1px solid var(--hair); }
+
+  .pC .m-list a {
+    display: grid;
+    grid-template-columns: 8rem minmax(0, 1fr);
+    column-gap: 1rem;
+    align-items: baseline;
+    margin: 0 -0.5rem;
+    padding: 0.7rem 0.5rem;
+    text-decoration: none;
+  }
+
+  .pC .m-date { font-family: var(--f-mono); font-size: 0.82rem; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+  .pC .c-wd { margin-left: 0.7em; font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.08em; color: var(--sub); }
+  .pC .m-etitle { font-family: var(--f-title); font-weight: 700; font-size: 1rem; line-height: 1.6; letter-spacing: 0.04em; font-feature-settings: "palt" 1; }
+  .pC .m-list a:hover { background: var(--ink); color: #fff; }
+  .pC .m-list a:hover .c-wd { color: #b5b5b5; }
+
+  .pC .m-section {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 3.4rem 0 1rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .pC .m-section-ja { font-family: var(--f-title); font-weight: 700; font-size: 1.15rem; letter-spacing: 0.06em; }
+  .pC .m-section-en { order: 2; font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; }
+  .pC .m-years { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+  .pC .m-pill {
+    display: inline-block;
+    padding: 0.3rem 0.9rem;
+    border: 1px solid var(--ink);
+    font-family: var(--f-mono);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    text-decoration: none;
+  }
+
+  .pC .m-pill:hover { background: var(--ink); color: #fff; }
+
+  .pC .m-dateline { margin-bottom: 0.8rem; font-family: var(--f-mono); font-size: 0.82rem; letter-spacing: 0.04em; }
+  .pC article .m-h1 { margin-bottom: 2.5rem; font-size: 2.2rem; line-height: 1.35; }
+
+  .pC .m-h1.is-date {
+    font-family: var(--f-display);
+    font-weight: 500;
+    font-size: 3.1rem;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+  }
+
+  .pC .m-h1.is-date .c-wd { font-size: 0.8rem; letter-spacing: 0.12em; vertical-align: 0.9em; }
+
+  @container (max-width: 30rem) {
+    .pC .m-h1.is-date { font-size: 2.5rem; }
+  }
+  .pC .m-prose p { margin: 0 0 1.25em; }
+  .pC .m-prose hr { height: 0; overflow: visible; margin: 2.4rem 0; border: 0; border-top: 1px solid var(--ink); }
+  .pC .m-prose figure,
+  .pC .m-prose .pair { margin: 2.2rem 0; }
+
+  .pC .m-prose figcaption,
+  .pC .m-prose .pair-cap {
+    display: flex;
+    gap: 0.8rem;
+    margin-top: 0.5rem;
+    font-weight: 400;
+    font-size: 0.76rem;
+    line-height: 1.6;
+    color: var(--sub);
+  }
+
+  .pC .m-prose figcaption::before,
+  .pC .m-prose .pair-cap::before { content: "FIG."; flex: 0 0 auto; font-family: var(--f-mono); letter-spacing: 0.06em; color: var(--ink); }
+
+  .pC .m-adjacent { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 3.6rem; border-top: 2px solid var(--ink); }
+  .pC .m-adjacent a { display: flex; padding: 0.9rem 1rem; border-bottom: 1px solid var(--ink); text-decoration: none; }
+  .pC .m-adjacent .older { justify-content: flex-end; text-align: right; }
+  .pC .m-adjacent .label { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+  .pC .m-adjacent .lab { font-family: var(--f-mono); font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; }
+  .pC .m-adjacent time { font-family: var(--f-mono); font-size: 0.8rem; }
+  .pC .m-adjacent .m-etitle { font-size: 1rem; }
+  .pC .m-adjacent a:hover { background: var(--ink); color: #fff; }
+  .pC .m-adjacent a:hover .c-wd { color: #b5b5b5; }
+
+  @container (min-width: 36rem) {
+    .pC .m-adjacent { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pC .m-adjacent .older { grid-column: 2; border-left: 1px solid var(--ink); }
+  }
+
+  .pC .m-links { display: flex; flex-wrap: wrap; gap: 0.4rem 1.5rem; margin-top: 1.3rem; font-family: var(--f-mono); font-size: 0.78rem; }
+  .pC .m-links a { border-bottom: 1px solid var(--ink); text-decoration: none; }
+  .pC .m-links a::after { content: " →"; }
+  .pC .m-links a:hover { background: var(--ink); color: #fff; }
+  .pC .m-footer { padding: 1.5rem 0 3rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; }
+  }
+</style>
+
+<div class="wrap" lang="ja">
+  <header class="intro">
+    <p class="kicker">apkas-diary / visual identity · 第4版</p>
+    <h1 class="intro-title">「朱の一点」を土台に、本文を Zen角ゴシックで組む</h1>
+    <p class="lede">3案から B（朱の一点）を土台に選び、本文を Zen角ゴシック New の Regular 400 に替えた案を B′ として先頭に置きました。B′ では日付を英語の略記（Sep、Mon）で示し、年別のピルから「年」を外しています。題の明朝は、Zen角ゴシック New と相性のよいものを選び直しています（B′ のタブで切り替えて比べられます）。元の3案もタブで見比べられます。見本の文章は日記の文体に寄せて書いたもので、写真は色面で代用しています。枠の中はスクロールでき、一覧や導線はマウスを載せたときの変化も見られます。</p>
+    <ul class="premises">
+      <li>白地 #FFFFFF</li>
+      <li>黒に近い文字</li>
+      <li>ダークモードなし</li>
+      <li>Web フォント</li>
+      <li>見出しにセリフ体</li>
+    </ul>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="案の切り替え">
+    <button class="tab" role="tab" id="tab-B2" aria-controls="panel-B2" aria-selected="true" type="button"><span class="k">B′</span>採用案</button>
+    <button class="tab" role="tab" id="tab-A" aria-controls="panel-A" aria-selected="false" type="button"><span class="k">A</span>静かな誌面</button>
+    <button class="tab" role="tab" id="tab-B" aria-controls="panel-B" aria-selected="false" type="button"><span class="k">B</span>朱の一点</button>
+    <button class="tab" role="tab" id="tab-C" aria-controls="panel-C" aria-selected="false" type="button"><span class="k">C</span>白黒の索引</button>
+    <button class="tab" role="tab" id="tab-body" aria-controls="panel-body" aria-selected="false" type="button"><span class="k">+</span>本文書体の比較</button>
+  </nav>
+
+  <!-- B′ -->
+  <section class="panel" id="panel-B2" role="tabpanel" aria-labelledby="tab-B2">
+    <div class="brief">
+      <div>
+        <p class="brief-key">案 B′ · 採用案</p>
+        <h2 class="brief-title">朱の一点 — 本文を Zen角ゴシック New に</h2>
+        <p class="concept">B の構成（大きな日付の数字、英字の見出し、朱をひとつ）はそのままに、本文を Zen角ゴシック New の Regular 400 に替えました。日付は英語の略記で示します。見た目だけを英語にし、読み上げには「2026年9月20日（日）」のような和文の日付を渡します。</p>
+        <div class="procon">
+          <div>
+            <p class="procon-title">B から変えたところ</p>
+            <ul>
+              <li>本文：Noto Sans JP Light 300 → Zen角ゴシック New Regular 400</li>
+              <li>本文の大きさ：16px → スマートフォン 15px / PC 15.5px</li>
+              <li>ラベル・注記の和文：Noto Sans JP → Zen角ゴシック New</li>
+              <li>日付：和文 → 英語の略記（Sep 2026 · Mon、導線では Mon, Sep 21, 2026）</li>
+              <li>年別のピル：2026年 → 2026</li>
+              <li>一覧への導線：Sep 2026 / 2026 / On this day</li>
+              <li>題の明朝：Noto Serif JP → Zen Old Mincho 600（Zen角ゴシック New と同じファミリー）</li>
+            </ul>
+          </div>
+          <div>
+            <p class="procon-title">B のままのところ</p>
+            <ul>
+              <li>題字・数字・英字の見出し（Instrument Serif）</li>
+              <li>ページの和文の見出し（最近の日記、年別など）</li>
+              <li>朱の使いどころ（題字の点、日付の印、区切り線、手応え）</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div>
+        <dl class="spec">
+          <div><dt>題字・数字・英字</dt><dd><span class="fname fn-instrument">Instrument Serif</span><span class="fmeta">Regular / Italic</span></dd></div>
+          <div><dt>見出し（和文）</dt><dd><span class="fname fn-zenold-600">Zen Old Mincho</span><span class="fmeta">600（記事・一覧・導線の題。下の切り替えで比較）</span></dd></div>
+          <div><dt>本文</dt><dd><span class="fname fn-zenkaku-400">Zen角ゴシック New</span><span class="fmeta">Regular 400 ・ スマートフォン 15px / PC 15.5px ・ 行送り 2.0</span></dd></div>
+          <div><dt>ラベル</dt><dd><span class="fname fn-instsans">Instrument Sans</span><span class="fmeta">500。和文は Zen角ゴシック New 500</span></dd></div>
+        </dl>
+        <ul class="swatches">
+          <li><span class="chip" style="background:#ffffff"></span>地 <code>#FFFFFF</code></li>
+          <li><span class="chip" style="background:#111111"></span>文字 <code>#111111</code></li>
+          <li><span class="chip" style="background:#6a6a6a"></span>淡い文字 <code>#6A6A6A</code></li>
+          <li><span class="chip" style="background:#e5e5e5"></span>罫線 <code>#E5E5E5</code></li>
+          <li><span class="chip" style="background:#c73e1d"></span>朱 <code>#C73E1D</code></li>
+        </ul>
+      </div>
+    </div>
+    <div class="size-tools">
+      <p class="tools-label" id="size-label">本文の大きさ（スマートフォン / PC）</p>
+      <div class="seg" role="radiogroup" aria-labelledby="size-label">
+        <input type="radio" name="bodysize" id="size-sm" value="sm" data-sp="14.5px" data-pc="15px"><label for="size-sm">14.5 / 15px</label>
+        <input type="radio" name="bodysize" id="size-md" value="md" data-sp="15px" data-pc="15.5px" checked><label for="size-md">15 / 15.5px</label>
+        <input type="radio" name="bodysize" id="size-lg" value="lg" data-sp="16px" data-pc="16px"><label for="size-lg">16 / 16px（前回）</label>
+      </div>
+    </div>
+    <div class="size-tools">
+      <p class="tools-label" id="title-font-label">題の明朝</p>
+      <div class="seg" role="radiogroup" aria-labelledby="title-font-label">
+        <input type="radio" name="titlefont" id="tf-zenold" value="zenold" data-font='"Zen Old Mincho", "Hiragino Mincho ProN", serif' data-weight="600" checked><label for="tf-zenold">Zen Old Mincho 600</label>
+        <input type="radio" name="titlefont" id="tf-shippori" value="shippori" data-font='"Shippori Mincho", "Hiragino Mincho ProN", serif' data-weight="600"><label for="tf-shippori">しっぽり明朝 600</label>
+        <input type="radio" name="titlefont" id="tf-noto" value="noto" data-font='"Noto Serif JP", "Hiragino Mincho ProN", serif' data-weight="500"><label for="tf-noto">Noto Serif JP 500（前回）</label>
+        <input type="radio" name="titlefont" id="tf-antique" value="antique" data-font='"Zen Antique", "Hiragino Mincho ProN", serif' data-weight="400"><label for="tf-antique">Zen Antique</label>
+      </div>
+    </div>
+    <ul class="notes title-notes">
+      <li><b>Zen Old Mincho</b>（推奨）— 本文の Zen角ゴシック New と同じ作者による Zen ファミリーの明朝。仮名の大きさや線の終わり方がそろい、題と本文が同じ声で話す。配信する書体は約 2.6MB と軽い。</li>
+      <li><b>しっぽり明朝</b> — 線の強弱がはっきりした端正な明朝。Zen角ゴシック New と組む例も多い。題が一段くっきりする。約 3.6MB。</li>
+      <li><b>Noto Serif JP</b> — 前回までの案。仮名が大きく黒みが強いため、柔らかい Zen角ゴシック New の横で題だけが硬く見える。約 3.6MB。</li>
+      <li><b>Zen Antique</b> — 古い活字のような個性がある。太さが1つしかなく、一覧の小さな題では黒く詰まりやすい。約 2.6MB。</li>
+    </ul>
+    <div class="frames" data-pattern="B2"></div>
+  </section>
+
+  <!-- A -->
+  <section class="panel" id="panel-A" role="tabpanel" aria-labelledby="tab-A" hidden>
+    <div class="brief">
+      <div>
+        <p class="brief-key">案 A</p>
+        <h2 class="brief-title">静かな誌面</h2>
+        <p class="concept">Garamond の数字と明朝の題を、細いゴシックの本文が支えます。色は持たず、余白と細い罫線だけで組む、いちばん控えめな案です。区切りの <code>---</code> は、本の節の区切りのような「* * *」にしています。</p>
+        <div class="procon">
+          <div>
+            <p class="procon-title">向いている点</p>
+            <ul>
+              <li>長く読んでも疲れにくい</li>
+              <li>写真の色を邪魔しない</li>
+              <li>流行に左右されにくい</li>
+            </ul>
+          </div>
+          <div>
+            <p class="procon-title">気をつける点</p>
+            <ul>
+              <li>3案でいちばん大人しく、印象に残りにくい</li>
+              <li>題のない日が続くと、一覧が日付だけの行になり単調に見える</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div>
+        <dl class="spec">
+          <div><dt>題字・日付（欧文）</dt><dd><span class="fname fn-cormorant">Cormorant Garamond</span><span class="fmeta">500 / Italic 500。数字と英字だけに効かせる</span></dd></div>
+          <div><dt>見出し（和文）</dt><dd><span class="fname fn-shippori">しっぽり明朝</span><span class="fmeta">Shippori Mincho 500</span></dd></div>
+          <div><dt>本文</dt><dd><span class="fname fn-zenkaku">Zen角ゴシック New</span><span class="fmeta">Light 300 ・ 16px ・ 行送り 2.05</span></dd></div>
+        </dl>
+        <ul class="swatches">
+          <li><span class="chip" style="background:#ffffff"></span>地 <code>#FFFFFF</code></li>
+          <li><span class="chip" style="background:#161616"></span>文字 <code>#161616</code></li>
+          <li><span class="chip" style="background:#6e6e6e"></span>淡い文字 <code>#6E6E6E</code></li>
+          <li><span class="chip" style="background:#e7e7e7"></span>罫線 <code>#E7E7E7</code></li>
+          <li>アクセントなし（リンクは下線）</li>
+        </ul>
+      </div>
+    </div>
+    <div class="frames" data-pattern="A"></div>
+  </section>
+
+  <!-- B -->
+  <section class="panel" id="panel-B" role="tabpanel" aria-labelledby="tab-B" hidden>
+    <div class="brief">
+      <div>
+        <p class="brief-key">案 B</p>
+        <h2 class="brief-title">朱の一点</h2>
+        <p class="concept">大きな日付の数字で、一覧と日別ページにリズムをつくります。英字の見出しは Instrument Serif のイタリック。色は朱をひとつだけ、判を押すように点で使います（題字の点、日付の印、区切り線）。</p>
+        <div class="procon">
+          <div>
+            <p class="procon-title">向いている点</p>
+            <ul>
+              <li>題のない日が多くても、数字の並びが一覧の見どころになる</li>
+              <li>朱が「押せるもの」の目印になる</li>
+            </ul>
+          </div>
+          <div>
+            <p class="procon-title">気をつける点</p>
+            <ul>
+              <li>英字の見出し（Recent / Archive）が主役になり、日本語は小さなラベルに回る</li>
+              <li>朱を増やすと途端にうるさくなる。使う場所を絞る必要がある</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div>
+        <dl class="spec">
+          <div><dt>題字・数字・英字</dt><dd><span class="fname fn-instrument">Instrument Serif</span><span class="fmeta">Regular / Italic</span></dd></div>
+          <div><dt>見出し（和文）</dt><dd><span class="fname fn-notoserif">Noto Serif JP</span><span class="fmeta">600（一覧の題は 500）</span></dd></div>
+          <div><dt>本文</dt><dd><span class="fname fn-notosans">Noto Sans JP</span><span class="fmeta">Light 300 ・ 16px ・ 行送り 2.0</span></dd></div>
+          <div><dt>ラベル</dt><dd><span class="fname fn-instsans">Instrument Sans</span><span class="fmeta">500。月と曜日、導線の日付</span></dd></div>
+        </dl>
+        <ul class="swatches">
+          <li><span class="chip" style="background:#ffffff"></span>地 <code>#FFFFFF</code></li>
+          <li><span class="chip" style="background:#111111"></span>文字 <code>#111111</code></li>
+          <li><span class="chip" style="background:#6a6a6a"></span>淡い文字 <code>#6A6A6A</code></li>
+          <li><span class="chip" style="background:#e5e5e5"></span>罫線 <code>#E5E5E5</code></li>
+          <li><span class="chip" style="background:#c73e1d"></span>朱 <code>#C73E1D</code></li>
+        </ul>
+      </div>
+    </div>
+    <div class="frames" data-pattern="B"></div>
+  </section>
+
+  <!-- C -->
+  <section class="panel" id="panel-C" role="tabpanel" aria-labelledby="tab-C" hidden>
+    <div class="brief">
+      <div>
+        <p class="brief-key">案 C</p>
+        <h2 class="brief-title">白黒の索引</h2>
+        <p class="concept">Bodoni の題字と等幅の日付で、1,100 件を超える日記を索引のように組みます。色は使わず、黒い罫線と反転（黒地に白）で位置と手応えを示す、3案でいちばん強い案です。</p>
+        <div class="procon">
+          <div>
+            <p class="procon-title">向いている点</p>
+            <ul>
+              <li>3案でいちばん個性が強い</li>
+              <li>日付の桁が揃い、アーカイブを辿る道具らしくなる</li>
+            </ul>
+          </div>
+          <div>
+            <p class="procon-title">気をつける点</p>
+            <ul>
+              <li>日付の書式が「2026.09.20 SUN」に変わる</li>
+              <li>黒い罫線と反転が強く、写真より体裁が前に出る</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div>
+        <dl class="spec">
+          <div><dt>題字・大きな日付</dt><dd><span class="fname fn-bodoni">Bodoni Moda</span><span class="fmeta">500</span></dd></div>
+          <div><dt>見出し（和文）</dt><dd><span class="fname fn-zenold">Zen Old Mincho</span><span class="fmeta">Bold 700</span></dd></div>
+          <div><dt>本文</dt><dd><span class="fname fn-plex">IBM Plex Sans JP</span><span class="fmeta">Light 300 ・ 16px ・ 行送り 1.95</span></dd></div>
+          <div><dt>日付・ラベル</dt><dd><span class="fname fn-plexmono">IBM Plex Mono</span><span class="fmeta">400</span></dd></div>
+        </dl>
+        <ul class="swatches">
+          <li><span class="chip" style="background:#ffffff"></span>地 <code>#FFFFFF</code></li>
+          <li><span class="chip" style="background:#000000"></span>文字・罫線 <code>#000000</code></li>
+          <li><span class="chip" style="background:#666666"></span>淡い文字 <code>#666666</code></li>
+          <li><span class="chip" style="background:#dadada"></span>細い罫線 <code>#DADADA</code></li>
+          <li>アクセントなし（反転で示す）</li>
+        </ul>
+      </div>
+    </div>
+    <div class="frames" data-pattern="C"></div>
+  </section>
+
+  <!-- 本文書体の比較 -->
+  <section class="panel" id="panel-body" role="tabpanel" aria-labelledby="tab-body" hidden>
+    <div class="brief">
+      <div>
+        <p class="brief-key">本文書体</p>
+        <h2 class="brief-title">本文は「薄めのサンセリフ」でよいか</h2>
+        <p class="concept">3案の本文書体を、同じ文章・同じ大きさ（16px）・同じ文字色（#161616）で並べました。参考に、明朝で組んだ本文も置いています。太さを切り替えて比べてください。</p>
+      </div>
+      <ul class="notes">
+        <li>Light 300 は、Retina の Mac や iPhone では軽やかで上品に見えます。一方、Windows の拡大率 100% の画面では線が細くなり、長い文章ではかすれて見えることがあります。</li>
+        <li>薄く見せたいときは、文字を灰色にするより太さで軽くするほうが、読みやすさを保てます。3案とも本文の色は黒に近いままにしています。</li>
+        <li>Noto Sans JP は太さを連続で選べるので、300 と 400 のあいだ（350 など）に置くこともできます。</li>
+      </ul>
+    </div>
+
+    <div class="specimen-tools">
+      <fieldset class="seg">
+        <legend>本文の太さ</legend>
+        <input type="radio" name="weight" id="weight-300" value="300"><label for="weight-300">Light 300</label>
+        <input type="radio" name="weight" id="weight-400" value="400" checked><label for="weight-400">Regular 400</label>
+      </fieldset>
+    </div>
+
+    <div class="specimens" id="specimens">
+      <article class="specimen s-zen">
+        <div class="sp-head"><p class="sp-name">Zen角ゴシック New</p><p class="sp-note">採用 · B′ の本文</p></div>
+        <div class="sp-text" data-sample></div>
+      </article>
+      <article class="specimen s-noto">
+        <div class="sp-head"><p class="sp-name">Noto Sans JP</p><p class="sp-note">B（元の案）の本文</p></div>
+        <div class="sp-text" data-sample></div>
+      </article>
+      <article class="specimen s-plex">
+        <div class="sp-head"><p class="sp-name">IBM Plex Sans JP</p><p class="sp-note">C の本文</p></div>
+        <div class="sp-text" data-sample></div>
+      </article>
+      <article class="specimen s-mincho">
+        <div class="sp-head"><p class="sp-name">しっぽり明朝</p><p class="sp-note">参考 · 明朝の本文 400 / 17px</p></div>
+        <div class="sp-text" data-sample></div>
+      </article>
+    </div>
+  </section>
+
+  <footer class="outro">
+    <div>
+      <h2 class="outro-title">決まったこと</h2>
+      <ol>
+        <li><b>軸にする案</b> — B（朱の一点）。</li>
+        <li><b>本文の書体と太さ</b> — Zen角ゴシック New の Regular 400。大きさはスマートフォン 15px、PC 15.5px。ラベルに混ざる和文も同じ書体にそろえる。</li>
+        <li><b>英字の混ぜ方</b> — 日付は英語の略記（Sep 2026 · Sun、導線では Mon, Sep 21, 2026）。年別のピルは数字だけ（2026）、一覧への導線も英語（Sep 2026 / 2026 / On this day）。見出しに Recent / Archive などの英字を添え、和文の見出しはラベルとして残す。読み上げには和文の日付を渡す。</li>
+        <li><b>題の明朝</b> — Zen Old Mincho 600（推奨・比較中）。本文の Zen角ゴシック New と同じ Zen のファミリー。</li>
+        <li><b>アクセントの色</b> — 朱 #C73E1D をひとつ。題字の点・日付の印・区切り線・手応えに絞って使う。</li>
+      </ol>
+    </div>
+    <div>
+      <h2 class="outro-title">こちらで決めておくこと</h2>
+      <ul>
+        <li>編集アプリケーションも同じ基準に揃えます。プレビューと公開後の字面を一致させるためです。</li>
+        <li>「ポートフォリオと同じ基準に従う」という今の要件は外し、日記が自前の基準を持つ形にします。</li>
+        <li>暗い設定の配色と、ブラウザの枠の暗い側の色はなくします。</li>
+        <li>Web フォントは日記のサイト自身から配信する方向で検討します（閲覧のたびに Google のサーバーへ問い合わせない）。</li>
+      </ul>
+    </div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const WD = ['日', '月', '火', '水', '木', '金', '土']
+  const WD_LONG = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日']
+  const WD_EN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+
+  const parts = (s) => {
+    const y = Number(s.slice(0, 4))
+    const m = Number(s.slice(5, 7))
+    const d = Number(s.slice(8, 10))
+    return { y, m, d, mm: s.slice(5, 7), dd: s.slice(8, 10), w: new Date(Date.UTC(y, m - 1, d)).getUTCDay() }
+  }
+
+  const ja = (s) => {
+    const p = parts(s)
+    return `${p.y}年${p.m}月${p.d}日（${WD[p.w]}）`
+  }
+
+  const bBlock = (s) => {
+    const p = parts(s)
+    return `<span class="b-d">${p.d}</span><span class="b-meta"><span>${p.y}年${p.m}月</span> <span>${WD_LONG[p.w]}</span></span>`
+  }
+
+  const cDate = (s) => {
+    const p = parts(s)
+    return `${p.y}.${p.mm}.${p.dd}<span class="c-wd">${WD_EN[p.w]}</span>`
+  }
+
+  // B′：見た目は英語の略記、読み上げは和文の日付
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const WD_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const vh = (text) => `<span class="visually-hidden">${text}</span>`
+  const shown = (html) => `<span aria-hidden="true">${html}</span>`
+
+  const enBlock = (s) => {
+    const p = parts(s)
+    return `${vh(ja(s))}<span class="b-d" aria-hidden="true">${p.d}</span><span class="b-meta" aria-hidden="true"><span>${MON[p.m - 1]} ${p.y}</span> <span>${WD_ABBR[p.w]}</span></span>`
+  }
+
+  const enInline = (s) => {
+    const p = parts(s)
+    return `${vh(ja(s))}${shown(`${WD_ABBR[p.w]}, ${MON[p.m - 1]} ${p.d}, ${p.y}`)}`
+  }
+
+  const ENTRIES = [
+    { date: '2026-09-21', title: '' },
+    { date: '2026-09-20', title: '鎌倉で日帰り' },
+    { date: '2026-09-19', title: 'Blue Bottle 清澄白河' },
+    { date: '2026-09-17', title: '' },
+    { date: '2026-09-16', title: '秋刀魚の塩焼き' },
+    { date: '2026-09-14', title: '' },
+    { date: '2026-09-13', title: '埼スタで観戦' },
+    { date: '2026-09-12', title: '' },
+  ]
+
+  const YEARS = ['2026', '2025', '2024', '2023']
+
+  const BODY = {
+    '2026-09-20': `
+      <p>朝から晴れたので、思い立って鎌倉まで出かけた。北鎌倉で降りて、円覚寺から建長寺へと歩く。日差しはまだ強いけれど、木陰に入ると吹く風はもう秋のものだった。</p>
+      <figure><span class="ph ph-temple" role="img" aria-label="写真の見本"></span><figcaption>建長寺の法堂。天井の雲龍図を見上げる</figcaption></figure>
+      <p>昼は小町通りから一本入った店でしらす丼。今日は生しらすが入っていないとのことで、釜揚げにした。これはこれでおいしい。</p>
+      <hr>
+      <p>帰りは江ノ電で長谷まで。人が多かったので大仏は外から眺めるだけにして、由比ヶ浜を少し歩いてから帰った。歩数計を見ると 18,000 歩を超えていた。</p>
+      <div class="pair"><span class="ph ph-sea" role="img" aria-label="写真の見本"></span><span class="ph ph-train" role="img" aria-label="写真の見本"></span><p class="pair-cap">由比ヶ浜と、長谷駅に入ってくる江ノ電</p></div>
+      <hr>
+      <p>夜は録画していたJリーグの試合を見る。後半の交代がうまくはまっていた。次のホームゲームも行けるといいな。</p>`,
+    '2026-09-21': `
+      <p>連休の最終日。午前中は部屋を片付けて、午後は近所の喫茶店で本を読んだ。今日の一杯は浅煎りのエチオピア。</p>
+      <figure><span class="ph ph-coffee" role="img" aria-label="写真の見本"></span></figure>
+      <hr>
+      <p>来週からまた仕事が立て込みそうなので、今夜は早めに寝ることにする。</p>`,
+  }
+
+  const PATTERNS = {
+    A: { cls: 'pA', eyebrow: 'Recent entries', sectionEn: 'Archive', list: ja, head: ja, nav: ja, labels: null },
+    B: { cls: 'pB', eyebrow: 'Recent', sectionEn: 'Archive', list: bBlock, head: (s) => `<span class="b-head">${bBlock(s)}</span>`, nav: ja, labels: ['← Newer', 'Older →'] },
+    C: { cls: 'pC', eyebrow: 'Index', sectionEn: 'Years', list: cDate, head: cDate, nav: cDate, labels: ['← Newer', 'Older →'] },
+  }
+  for (const p of Object.values(PATTERNS)) {
+    p.yearLabel = (y) => `${y}年`
+    p.links = (d) => [`${d.m}月の一覧`, `${d.y}年の一覧`, '過去の同じ日']
+  }
+
+  PATTERNS.B2 = {
+    ...PATTERNS.B,
+    cls: 'pB is-zen is-en',
+    list: enBlock,
+    head: (s) => `<span class="b-head">${enBlock(s)}</span>`,
+    nav: enInline,
+    yearLabel: (y) => `${y}${vh('年')}`,
+    links: (d) => [
+      `${shown(`${MON[d.m - 1]} ${d.y}`)}${vh(`${d.y}年${d.m}月の一覧`)}`,
+      `${shown(String(d.y))}${vh(`${d.y}年の一覧`)}`,
+      `${shown('On this day')}${vh('過去の同じ日')}`,
+    ],
+  }
+
+  const header = () => `<header class="m-header"><a class="m-title" href="#">apkas-diary</a></header>`
+  const footer = () => `<footer class="m-footer"></footer>`
+
+  function topPage(p) {
+    const items = ENTRIES.map((e) => `<li><a href="#"><time class="m-date" datetime="${e.date}">${p.list(e.date)}</time>${e.title ? `<span class="m-etitle">${e.title}</span>` : ''}</a></li>`).join('')
+    const years = YEARS.map((y) => `<li><a class="m-pill" href="#">${p.yearLabel(y)}</a></li>`).join('')
+    return `<div class="mock ${p.cls}">${header()}<main class="m-main">
+      <div class="m-pagehead"><p class="m-eyebrow" aria-hidden="true">${p.eyebrow}</p><h1 class="m-h1">最近の日記</h1></div>
+      <ul class="m-list">${items}</ul>
+      <h2 class="m-section"><span class="m-section-en" aria-hidden="true">${p.sectionEn}</span><span class="m-section-ja">年別</span></h2>
+      <ul class="m-years">${years}</ul>
+    </main>${footer()}</div>`
+  }
+
+  function navLink(p, e, side) {
+    const date = `<time datetime="${e.date}">${p.nav(e.date)}</time>`
+    const title = e.title ? `<span class="m-etitle">${e.title}</span>` : ''
+    if (!p.labels) {
+      const arrow = `<span class="arrow" aria-hidden="true">${side === 'newer' ? '←' : '→'}</span>`
+      const label = `<span class="label">${date}${title}</span>`
+      return `<a class="${side}" href="#">${side === 'newer' ? arrow + label : label + arrow}</a>`
+    }
+    const lab = `<span class="lab" aria-hidden="true">${side === 'newer' ? p.labels[0] : p.labels[1]}</span>`
+    return `<a class="${side}" href="#"><span class="label">${lab}${date}${title}</span></a>`
+  }
+
+  function entryPage(p, date) {
+    const i = ENTRIES.findIndex((e) => e.date === date)
+    const entry = ENTRIES[i]
+    const newer = ENTRIES[i - 1]
+    const older = ENTRIES[i + 1]
+    const d = parts(date)
+    const time = `<time datetime="${date}">${p.head(date)}</time>`
+    const head = entry.title
+      ? `<p class="m-dateline">${time}</p><h1 class="m-h1">${entry.title}</h1>`
+      : `<h1 class="m-h1 is-date">${time}</h1>`
+    const nav = [newer && navLink(p, newer, 'newer'), older && navLink(p, older, 'older')].filter(Boolean).join('')
+    return `<div class="mock ${p.cls}">${header()}<main class="m-main">
+      <article>${head}<div class="m-prose">${BODY[date]}</div></article>
+      <nav class="m-adjacent">${nav}</nav>
+      <nav class="m-links">${p.links(d).map((label) => `<a href="#">${label}</a>`).join('')}</nav>
+    </main>${footer()}</div>`
+  }
+
+  function win(kind, caption, url, html) {
+    return `<figure class="win win-${kind}">
+      <figcaption class="win-cap">${caption}</figcaption>
+      <div class="win-body">
+        <div class="win-bar"><span class="win-url">${url}</span></div>
+        <div class="win-view" tabindex="0" aria-label="見本のページ（スクロールできます）">${html}</div>
+      </div>
+    </figure>`
+  }
+
+  for (const slot of document.querySelectorAll('.frames[data-pattern]')) {
+    const p = PATTERNS[slot.dataset.pattern]
+    slot.innerHTML = [
+      win('pc', '<b>日別ページ</b>タイトルのある日 ・ PC', 'diary.apkas.net/2026/09/20', entryPage(p, '2026-09-20')),
+      win('pc', '<b>トップページ</b>PC', 'diary.apkas.net', topPage(p)),
+      `<div class="phones">${[
+        win('phone', '<b>日別ページ</b>タイトルのない日 ・ スマートフォン', 'diary.apkas.net/2026/09/21', entryPage(p, '2026-09-21')),
+        win('phone', '<b>トップページ</b>スマートフォン', 'diary.apkas.net', topPage(p)),
+      ].join('')}</div>`,
+    ].join('')
+  }
+
+  // 見本の中のリンクは飾り。押しても移動せず、Tab の順番にも入れない。
+  for (const a of document.querySelectorAll('.mock a')) a.tabIndex = -1
+  document.addEventListener('click', (event) => {
+    if (event.target.closest('.mock a')) event.preventDefault()
+  })
+
+  // 本文書体の比較
+  const sample = `
+    <p>朝から晴れたので、思い立って鎌倉まで出かけた。北鎌倉で降りて、円覚寺から建長寺へと歩く。日差しはまだ強いけれど、木陰に入ると吹く風はもう秋のものだった。</p>
+    <p>帰りは江ノ電で長谷まで。人が多かったので大仏は外から眺めるだけにして、由比ヶ浜を少し歩いてから帰った。歩数計を見ると 18,000 歩を超えていた。</p>
+    <p>夜は録画していたJリーグの試合を見る。後半の交代がうまくはまっていた。</p>`
+  for (const el of document.querySelectorAll('[data-sample]')) el.innerHTML = sample
+
+  const b2 = document.getElementById('panel-B2')
+  for (const radio of document.querySelectorAll('input[name="titlefont"]')) {
+    radio.addEventListener('change', () => {
+      b2.style.setProperty('--b2-title', radio.dataset.font)
+      b2.style.setProperty('--b2-title-weight', radio.dataset.weight)
+    })
+  }
+  for (const radio of document.querySelectorAll('input[name="bodysize"]')) {
+    radio.addEventListener('change', () => {
+      b2.style.setProperty('--body-sp', radio.dataset.sp)
+      b2.style.setProperty('--body-pc', radio.dataset.pc)
+    })
+  }
+
+  const specimens = document.getElementById('specimens')
+  for (const radio of document.querySelectorAll('input[name="weight"]')) {
+    radio.addEventListener('change', () => specimens.style.setProperty('--w', radio.value))
+  }
+
+  // タブ
+  const tabs = [...document.querySelectorAll('[role="tab"]')]
+  function select(id, focus) {
+    for (const tab of tabs) {
+      const on = tab.id === id
+      tab.setAttribute('aria-selected', String(on))
+      tab.tabIndex = on ? 0 : -1
+      document.getElementById(tab.getAttribute('aria-controls')).hidden = !on
+      if (on && focus) tab.focus()
+    }
+    try { localStorage.setItem('apkas-design-tab-v2', id) } catch {}
+  }
+
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => select(tab.id))
+    tab.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
+      const next = tabs[(i + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length]
+      select(next.id, true)
+      event.preventDefault()
+    })
+  })
+
+  let initial = 'tab-B2'
+  try {
+    const saved = localStorage.getItem('apkas-design-tab-v2')
+    if (saved && document.getElementById(saved)) initial = saved
+  } catch {}
+  select(initial)
+
+  if (location.hash === '#all') {
+    for (const panel of document.querySelectorAll('[role="tabpanel"]')) panel.hidden = false
+  }
+})()
+</script>
