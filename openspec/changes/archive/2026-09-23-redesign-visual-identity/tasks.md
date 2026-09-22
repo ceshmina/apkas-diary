@@ -80,9 +80,9 @@
 - [x] 10.2 年別・月別・過去の同じ日・404 の見出しの語と、年別ページの月のピル（Sep）を書き手に見せて確かめる（design 決定8・Risks）
 - [x] 10.3 題の明朝（Zen Old Mincho 600）が、一覧の題（1rem）と前後の導線の題（0.95rem）で重く見えないか確かめる。重ければ 500 の1つに替える（design 決定1・3・Risks）
 - [x] 10.4 Windows の拡大率 100% で、本文（15px の Zen角ゴシック New）が読めることを確かめる
-- [ ] 10.5 `main` にマージする
+- [x] 10.5 `main` にマージする
 - [x] 10.6 マージの後に、production へ公開サイトと編集アプリケーションを配る
 
 ## 11. 仕様の後始末
 
-- [ ] 11.1 archive のときに、`openspec/specs/visual-identity/spec.md` の Purpose を書き換える。delta は Purpose を運ばないため、「ポートフォリオと同じ基準の下に置く」のままでは要件と食い違う
+- [x] 11.1 archive のときに、`openspec/specs/visual-identity/spec.md` の Purpose を書き換える。delta は Purpose を運ばないため、「ポートフォリオと同じ基準の下に置く」のままでは要件と食い違う
