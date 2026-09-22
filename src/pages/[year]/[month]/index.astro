@@ -1,6 +1,9 @@
 ---
 import EntryList from '../../../components/EntryList.astro'
+import ListLinks from '../../../components/ListLinks.astro'
+import PageHead from '../../../components/PageHead.astro'
 import Base from '../../../layouts/Base.astro'
+import { monthAbbrOf } from '../../../lib/date.js'
 import { byDateDesc, entriesByYearMonth } from '../../../lib/site-data.js'
 import type { Entry } from '../../../lib/store/entry.js'
 
@@ -19,22 +22,14 @@ const { entries } = Astro.props as { entries: Entry[] }
 ---
 
 <Base title={`${year}年${Number(month)}月の日記`}>
-  <h1>{year}年{Number(month)}月の日記</h1>
-
-  <p class="muted">{entries.length} 件</p>
+  <PageHead
+    word={monthAbbrOf(month ?? '')}
+    period
+    title={`${year}年${Number(month)}月の日記`}
+    count={entries.length}
+  />
 
   <EntryList entries={entries} showYear={false} />
 
-  <nav class="links">
-    <a href={`/${year}`}>{year}年の一覧</a>
-  </nav>
+  <ListLinks links={[{ href: `/${year}`, label: year ?? '', spoken: `${year}年の一覧` }]} />
 </Base>
-
-<style>
-  .links {
-    margin-top: 2.5rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--border);
-    font-size: 0.9rem;
-  }
-</style>

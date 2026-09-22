@@ -9,7 +9,8 @@
       "!**/.astro",
       "!**/.terraform",
       "!lambda/*/build",
-      "!editor/build"
+      "!editor/build",
+      "!openspec"
     ]
   },
   "formatter": {

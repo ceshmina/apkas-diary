@@ -1,4 +1,5 @@
 ---
+import { type DiaryFont, FONTS } from '../../../src/styles/fonts.js'
 // 配色と本文要素は公開サイトと共有する。プレビューの見え方を公開後と
 // 揃えるための前提であり、ここで上書きしない。
 import '../../../src/styles/tokens.css'
@@ -42,6 +43,38 @@ interface Props {
 const { title, email, refreshSeconds, refreshTo, wide } = Astro.props
 const appTitle = 'apkas-diary 編集'
 const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
+
+/*
+ * 書体。公開サイトと同じ一覧（src/styles/fonts.ts）から、Google Fonts の URL と
+ * 書体の変数を作る。どの書体をどの太さで使うかは、一覧を変えれば両方に効く。
+ *
+ * 公開サイトと違って自分では配らない。配ると書体のファイル（数 MB）が Lambda の
+ * 配布物に入り、直接アップロードの上限（50 MB）に近づく。利用者は書き手だけで、
+ * 第三者の書体配信へ要求が出ることを避ける理由もない。
+ *
+ * 取得元は公開サイトのビルドと同じ Google Fonts で、問い合わせの形（`ital,wght`）
+ * も同じにしてある。プレビューと公開後で書体の版がずれるのは、Google で版が
+ * 更新されてから次に公開するまでのあいだに限られる。
+ */
+function familyQuery({ name, weights, styles }: DiaryFont): string {
+  const variants = styles
+    .flatMap((style) => weights.map((weight) => [style === 'italic' ? 1 : 0, weight] as const))
+    .sort(([italA, weightA], [italB, weightB]) => italA - italB || weightA - weightB)
+    .map(([ital, weight]) => `${ital},${weight}`)
+  return `family=${name.replaceAll(' ', '+')}:ital,wght@${variants.join(';')}`
+}
+
+const fontsHref = `https://fonts.googleapis.com/css2?${FONTS.map(familyQuery).join('&')}&display=swap`
+
+// 総称の書体名は引用符で囲むと効かなくなる（その名前の書体を探しにいく）。
+const GENERIC_FAMILIES = new Set(['serif', 'sans-serif', 'monospace', 'system-ui'])
+
+const fontVariables = `:root{${FONTS.map(
+  ({ name, cssVariable, fallbacks }) =>
+    `${cssVariable}:${[name, ...fallbacks]
+      .map((family) => (GENERIC_FAMILIES.has(family) ? family : `"${family}"`))
+      .join(',')};`,
+).join('')}}`
 ---
 
 <!doctype html>
@@ -51,9 +84,15 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="robots" content="noindex, nofollow" />
-    {/* ブラウザの枠の色。値は tokens.css の --bg と同じで、公開サイトとも揃う。 */}
-    <meta name="theme-color" content="#f5f6f4" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#172d4f" media="(prefers-color-scheme: dark)" />
+    {/*
+     * ブラウザの枠の色。値は tokens.css の --bg と同じで、公開サイトとも揃う。
+     * 配色は白い地の1通りなので、明暗の設定で分けない。
+     */}
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href={fontsHref} />
+    <style is:inline set:html={fontVariables}></style>
     {
       refreshSeconds && (
         <meta
@@ -111,25 +150,40 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
         max-width: 64rem;
       }
 
+      /* 題の下に強い罫線を引く。公開サイトのヘッダーと同じ。 */
       header {
         display: flex;
         flex-wrap: wrap;
         align-items: baseline;
         justify-content: space-between;
         gap: 0.5rem 1rem;
-        padding: 1.5rem 0;
-        border-bottom: 1px solid var(--border);
+        padding: 1.7rem 0 0.75rem;
+        border-bottom: 1px solid var(--fg);
       }
 
-      /* 題は名前にあたるので明朝で組む。公開サイトの `.site-title` と同じ。 */
+      /*
+       * 題。公開サイトの題字（`.site-title`）と同じ字面で、朱の小さな丸を添える。
+       * 「編集」は題字の書体に無い字なので、その後ろに続く和文の明朝で出る
+       * （tokens.css の --font-display）。
+       */
       .app-title {
-        font-family: var(--font-serif);
-        font-weight: 500;
-        font-feature-settings: 'palt' 1;
-        font-size: 1.1rem;
-        letter-spacing: 0.04em;
-        text-decoration: none;
         color: var(--fg);
+        font-family: var(--font-display);
+        font-weight: 400;
+        font-size: 1.95rem;
+        line-height: 1;
+        letter-spacing: -0.005em;
+        text-decoration: none;
+      }
+
+      .app-title::after {
+        content: '';
+        display: inline-block;
+        width: 0.3rem;
+        height: 0.3rem;
+        margin-left: 0.12rem;
+        border-radius: 50%;
+        background: var(--accent);
       }
 
       .session {
@@ -155,41 +209,44 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
       }
 
       /*
-       * 伝えることのある囲み（保存した、失敗した、確認する）。左の線は日記に
-       * 固有の体裁で、ポートフォリオに対応するものはない。地と角丸は囲みの基準
-       * に従う。
+       * 伝えることのある囲み（保存した、失敗した、確認する）。囲むものの形なので
+       * 角を立てる。左の線で種類を示し、失敗を伝えるものだけを朱にする。誤りに
+       * 印を付ける「朱を入れる」の朱で、ほかの囲みの線は黒にする。
        */
       .notice {
         padding: 0.75rem 1rem;
         border: 1px solid var(--border);
-        border-left: 3px solid var(--accent);
+        border-left: 3px solid var(--fg);
         border-radius: var(--radius);
         background: var(--surface);
       }
 
-      /* 押す前に一段構える囲み。全体をアクセント色で縁取る。 */
+      .notice.error {
+        border-left-color: var(--accent);
+      }
+
+      /* 押す前に一段構える囲み。全体を黒で縁取る。 */
       .confirm {
         padding: 1rem 1.25rem;
-        border: 1px solid var(--accent);
+        border: 1px solid var(--fg);
         border-radius: var(--radius);
         background: var(--surface);
       }
 
       /*
-       * ボタン。`.primary` はその画面で主となる操作で、境界線と文字が
-       * アクセント色になる。
+       * ボタン。押せるものの形なので丸くし、白地に黒の細い枠で示す。`.primary` は
+       * その画面で主となる操作で、黒で塗って白抜きにする。
        *
-       * ホバーでは枠の色だけが変わる。以前は箱のリンク（`a.button`）だけを
-       * 浮かせていたが、ポートフォリオが `.link:hover` から浮き上がりを外した
-       * ので、こちらも外した。押す位置が動かないという、ボタンを浮かせなかった
-       * 理由がそのまま全体に及んだ形になる。
+       * ホバーでは枠と字が朱になる。`.primary` は塗りを変えず、朱の輪を出す。朱で
+       * 面を塗らず（tokens.css）、黒の上の字を朱にもしない（読むに足るコントラスト
+       * を持たない）。押す位置が動かないよう、浮き上がりは付けない。
        */
       button,
       .button {
         display: inline-block;
         padding: 0.45rem 1.25rem;
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
+        border: 1px solid var(--fg);
+        border-radius: var(--radius-pill);
         background: var(--surface);
         color: var(--fg);
         font: inherit;
@@ -198,46 +255,72 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
         cursor: pointer;
         transition:
           color 0.18s ease,
-          border-color 0.18s ease;
+          border-color 0.18s ease,
+          box-shadow 0.18s ease;
       }
 
       button.primary,
       .button.primary {
-        border-color: var(--accent);
-        color: var(--accent);
+        background: var(--fg);
+        color: var(--bg);
       }
 
       button:hover:not(:disabled),
       .button:hover {
         border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      button.primary:hover:not(:disabled),
+      .button.primary:hover {
+        border-color: var(--fg);
+        color: var(--bg);
+        box-shadow:
+          0 0 0 2px var(--bg),
+          0 0 0 3px var(--accent);
       }
 
       button:disabled {
         border-color: var(--border);
+        background: var(--surface);
         color: var(--fg-muted);
         cursor: default;
       }
 
-      /* 見た目はリンク、実体はボタン。副作用のある操作を GET にしないため。 */
+      /*
+       * 見た目はリンク、実体はボタン。副作用のある操作を GET にしないため。字面は
+       * リンク（base.css）と同じにする。
+       */
       button.link {
         padding: 0;
         border: 0;
         border-radius: 0;
         background: none;
-        color: var(--accent);
+        color: var(--fg);
         font: inherit;
         font-size: inherit;
-        text-decoration: underline;
+        text-decoration-line: underline;
+        text-decoration-thickness: 1px;
+        text-decoration-color: var(--fg-muted);
+        text-underline-offset: 0.3em;
         cursor: pointer;
       }
 
-      /* 入力欄。ボタンと同じ角丸で、同じ列に並んだときに揃う。 */
+      button.link:hover {
+        color: var(--accent);
+        text-decoration-color: var(--accent);
+      }
+
+      /*
+       * 入力欄。囲むものの形なので角を立てる。枠は淡い文字の色にする。罫線の色では
+       * 地とのあいだのコントラストが足りず、入力できる場所が見えにくい（tokens.css）。
+       */
       input[type='text'],
       input[type='date'],
       input[type='file'],
       textarea {
         padding: 0.45rem 0.5rem;
-        border: 1px solid var(--border);
+        border: 1px solid var(--fg-muted);
         border-radius: var(--radius);
         background: var(--surface);
         color: var(--fg);
@@ -251,17 +334,34 @@ const fullTitle = title === appTitle ? appTitle : `${title} | ${appTitle}`
         resize: vertical;
       }
 
-      /* ファイル選択の中のボタン。ブラウザ既定の灰色のままだと、ここだけ浮く。 */
+      /*
+       * ファイル選択の中のボタン。ブラウザ既定の灰色のままだと、ここだけ浮く。
+       * ほかのボタンと同じ形と手応えにする。
+       */
       input[type='file']::file-selector-button {
         margin-right: 0.75rem;
         padding: 0.25rem 0.9rem;
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        background: var(--bg);
+        border: 1px solid var(--fg);
+        border-radius: var(--radius-pill);
+        background: var(--surface);
         color: var(--fg);
         font: inherit;
         font-size: 0.9rem;
         cursor: pointer;
+        transition:
+          color 0.18s ease,
+          border-color 0.18s ease;
+      }
+
+      input[type='file']:not(:disabled)::file-selector-button:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      input[type='file']:disabled::file-selector-button {
+        border-color: var(--border);
+        color: var(--fg-muted);
+        cursor: default;
       }
 
       /* 入力欄の見出し。入力そのものの上に小さく置く。 */

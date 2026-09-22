@@ -1,0 +1,84 @@
+---
+/**
+ * ページの見出し。飾りの大きな語と、和文の見出し（`h1`）を組にして置く。
+ *
+ * **見出しは和文のほうである。** 大きな語は飾りで、読み上げから外す
+ * （`aria-hidden`）。見出しを辿ったときに、英字の語がページの見出しと重ねて
+ * 読まれないようにするため。和文の見出しは小さなラベルの字面で組むが、要素は
+ * `h1` のまま残す。読み上げと検索に使われる文字で、和文のほうが日記の読み手に
+ * 通じる。
+ *
+ * 大きな語は、期間で区切られたページではその期間を表す語（年の数字、月の略記）を
+ * ローマン体で、それ以外のページでは英字の語（Recent など）をイタリックで組む。
+ *
+ * 日別ページはこれを使わない。日付の部品（DateBlock）がその役を担う。
+ */
+interface Props {
+  /** 飾りの大きな語。`Recent`、`2026`、`Sep` */
+  word: string
+  /** 期間を表す語（年の数字、月の略記）。ローマン体で組む。 */
+  period?: boolean
+  /** ページの見出し。`最近の日記` */
+  title: string
+  /** 件数。見出しの下に淡い字で添える。 */
+  count?: number
+}
+
+const { word, period = false, title, count } = Astro.props
+---
+
+<div class="page-head">
+  <div class="page-head-title">
+    <p class:list={['page-head-word', { 'is-period': period }]} aria-hidden="true">{word}</p>
+    <h1>{title}</h1>
+  </div>
+  {count !== undefined && <p class="page-head-count muted">{count} 件</p>}
+</div>
+
+<style>
+  .page-head {
+    margin-bottom: 1.5rem;
+  }
+
+  .page-head-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 1rem;
+  }
+
+  .page-head-word {
+    margin: 0;
+    min-width: 0;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 3.1rem;
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+
+  .page-head-word.is-period {
+    font-style: normal;
+  }
+
+  /*
+   * 和文の見出しは、大きな語に添える小さなラベルの字面で組む。字間を広く取るので、
+   * 見出しに当たる約物の詰め（base.css）は外す。
+   */
+  h1 {
+    margin: 0;
+    color: var(--fg-muted);
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    letter-spacing: 0.24em;
+    font-feature-settings: normal;
+  }
+
+  .page-head-count {
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+  }
+</style>

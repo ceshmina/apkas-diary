@@ -1,0 +1,64 @@
+---
+/**
+ * 一覧への導線。日別ページの下（Sep 2026 / 2026 / On this day）と、月別ページの
+ * 下（2026）に置く。
+ *
+ * 見た目は英語だが、**読み上げには和文を渡す**（2026年9月の一覧、2026年の一覧、
+ * 過去の同じ日）。日本語の読み上げ音声は `Sep` をうまく読めず、英語の見出し語も
+ * 和文のほうが日記の読み手に通じる。
+ *
+ * 形は淡い枠のピルにする。前後の導線の下で、それより控えめに置くため、枠は
+ * `.pill` の黒ではなく罫線の色にする。
+ *
+ * どちらのページでも、罫線で区切った行の並び（前後の導線、エントリの一覧）の
+ * すぐ下に置く。間隔はここで持つ。
+ */
+interface Props {
+  links: {
+    href: string
+    /** 見せる語。`Sep 2026` */
+    label: string
+    /** 読み上げる語。`2026年9月の一覧` */
+    spoken: string
+  }[]
+}
+
+const { links } = Astro.props
+---
+
+<nav class="list-links">
+  {
+    links.map(({ href, label, spoken }) => (
+      <a href={href}>
+        <span aria-hidden="true">{label}</span>
+        <span class="visually-hidden">{spoken}</span>
+      </a>
+    ))
+  }
+</nav>
+
+<style>
+  .list-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.4rem;
+  }
+
+  .list-links a {
+    padding: 0.2rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    color: var(--fg);
+    font-family: var(--font-ui);
+    font-weight: 500;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+  }
+
+  .list-links a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+</style>

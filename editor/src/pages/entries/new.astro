@@ -23,7 +23,7 @@ const session = Astro.locals.session
 <Base title="日付を選ぶ" email={session?.email}>
   <h1>日付を選ぶ</h1>
 
-  {error && <p class="notice">{error}</p>}
+  {error && <p class="notice error">{error}</p>}
 
   <form method="get" action="/entries/new">
     <label>

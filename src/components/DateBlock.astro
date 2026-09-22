@@ -1,0 +1,81 @@
+---
+/**
+ * 日付の部品。日の数字を大きく置き、月・年と曜日を小さく添える。
+ *
+ * 見た目は英語の略記（20 / Sep 2026 / Sun）だが、**読み上げには和文の日付**
+ * （2026年9月20日（日））を渡す。日本語の読み上げ音声は `Sep` や `Mon` をうまく
+ * 読めない。和文を読み上げ専用に置き、英語の部分は読み上げから外す。`<time>` の
+ * `aria-label` に和文を持たせる形は採らない。役割を持たない要素の `aria-label` は、
+ * 読み上げに使われない環境がある。
+ *
+ * 見た目の並べ方（数字が左、月・年と曜日が右に2段）は CSS の grid で行い、読み上げの
+ * 順（年・月・日・曜日）とは切り離す。
+ *
+ * 使うのは一覧の行（EntryList）と日別ページの頭。ここの体裁は日別ページの頭の
+ * ものである。一覧は、題を添え書きの下に置くため、この箱を外して（`display:
+ * contents`）数字と添え書きを行の grid に直接並べ、大きさもそちらで決める。
+ */
+import { datePartsEn, formatDateJa } from '../lib/date.js'
+
+interface Props {
+  /** `YYYY-MM-DD` */
+  date: string
+  /** 見た目から年を省く。年の中の一覧で使う。読み上げの和文には常に年を含める。 */
+  showYear?: boolean
+  /**
+   * 朱の丸を添える。日別ページの頭でだけ使う。一覧で行ごとに付けると、朱が行の数
+   * だけ並んで印でなくなる。
+   */
+  mark?: boolean
+}
+
+const { date, showYear = true, mark = false } = Astro.props
+const { day, monthYear, weekday } = datePartsEn(date, { year: showYear })
+---
+
+<time class:list={['date-block', { 'has-mark': mark }]} datetime={date}>
+  <span class="visually-hidden">{formatDateJa(date)}</span>
+  <span class="date-block-day" aria-hidden="true">{day}</span>
+  <span class="date-block-meta" aria-hidden="true"><span>{monthYear}</span> <span>{weekday}</span></span>
+</time>
+
+<style>
+  .date-block {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: end;
+    column-gap: 0.9rem;
+  }
+
+  .date-block-day {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 5.4rem;
+    line-height: 0.78;
+    letter-spacing: -0.02em;
+  }
+
+  /* 欧文のラベルの字面。月と曜日は Sep / Sun の形のまま示し、大文字にしない。 */
+  .date-block-meta {
+    padding-bottom: 0.2rem;
+    font-family: var(--font-ui);
+    font-weight: 500;
+    font-size: 0.74rem;
+    line-height: 1.65;
+    letter-spacing: 0.14em;
+  }
+
+  .date-block-meta > span {
+    display: block;
+  }
+
+  .has-mark .date-block-meta::before {
+    content: '';
+    display: block;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-bottom: 0.55rem;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+</style>

@@ -1,4 +1,6 @@
 ---
+import { Font } from 'astro:assets'
+import { FONTS } from '../styles/fonts.js'
 // 配色と本文要素の見え方は編集アプリケーションと共有する。ここに書き戻すと、
 // プレビューと公開後の見え方がずれる余地が生まれる。
 import '../styles/tokens.css'
@@ -21,9 +23,28 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} | ${siteTitle}`
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     {description && <meta name="description" content={description} />}
-    {/* ブラウザの枠の色。値は tokens.css の --bg と同じで、ポートフォリオとも揃う。 */}
-    <meta name="theme-color" content="#f5f6f4" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#172d4f" media="(prefers-color-scheme: dark)" />
+    {/*
+     * 書体。定義とファイルはどれもこのサイト自身から配る（astro.config.ts）。
+     *
+     * 先読みは題字と大きな数字の書体（Instrument Serif の latin・normal）だけにする。
+     * どのページでも最初に見えるため。和文の断片は、どれが要るかがページの文字で
+     * 決まるので先読みしない。
+     */}
+    {
+      FONTS.map(({ cssVariable }) => (
+        <Font
+          cssVariable={cssVariable}
+          preload={
+            cssVariable === '--font-instrument-serif' && [{ subset: 'latin', style: 'normal' }]
+          }
+        />
+      ))
+    }
+    {/*
+     * ブラウザの枠の色。値は tokens.css の --bg と同じ。配色は白い地の1通りなので、
+     * 明暗の設定で分けない。
+     */}
+    <meta name="theme-color" content="#ffffff" />
     <link rel="icon" href="data:," />
   </head>
   <body>
@@ -35,7 +56,7 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} | ${siteTitle}`
       <slot />
     </main>
 
-    <!-- 中身は持たないが、本文の終わりを示す区切りとして置いている。 -->
+    <!-- 中身は持たないが、本文の終わりを示す余白として置いている。 -->
     <footer></footer>
 
     <style is:global>
@@ -47,30 +68,45 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} | ${siteTitle}`
         margin: 0 auto;
       }
 
+      /* 題字の下に強い罫線を引く。 */
       header {
-        padding: 1.5rem 0;
-        border-bottom: 1px solid var(--border);
+        padding: 1.7rem 0 0.75rem;
+        border-bottom: 1px solid var(--fg);
       }
 
-      /* サイトの題は名前にあたるので明朝で組む（ポートフォリオの `.hero__name`）。 */
+      /*
+       * サイトの題字。題字と数字の書体で組み、朱の小さな丸を添える。丸は常に出ている
+       * 印で、朱の使いどころの1つ（tokens.css）。編集アプリケーションの題
+       * （`.app-title`）も同じ字面にしている。
+       */
       .site-title {
-        font-family: var(--font-serif);
-        font-weight: 500;
-        font-feature-settings: 'palt' 1;
-        font-size: 1.1rem;
-        letter-spacing: 0.04em;
-        text-decoration: none;
         color: var(--fg);
+        font-family: var(--font-display);
+        font-weight: 400;
+        font-size: 1.95rem;
+        line-height: 1;
+        letter-spacing: -0.005em;
+        text-decoration: none;
+      }
+
+      .site-title::after {
+        content: '';
+        display: inline-block;
+        width: 0.3rem;
+        height: 0.3rem;
+        margin-left: 0.12rem;
+        border-radius: 50%;
+        background: var(--accent);
       }
 
       main {
-        padding: 2rem 0 3rem;
+        padding: 2.8rem 0 4.5rem;
         min-height: 60vh;
       }
 
+      /* 区切りの線は引かず、余白だけを置く。 */
       footer {
-        padding-bottom: 3rem;
-        border-top: 1px solid var(--border);
+        padding: 1.5rem 0 3rem;
       }
     </style>
   </body>

@@ -1,7 +1,17 @@
 ---
+import DateBlock from '../../../components/DateBlock.astro'
+import ListLinks from '../../../components/ListLinks.astro'
 import PhotoZoom from '../../../components/PhotoZoom.astro'
 import Base from '../../../layouts/Base.astro'
-import { dayOf, formatDateJa, monthDayOf, monthOf, yearOf } from '../../../lib/date.js'
+import {
+  dayOf,
+  formatDateEn,
+  formatDateJa,
+  monthAbbrOf,
+  monthDayOf,
+  monthOf,
+  yearOf,
+} from '../../../lib/date.js'
 import { renderMarkdown } from '../../../lib/markdown.js'
 import { type EntryLink, entriesWithNeighbors } from '../../../lib/site-data.js'
 import type { Entry } from '../../../lib/store/entry.js'
@@ -32,6 +42,8 @@ const { entry, newer, older } = Astro.props as {
 const html = await renderMarkdown(entry.body)
 const monthDay = monthDayOf(entry.date)
 const dateJa = formatDateJa(entry.date)
+const year = yearOf(entry.date)
+const month = monthOf(entry.date)
 
 function hrefOf(date: string): string {
   return `/${yearOf(date)}/${monthOf(date)}/${dayOf(date)}`
@@ -40,73 +52,85 @@ function hrefOf(date: string): string {
 // 日記に名前を付けない日のほうが多い。タイトルの不在は欠落ではないので、
 // 「(無題)」のような文言では示さず、日付そのものを見出しにする。
 //
-// 日付を出す場所はタイトルの有無で排他になる（見出しか、その上の日付行か）。
-// 同じ日付が1ページに2度現れないため、書式を変えて見分けさせる必要がない。
-// タイトルの有無によらず `formatDateJa` の1つの書式で通す。
+// 日付を出す場所はタイトルの有無で排他になる（見出しそのものか、その上か）。
+// 同じ日付が1ページに2度現れないため、形を変えて見分けさせる必要がない。
+// タイトルの有無によらず、日付の部品（DateBlock）の1つの形・1つの大きさで通す。
+// 文書の題（`<title>`）は、読み上げと検索に使われる文字なので和文のままにする。
 ---
 
 <Base title={entry.title || dateJa}>
   <article>
     {
-      entry.title && (
-        <p class="date">
-          <time datetime={entry.date}>{dateJa}</time>
-        </p>
+      entry.title ? (
+        <>
+          <p class="dateline">
+            <DateBlock date={entry.date} mark />
+          </p>
+          <h1>{entry.title}</h1>
+        </>
+      ) : (
+        <h1>
+          <DateBlock date={entry.date} mark />
+        </h1>
       )
     }
-    <h1>
-      {entry.title || <time datetime={entry.date}>{dateJa}</time>}
-    </h1>
 
     <div class="body prose" set:html={html} />
   </article>
 
   {/*
-   * 前後の導線。`←` が新しい日付、`→` が古い日付を指す。一覧が新しい順に並ぶのと
-   * 同じ向きで、一覧を下へ読むことと `→` を辿ることが、どちらも過去へ遡る動きになる。
+   * 前後の導線。左が新しい日付、右が古い日付を指す。一覧が新しい順に並ぶのと
+   * 同じ向きで、一覧を下へ読むことと右を辿ることが、どちらも過去へ遡る動きになる。
    *
    * 隣が存在しない側は要素ごと出さない。タイトルのないエントリに「(無題)」と書かない
    * のと同じで、そこに何かが欠けているわけではない。
    *
-   * 矢印は向きの手がかりであって、唯一の手がかりではない。どちらが新しいかは
-   * 添えた日付を読めば分かるため、矢印そのものは読み上げの対象から外す。
+   * `← Newer` / `Older →` は向きの手がかりであって、唯一の手がかりではない。どちらが
+   * 新しいかは添えた日付を読めば分かるため、読み上げの対象から外す。日付は1行の英語
+   * （Mon, Sep 21, 2026）で見せ、読み上げには和文を渡す。
    */}
   <nav class="adjacent">
     {
       newer && (
         <a class="newer" href={hrefOf(newer.date)}>
-          <span class="arrow" aria-hidden="true">
-            ←
+          <span class="adjacent-word" aria-hidden="true">
+            ← Newer
           </span>
-          <span class="label">
-            <time datetime={newer.date}>{formatDateJa(newer.date)}</time>
-            {newer.title && <span class="entry-title">{newer.title}</span>}
-          </span>
+          <time datetime={newer.date}>
+            <span class="visually-hidden">{formatDateJa(newer.date)}</span>
+            <span aria-hidden="true">{formatDateEn(newer.date)}</span>
+          </time>
+          {newer.title && <span class="entry-title">{newer.title}</span>}
         </a>
       )
     }
     {
       older && (
         <a class="older" href={hrefOf(older.date)}>
-          <span class="label">
-            <time datetime={older.date}>{formatDateJa(older.date)}</time>
-            {older.title && <span class="entry-title">{older.title}</span>}
+          <span class="adjacent-word" aria-hidden="true">
+            Older →
           </span>
-          <span class="arrow" aria-hidden="true">
-            →
-          </span>
+          <time datetime={older.date}>
+            <span class="visually-hidden">{formatDateJa(older.date)}</span>
+            <span aria-hidden="true">{formatDateEn(older.date)}</span>
+          </time>
+          {older.title && <span class="entry-title">{older.title}</span>}
         </a>
       )
     }
   </nav>
 
-  <nav class="links">
-    <a href={`/${yearOf(entry.date)}/${monthOf(entry.date)}`}>
-      {Number(monthOf(entry.date))}月の一覧
-    </a>
-    <a href={`/${yearOf(entry.date)}`}>{yearOf(entry.date)}年の一覧</a>
-    <a href={`/on-this-day/${monthDay}`}>過去の同じ日</a>
-  </nav>
+  <ListLinks
+    links={[
+      {
+        href: `/${year}/${month}`,
+        label: `${monthAbbrOf(month)} ${year}`,
+        spoken: `${year}年${Number(month)}月の一覧`,
+      },
+      { href: `/${year}`, label: year, spoken: `${year}年の一覧` },
+      { href: `/on-this-day/${monthDay}`, label: 'On this day', spoken: '過去の同じ日' },
+    ]}
+  />
 
   {/*
    * 本文の写真を拡大して見るための器。中身は空で、押された写真をスクリプトが
@@ -116,14 +140,16 @@ function hrefOf(date: string): string {
 </Base>
 
 <style>
-  .date {
-    margin: 0 0 0.25rem;
-    color: var(--fg-muted);
-    font-size: 0.9rem;
+  .dateline {
+    margin: 0 0 1.7rem;
   }
 
+  /* 記事の題。タイトルのない日は、日付の部品を包む見出しになる。 */
   h1 {
-    margin-bottom: 2rem;
+    margin-bottom: 2.6rem;
+    font-size: 1.85rem;
+    line-height: 1.5;
+    text-wrap: balance;
   }
 
   .body {
@@ -133,11 +159,6 @@ function hrefOf(date: string): string {
 
   .body :global(> :first-child) {
     margin-top: 0;
-  }
-
-  /* 本文中の `---`。前後の段落と紛れないよう、既定よりも広く空ける。 */
-  .body :global(hr) {
-    margin: 3rem 0;
   }
 
   /*
@@ -180,98 +201,101 @@ function hrefOf(date: string): string {
    * `figcaption` は画像1枚に対する説明、行全体に及ぶセルは並び全体に対する説明で、
    * 読み手にとっては同じものなので体裁を揃える。画像の入るセルに `colspan` が
    * 付くことはないため、`td[colspan]` で説明の行だけを選べる。
+   *
+   * 左に寄せ、先頭に朱の「—」を添える。「—」は飾りなので読み上げない（`/` の後ろが
+   * 読み上げの代わりの文字で、空にしてある。これを解さないブラウザは、手前の宣言を
+   * 使う）。
    */
   .body :global(figcaption),
   .body :global(td[colspan]) {
-    padding-top: 0.35rem;
+    padding-top: 0.55rem;
     color: var(--fg-muted);
-    font-size: 0.85rem;
-    line-height: 1.6;
-    text-align: center;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    letter-spacing: 0.04em;
+    text-align: left;
   }
 
-  /* 前後の導線。左が新しい日付、右が古い日付。 */
-  .adjacent {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.25rem 1.5rem;
-    margin-top: 3rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--border);
-    font-size: 0.9rem;
-    line-height: 1.6;
+  .body :global(figcaption::before),
+  .body :global(td[colspan]::before) {
+    content: '— ';
+    content: '— ' / '';
+    color: var(--accent);
   }
 
   /*
-   * 幅は半分ずつ取り、基準幅を保てなくなる狭い画面では上下に折り返す。
-   * `flex: 0 1 auto` だと折り返さずに横で潰れ合い、長いタイトルが細い柱になる。
-   * `min-width: 0` は、その基準幅よりさらに狭いときにはみ出さないため。
+   * 前後の導線。上に強い罫線を引き、行どうしは淡い罫線で分ける。
+   *
+   * 狭い画面では上下に積む。古い側は、片方しかない端のエントリでも右に寄せる。
+   * ここで左に流れると、`Older →` が画面の左に現れて向きの手がかりが壊れる。
    */
+  .adjacent {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 4rem;
+    border-top: 1px solid var(--fg);
+    line-height: 1.6;
+  }
+
   .adjacent a {
     display: flex;
-    flex: 1 1 14rem;
-    gap: 0.4rem;
-    min-width: 0;
-    text-decoration: none;
-    color: inherit;
-  }
-
-  /*
-   * 古い側は常に右端に置く。片方しかない端のエントリでは幅いっぱいに広がるが、
-   * 中身は右に寄せたままにする。ここで左に流れると `→` が画面の左に現れて、
-   * 向きの手がかりが壊れる。
-   */
-  .adjacent .older {
-    justify-content: flex-end;
-  }
-
-  .adjacent .label {
-    display: flex;
     flex-direction: column;
+    gap: 0.15rem;
     min-width: 0;
+    padding: 1.1rem 0;
+    border-bottom: 1px solid var(--border);
+    color: inherit;
+    text-decoration: none;
   }
 
-  .adjacent .older .label {
+  .adjacent .older {
+    align-items: flex-end;
     text-align: right;
   }
 
-  .arrow {
-    flex: 0 0 auto;
-    color: var(--fg-muted);
+  .adjacent-word {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.45rem;
+    line-height: 1.2;
   }
 
   .adjacent time {
     color: var(--fg-muted);
-    font-size: 0.85rem;
-    font-variant-numeric: tabular-nums;
+    font-family: var(--font-ui);
+    font-weight: 500;
+    font-size: 0.74rem;
+    letter-spacing: 0.08em;
   }
 
-  /*
-   * タイトルがなく日付だけの導線。一覧の日付だけの行と同じく、色をリンクに寄せる。
-   * この導線では日付が唯一の手がかりなので、押せるものとして見えている必要がある。
-   */
-  .adjacent time:only-child {
+  .adjacent .entry-title {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+    font-feature-settings: 'palt' 1;
+  }
+
+  .adjacent a:hover .adjacent-word {
     color: var(--accent);
   }
 
-  .entry-title {
-    color: var(--accent);
-  }
-
-  .adjacent a:hover .entry-title,
-  .adjacent a:hover time:only-child {
-    text-decoration: underline;
-  }
-
   /*
-   * 一覧への導線。前後の導線と合わせて1つのまとまりとして見せるため、
-   * 区切り線は上の `.adjacent` のものだけにし、ここでは間隔だけを空ける。
+   * 幅があるときは左右2列にする。古い側は常に右の列に置く。片方しかないときも
+   * 列を詰めない。左右の題が長くても中ほどで触れ合わないよう、内側を少し空ける。
    */
-  .links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem 1.5rem;
-    margin-top: 1.5rem;
-    font-size: 0.9rem;
+  @media (min-width: 36rem) {
+    .adjacent {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .adjacent .newer {
+      padding-right: 0.75rem;
+    }
+
+    .adjacent .older {
+      grid-column: 2;
+      padding-left: 0.75rem;
+    }
   }
 </style>
