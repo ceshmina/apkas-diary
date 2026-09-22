@@ -1,6 +1,7 @@
 ---
-import { dayOf, formatDateJa, monthOf, yearOf } from '../lib/date.js'
+import { dayOf, monthOf, yearOf } from '../lib/date.js'
 import type { Entry } from '../lib/store/entry.js'
+import DateBlock from './DateBlock.astro'
 
 interface Props {
   entries: Entry[]
@@ -29,9 +30,7 @@ function hrefOf(date: string): string {
       {entries.map((entry) => (
         <li>
           <a href={hrefOf(entry.date)}>
-            <time datetime={entry.date}>
-              {showYear ? formatDateJa(entry.date) : formatDateJa(entry.date).replace(/^\d+年/, '')}
-            </time>
+            <DateBlock date={entry.date} showYear={showYear} />
             {entry.title && <span class="entry-title">{entry.title}</span>}
           </a>
         </li>
@@ -41,54 +40,130 @@ function hrefOf(date: string): string {
 }
 
 <style>
+  /* 一覧の上には強い罫線を引き、行どうしは淡い罫線で分ける。 */
   .entry-list {
     list-style: none;
     margin: 0;
     padding: 0;
+    border-top: 1px solid var(--fg);
   }
 
   .entry-list li {
     border-bottom: 1px solid var(--border);
   }
 
+  /*
+   * 行。日の数字を左に大きく置き、右に月・年と曜日、その下に題を置く。
+   *
+   * 日付の部品（DateBlock）は箱を外し（`display: contents`）、数字と添え書きを
+   * この grid に直接並べる。題を添え書きの下に置くため。部品の中の要素には
+   * この一覧の印が付かないので、`:global()` で届かせる。
+   */
   .entry-list a {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 1rem;
-    padding: 0.85rem 0;
-    text-decoration: none;
+    display: grid;
+    grid-template-columns: 3.2rem minmax(0, 1fr);
+    grid-template-areas:
+      'day meta'
+      'day title';
+    column-gap: 0.9rem;
+    align-items: center;
+    padding: 0.8rem 0;
     color: inherit;
+    text-decoration: none;
   }
 
-  .entry-list a:hover .entry-title,
-  .entry-list a:hover time:only-child {
-    text-decoration: underline;
+  .entry-list a :global(.date-block) {
+    display: contents;
   }
 
-  time {
-    flex: 0 0 auto;
+  .entry-list a :global(.date-block-day) {
+    grid-area: day;
+    font-size: 2.55rem;
+    line-height: 1;
+  }
+
+  /*
+   * 月・年と曜日。狭い画面では1行に並べ、間に点を置く。2段にすると、題の行と
+   * 合わせて行が3段になる。
+   */
+  .entry-list a :global(.date-block-meta) {
+    grid-area: meta;
+    align-self: end;
+    padding-bottom: 0;
     color: var(--fg-muted);
-    font-size: 0.85rem;
-    font-variant-numeric: tabular-nums;
+    font-size: 0.7rem;
+    line-height: 1.6;
+    letter-spacing: 0.12em;
   }
 
-  /*
-   * タイトルがなく日付だけの行。大きさと桁揃えはそのままに、色だけリンクに寄せる。
-   * この行では日付が唯一の手がかりなので、押せるものとして見えている必要がある。
-   */
-  time:only-child {
-    color: var(--accent);
+  .entry-list a :global(.date-block-meta > span) {
+    display: inline;
   }
 
-  /*
-   * エントリの題。並んだリンクの題にあたるので明朝で組む（ポートフォリオの
-   * `.link__label`）。左に添えた日付は 0.85rem なのでゴシックのまま。
-   */
+  .entry-list a :global(.date-block-meta > span + span::before) {
+    content: '· ';
+  }
+
+  /* 題のない行。添え書きを、数字の高さの真ん中に置く。 */
+  .entry-list a :global(.date-block:only-child .date-block-meta) {
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+
+  /* エントリの題。並んだリンクの題にあたるので明朝で組む。 */
   .entry-title {
-    flex: 1 1 12rem;
-    color: var(--accent);
+    grid-area: title;
+    align-self: start;
     font-family: var(--font-serif);
-    font-weight: 500;
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1.6;
+    letter-spacing: 0.04em;
     font-feature-settings: 'palt' 1;
+  }
+
+  /* 触れた行は、日の数字が朱になり、題に朱の下線が出る。 */
+  .entry-list a:hover :global(.date-block-day) {
+    color: var(--accent);
+  }
+
+  .entry-list a:hover .entry-title {
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-decoration-color: var(--accent);
+    text-underline-offset: 0.35em;
+  }
+
+  /* 本文の列が最大幅に達する幅から、数字・添え書き・題の3列にする。 */
+  @media (min-width: 42.5rem) {
+    .entry-list a {
+      grid-template-columns: 3.6rem 8rem minmax(0, 1fr);
+      grid-template-areas: 'day meta title';
+      column-gap: 1.2rem;
+    }
+
+    .entry-list a :global(.date-block-day) {
+      font-size: 2.8rem;
+    }
+
+    .entry-list a :global(.date-block-meta) {
+      align-self: center;
+    }
+
+    .entry-list a :global(.date-block-meta > span) {
+      display: block;
+    }
+
+    .entry-list a :global(.date-block-meta > span + span::before) {
+      content: none;
+    }
+
+    .entry-list a :global(.date-block:only-child .date-block-meta) {
+      grid-row: auto;
+    }
+
+    .entry-title {
+      align-self: center;
+    }
   }
 </style>

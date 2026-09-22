@@ -119,17 +119,21 @@ export function todayJst(): string {
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'] as const
 
 /**
- * 曜日を返す。
+ * 曜日の番号（日曜が 0）。
  *
  * `Date.UTC` で明示的に UTC の暦日として組み立てるため、実行環境の
  * タイムゾーン設定に依存しない。
  */
-export function weekdayOf(date: string): string {
+function weekdayIndexOf(date: string): number {
   const year = Number(date.slice(0, 4))
   const month = Number(date.slice(5, 7))
   const day = Number(date.slice(8, 10))
-  const index = new Date(Date.UTC(year, month - 1, day)).getUTCDay()
-  return WEEKDAYS[index] ?? ''
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay()
+}
+
+/** 曜日を返す。`2026-08-01` -> `土` */
+export function weekdayOf(date: string): string {
+  return WEEKDAYS[weekdayIndexOf(date)] ?? ''
 }
 
 /** `2026-08-01` -> `2026年8月1日（土）` */
@@ -143,4 +147,74 @@ export function formatDateJa(date: string): string {
 /** `08-01` -> `8月1日` */
 export function formatMonthDayJa(monthDay: string): string {
   return `${Number(monthDay.slice(0, 2))}月${Number(monthDay.slice(3, 5))}日`
+}
+
+/*
+ * 英語の略記。公開サイトは日付と期間を英語の略記で見せる。
+ *
+ * **英語にするのは見た目だけで、読み上げには和文を渡す。** 日本語の読み上げ音声は
+ * `Sep` や `Mon` をうまく読めない。見た目の英語と読み上げの和文（`formatDateJa`
+ * など）は、同じ日付の文字列からこのモジュールの関数で作る。片方だけを手で書くと、
+ * 見た目と読み上げが食い違う余地が生まれる。
+ *
+ * 略記は先頭だけを大文字にした形（Sep、Mon）で返す。小さな字でも語の形のまま
+ * 読めるように、体裁の側で大文字に変えないこと。
+ */
+const MONTH_ABBRS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const
+
+const WEEKDAY_ABBRS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+
+/** 月の略記。`9` や `09` -> `Sep` */
+export function monthAbbrOf(month: number | string): string {
+  return MONTH_ABBRS[Number(month) - 1] ?? ''
+}
+
+/** 曜日の略記。`2026-09-20` -> `Sun` */
+export function weekdayAbbrOf(date: string): string {
+  return WEEKDAY_ABBRS[weekdayIndexOf(date)] ?? ''
+}
+
+export interface DatePartsEn {
+  /** 日の数字。ゼロ埋めしない。`20` */
+  day: string
+  /** 月と年。`Sep 2026`。年を省くと `Sep` */
+  monthYear: string
+  /** 曜日。`Sun` */
+  weekday: string
+}
+
+/**
+ * 日付を、英語で見せる部分に分ける。日の数字を大きく置き、月・年と曜日を小さく
+ * 添える形（一覧の行、日別ページの頭）に使う。
+ *
+ * `2026-09-20` -> `{ day: '20', monthYear: 'Sep 2026', weekday: 'Sun' }`
+ *
+ * 年の中の一覧では年を省く（`{ year: false }` で `monthYear` が `Sep`）。
+ */
+export function datePartsEn(date: string, { year = true }: { year?: boolean } = {}): DatePartsEn {
+  const month = monthAbbrOf(monthOf(date))
+  return {
+    day: String(Number(dayOf(date))),
+    monthYear: year ? `${month} ${yearOf(date)}` : month,
+    weekday: weekdayAbbrOf(date),
+  }
+}
+
+/** 日付を1行の英語で。前後の導線に使う。`2026-09-21` -> `Mon, Sep 21, 2026` */
+export function formatDateEn(date: string): string {
+  const { day, monthYear, weekday } = datePartsEn(date, { year: false })
+  return `${weekday}, ${monthYear} ${day}, ${yearOf(date)}`
 }

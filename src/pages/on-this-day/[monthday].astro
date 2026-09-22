@@ -1,5 +1,6 @@
 ---
 import EntryList from '../../components/EntryList.astro'
+import PageHead from '../../components/PageHead.astro'
 import Base from '../../layouts/Base.astro'
 import { allMonthDays, formatMonthDayJa } from '../../lib/date.js'
 import { byDateDesc, entriesByMonthDay } from '../../lib/site-data.js'
@@ -30,7 +31,7 @@ const label = formatMonthDayJa(monthday ?? '01-01')
 ---
 
 <Base title={`${label}の記録`}>
-  <h1>{label}の記録</h1>
+  <PageHead word="On this day" title={`${label}の記録`} />
 
   <EntryList
     entries={entries}

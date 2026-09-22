@@ -20,10 +20,11 @@ html {
 
   /*
    * ブラウザが自前で描くもの（日付の入力欄の暦、スクロールバー、ファイル選択の
-   * ボタン）を、明暗の設定に追従させる。これを言わないと、暗い設定でも明るい
-   * 前提の部品が出て、そこだけ浮く。
+   * ボタン）を、明るい側に固定する。配色は白い地の1通りなので、暗い設定の
+   * ブラウザでもそのまま白い地に置く。これを言わないと、暗い設定ではそこだけ
+   * 暗く描かれて浮く。
    */
-  color-scheme: light dark;
+  color-scheme: light;
 
   /* 選択の印（ラジオ・チェックボックス）もアクセント色にする。 */
   accent-color: var(--accent);
@@ -32,7 +33,7 @@ html {
 /* 地はゴシック。明朝にするものだけを、この下で名指しする。 */
 body {
   margin: 0;
-  padding: 0 1.5rem;
+  padding: 0 1.25rem;
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font-sans);
@@ -40,64 +41,101 @@ body {
   line-height: 1.9;
   letter-spacing: 0.02em;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /*
- * 明朝で組む要素。当てるのは名前・見出し・本文だけで、0.9rem 以下のラベルや
- * 注記はゴシックのままにする（小さい字の明朝はかすれる）。日付・件数・ピル・
- * フォーム・前後の導線がその側にあたる。
+ * 明朝で組む要素。当てるのは題だけで、本文とラベルはゴシックのままにする。
+ * 記事と一覧の題は、ここで共有していない要素なので、それぞれの側で同じ書体を
+ * 当てている。
  *
- * 游明朝は太さの指定がないと Light を拾って痩せて見えるので 500 を当てる。
- * 見出しも太らせず、強さは字の大きさと字送りで出す。
+ * 明朝は 600 の1つしか読み込まない（fonts.ts）。見出しの強さは太さを変えずに、
+ * 字の大きさで出す。
  *
- * サイトの題（`.site-title` / `.app-title`）と一覧のエントリ題は、ここで
- * 共有していない要素なので、それぞれの側で同じ指定を当てている。
- */
-h1,
-h2,
-.prose {
-  font-family: var(--font-serif);
-  font-weight: 500;
-}
-
-/*
  * 見出しは約物を詰める。全角の括弧や句読点まわりの空きが減り、字面が締まって
  * 見える。本文（`.prose`）には当てない。長い文で行うものではない。
  */
 h1,
 h2 {
+  font-family: var(--font-serif);
+  font-weight: 600;
   font-feature-settings: 'palt' 1;
-}
-
-a {
-  color: var(--accent);
 }
 
 h1 {
   font-size: 1.5rem;
   line-height: 1.5;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.04em;
   margin: 0 0 1.5rem;
 }
 
 h2 {
   font-size: 1.2rem;
   line-height: 1.4;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.04em;
   margin: 2rem 0 0.75rem;
+}
+
+/*
+ * リンク。字は地の文と同じ黒のまま、淡い下線で見分けさせる。朱を字の色として
+ * 常に示すことはしない（tokens.css）。ホバーで字と下線が朱になる。
+ *
+ * `:where()` で包んで詳細度を持たせない。一覧の行・ピル・前後の導線のように、
+ * リンクを部品として見せる側が、この上に自分の体裁をそのまま重ねられる。
+ */
+:where(a) {
+  color: var(--fg);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--fg-muted);
+  text-underline-offset: 0.3em;
+}
+
+:where(a:hover) {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+/*
+ * 強調。本文の書体は 700 を持たない（fonts.ts）。700 を指定するとブラウザが
+ * 疑似的に太らせて字面が崩れるので、持っている中でいちばん太い 500 にする。
+ */
+strong,
+b {
+  font-weight: 500;
 }
 
 /*
  * エントリの本文。公開サイトの日別ページと編集アプリケーションのプレビューが
  * 共に当てる。片方だけに書くと、プレビューで見たものと公開後の字面がずれる。
  *
- * 明朝は同じ級数でもゴシックより小さく見えるので、地の 1rem より少し上げ、
- * 行送りと字送りも本文の側へ広げてある。書体と太さは上の宣言から来る。
+ * 大きさは tokens.css の --text-prose で、画面の幅によって変わる。
  */
 .prose {
-  font-size: 1.05rem;
-  line-height: 2.05;
+  font-family: var(--font-sans);
+  font-size: var(--text-prose);
+  font-weight: 400;
+  line-height: 2;
   letter-spacing: 0.04em;
+}
+
+.prose p {
+  margin: 0 0 1.3em;
+}
+
+/*
+ * 本文の区切り（Markdown の `---`）。朱の短い線を左に寄せて置く。区切りとしての
+ * 広さは、線の長さではなく前後の余白で取る。
+ *
+ * 線は地の塗りではなく枠で引く。強制配色（Windows のハイコントラストなど）では
+ * 地の塗りが消えるが、枠は残る。
+ */
+hr {
+  width: 1.6rem;
+  height: 0;
+  margin: 2.6rem 0;
+  border: 0;
+  border-top: 2px solid var(--accent);
 }
 
 img {
@@ -118,30 +156,57 @@ pre {
 }
 
 /*
+ * 見た目からは外し、読み上げには残す。英語の略記で見せる日付や期間に、和文の
+ * 読みを添えるために使う（「Sep」に「9月」、「2026」に「2026年」など）。
+ *
+ * 見せる語は `aria-hidden` にし、読み上げる語はここにまるごと置く。見せる語に
+ * 足りない字だけをここに置くと（「2026」に「年」だけ）、この要素がブロックとして
+ * 扱われ、読み上げの名前が「2026 年」と間の空いたものになる。
+ *
+ * 書体は OS のものにする。見えない字のために和文の書体の断片を読ませない。
+ */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  font-family: sans-serif;
+}
+
+/*
  * 短い語をひとかたまりで示すピル。公開サイト（年・月の並び）と編集
  * アプリケーション（公開状態、実行状態、差し替え）の両方に現れるので、
- * どちらか一方ではなくここに置く。ポートフォリオの `.tags` と同じ体裁で、
- * 塗りは持たず、細い枠と字送りで見せる。
+ * どちらか一方ではなくここに置く。押せるものの形なので丸くし、塗りは持たず、
+ * 細い枠で見せる。欧文のラベルの字面で組み、和文は本文のゴシックの 500 で出る。
  *
- * 日記のピルは、あちらのタグと違って状態を示す。塗りが無い以上、際立たせる
- * 側とそうでない側は枠で分ける。
+ * 日記のピルは状態を示す。際立たせる側とそうでない側は、字の色ではなく囲みで
+ * 分ける。
  *
  *   `is-quiet`     囲みを持たない側（下書き、実行していない状態、いま見て
  *                  いない年）。枠は残したまま透明にするので、並んだときの
  *                  箱の大きさは変わらない。
- *   `aria-current` いま居る場所。ここだけ枠がアクセント色になる。
+ *   `aria-current` いま居る場所。黒で塗って白抜きにする。朱は手応えに
+ *                  使っているので、居場所には使わない。
  *
- * 字の色だけで分けないのは、`--accent` と `--fg-muted` の輝度がほとんど
- * 並んでおり、色を頼りにできない見え方では区別が付かないため。
+ * ホバーで枠と字を朱にするのは、押せるピル（リンク）だけにする。状態を示す
+ * だけのピルに手応えを付けると、押せるように見えてしまう。黒で塗った
+ * `aria-current` も除く。黒の上の朱は読むに足るコントラストを持たない。
  */
 .pill {
   display: inline-block;
-  padding: 0.28rem 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--accent);
-  font-size: 0.78rem;
-  letter-spacing: 0.1em;
+  padding: 0.28rem 1rem;
+  border: 1px solid var(--fg);
+  border-radius: var(--radius-pill);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
   line-height: 1.5;
   text-decoration: none;
 }
@@ -152,7 +217,14 @@ pre {
 }
 
 .pill[aria-current] {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+}
+
+a.pill:not([aria-current]):hover {
   border-color: var(--accent);
+  color: var(--accent);
 }
 
 /*
@@ -162,22 +234,19 @@ pre {
  * 編集画面で左右に並ぶ「本文（Markdown）」「プレビュー」）。
  *
  * 最後の1つだけは `label` に当たる（入力欄と結び付けたまま、右のプレビューと
- * 同じ字面にするため）。`label` は base.css で縦積みにしてあるので、当てた側で
- * 横並びに戻している。
+ * 同じ字面にするため）。`label` は編集アプリケーションの Base.astro で縦積みに
+ * してあるので、当てた側で横並びに戻している。
  *
- * `h2` に当てる以上、明朝に落ちないようゴシックを明示する。ポートフォリオの
- * `.section__title` も同じ理由で書体を明示している。
- *
- * あちらは、小さな大文字ラベルの右へ罫線を伸ばす。日本語には大文字化が効かない
- * ので、罫線のほうを目印として持ってきている。
+ * `h2` に当てる以上、明朝に落ちないようゴシックを明示する。小さなラベルの右へ
+ * 罫線を伸ばし、その組で節の題であることを示す。
  */
 .section-title {
   display: flex;
   align-items: center;
   gap: 1.15rem;
-  color: var(--accent);
+  color: var(--fg-muted);
   font-family: var(--font-sans);
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.75rem;
   letter-spacing: 0.24em;
 }
@@ -189,11 +258,37 @@ pre {
   background: var(--border);
 }
 
-/* キーボードで辿っている位置。地の色によらず見えている必要がある。 */
+/*
+ * 節の題の前に添える飾りの英字（トップの「年別」の Archive）。見出しとして
+ * 重ねて読まれないよう、置く側で `aria-hidden` にする。
+ *
+ * 添えたときは、英字と和文のラベルを字の並びの線で揃え、罫線もその線の上に
+ * 引く。真ん中で揃えると、大きな英字の中ほどにラベルが浮く。
+ */
+.section-title:has(> .section-title-word) {
+  align-items: baseline;
+}
+
+.section-title-word {
+  color: var(--fg);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 2.2rem;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+/*
+ * キーボードで辿っている位置。地の色によらず見えている必要がある。
+ *
+ * 角丸は指定しない。ここで `border-radius` を書くと、輪郭線ではなく要素
+ * そのものの角丸が書き換わり、丸いピルやボタンがフォーカスした瞬間に角張る。
+ * いまのブラウザは、輪郭線を要素の角丸に沿って描く。
+ */
 :focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: 3px;
-  border-radius: var(--radius);
 }
 
 /*

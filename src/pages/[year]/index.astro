@@ -1,6 +1,8 @@
 ---
 import EntryList from '../../components/EntryList.astro'
+import PageHead from '../../components/PageHead.astro'
 import Base from '../../layouts/Base.astro'
+import { monthAbbrOf } from '../../lib/date.js'
 import { byDateDesc, entriesByYear, entriesByYearMonth } from '../../lib/site-data.js'
 import type { Entry } from '../../lib/store/entry.js'
 
@@ -28,17 +30,17 @@ const months = [...byMonth.keys()]
 ---
 
 <Base title={`${year}年の日記`}>
-  <h1>{year}年の日記</h1>
-
-  <p class="muted">{entries.length} 件</p>
+  <PageHead word={year ?? ''} period title={`${year}年の日記`} count={entries.length} />
 
   {
     months.length > 0 && (
       <ul class="month-list">
+        {/* 月は略記（Sep）で見せ、読み上げには和文（9月）を渡す。 */}
         {months.map((month) => (
           <li>
             <a class="pill" href={`/${year}/${month}`}>
-              {Number(month)}月
+              <span aria-hidden="true">{monthAbbrOf(month)}</span>
+              <span class="visually-hidden">{Number(month)}月</span>
             </a>
           </li>
         ))}

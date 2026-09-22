@@ -565,9 +565,14 @@ if (isValidDate(date)) {
       padding-block: 0.55rem;
     }
 
+    /*
+     * 選んでいるタブ。いま居る場所なので、朱ではなく黒で塗って白抜きにする
+     * （公開サイトのピルの aria-current と同じ）。朱は手応えに使っている。
+     */
     .tabs button[aria-selected='true'] {
-      border-color: var(--accent);
-      color: var(--accent);
+      border-color: var(--fg);
+      background: var(--fg);
+      color: var(--bg);
     }
 
     .pane {

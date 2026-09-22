@@ -20,7 +20,7 @@ const loginUrl = `/auth/login?redirect=${encodeURIComponent(redirectTo)}`
 
   {
     denied && (
-      <p class="notice">
+      <p class="notice error">
         ログインできませんでした。許可されたアカウントで、もう一度お試しください。
       </p>
     )

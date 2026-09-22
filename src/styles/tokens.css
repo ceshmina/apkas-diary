@@ -5,72 +5,78 @@
  * 公開後の見え方を一致させるため、出どころをここ1つに保つ。画面ごとに
  * 独自の色や寸法を決めないこと。
  *
- * 値の出どころはポートフォリオ（../apkas/src/assets/style.css）にある。
- * こちらはその写しで、あちらを変えたときは手で写し直す。変数名は日記側の
- * ものを保っており、対応は次のとおり。
+ * 基準の出どころは日記そのものにある。ほかのサイト（ポートフォリオを含む）の
+ * 体裁を写したものではなく、あちらが変わってもこちらを写し直すことはない。
+ * 書体と太さの一覧だけはビルドの設定からも読むので、fonts.ts に置いてある。
  *
- *   --fg = --ink   --fg-muted = --muted   --border = --line
- *   --bg / --surface / --accent / --font-sans / --font-serif / --radius は同じ名前
+ * 配色は白い地の1通りで、閲覧環境の明暗の設定では切り替えない。色味を持つのは
+ * 朱（--accent）の1色だけで、面を塗らず、印と手応えにだけ使う。
  *
- * 配色は Sirka Blue のパレットに合わせてある。
+ *   常に出るもの    題字の右肩の丸、日別ページの日付の丸、本文の区切り（hr）、
+ *                   画像の説明の先頭の「—」
+ *   触れたときだけ  一覧の行・前後の導線・ピル・一覧への導線・ボタン・本文の
+ *                   リンクのホバー、キーボードで辿ったときのフォーカスの線
+ *   編集アプリケーション  失敗を伝える囲みの左の線、「最新でない」の表示、
+ *                   ラジオの印
  *
- *   #2F5FA7 Sirka Blue / #172D4F Midnight Sirka / #243B5A Blue Shadow /
- *   #A9BDD9 Mist Blue / #DCE6F2 Blue Haze / #F5F6F4 Cloud White /
- *   #181A1D Ink / #9A7894 Dusk Mauve
+ * 本文・題・リンクの文字色には使わない（リンクは下線で見分けさせる）。いま居る
+ * 場所（ピルの aria-current、選択中のタブ）も朱ではなく黒で塗って示す。朱は
+ * 手応えに使っているので、居場所にも使うと意味が重なる。
  *
- * 淡い文字とアクセントは、パレットの色をそのまま置くと小さい文字で
- * コントラストが 4.5:1 に届かない。あちらが明度だけを寄せた値を持っており、
- * こちらもその調整後の値を写している。パレットの原色に戻さないこと。
- *
- * Dusk Mauve は写していない。あちらでの使い道は経歴の期間で、日記に対応する
- * 要素がない。円形アイコンの影に使う --shadow も同じ理由で持っていない。
- * ピルの地だった --accent-soft も、ピルが塗りをやめたことで使い道がなくなり、
- * あちらと同じく持っていない。
- *
- * Web フォントは読み込まない。これもあちらに合わせている。階層は、OS が
- * 持っている明朝とゴシックを使い分けることで付ける。
+ * コントラスト（白地に対して）は、文字 18.88、淡い文字 5.41、朱 5.08。朱は
+ * ホバーのとき文字の色にもなるが、4.5 を上回る。文字でないもの（フォーカスの
+ * 線、入力欄の枠）に求められる 3:1 も、朱と淡い文字は満たす。罫線は 1.26 しか
+ * ないので、飾りの区切りにだけ使い、入力欄の枠には使わない。黒で塗った上の朱は
+ * 3.72 まで落ちるので、黒で塗ったもの（aria-current のピル、主となるボタン）の
+ * 字をホバーで朱にしないこと。
  */
 
 :root {
-  --fg: #181a1d; /* Ink */
-  --fg-muted: #566a85; /* Blue Shadow を明るく寄せたもの */
-  --bg: #f5f6f4; /* Cloud White */
-  --surface: #fff;
-  --accent: #2f5fa7; /* Sirka Blue */
-  --border: #dce6f2; /* Blue Haze */
+  --fg: #111111; /* 文字、強い罫線（ヘッダーの下、一覧の上） */
+  --fg-muted: #6a6a6a; /* 淡い文字、入力欄の枠 */
+  --bg: #ffffff;
+  --surface: #ffffff; /* 囲みの地。地と同じ白にし、囲みは罫線で分ける */
+  --accent: #c73e1d; /* 朱 */
+  --border: #e5e5e5; /* 罫線 */
 
   /* 40rem ≒ 日本語で 40 字/行。本文も一覧もこの1列に収める */
   --page: 40rem;
 
   /*
-   * 書体。地はゴシックで、名前・見出し・本文だけを明朝で組む。どの要素を
-   * 明朝にするかは base.css にまとめてある。
+   * 書体の役割。画面の CSS はこの4つだけを使う。値のもとになる書体の変数
+   * （--font-instrument-serif など）は、公開サイトでは Astro の <Font> が、
+   * 編集アプリケーションでは Base.astro が、同じ一覧（fonts.ts）から定める。
    *
-   * 0.9rem 以下のラベルや注記を明朝にしないこと。小さい字でかすれる。
+   * 欧文だけの書体の後ろには和文の書体を続ける。欧文の書体に無い字（題字に
+   * 混ざった和文など）が、OS の書体ではなく同じ系統の和文の書体で出る。
    */
-  --font-serif:
-    'Hiragino Mincho ProN', 'Hiragino Mincho Pro', 'Yu Mincho', YuMincho, '游明朝', 'Noto Serif JP',
-    'Source Han Serif JP', 'MS PMincho', serif;
 
-  --font-sans:
-    -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Hiragino Sans',
-    'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic Medium', Meiryo, sans-serif;
+  /* 題字・日付の数字・英字の見出し語 */
+  --font-display: var(--font-instrument-serif), var(--font-zen-old-mincho);
+  /* 題（記事・一覧・導線の題、本文の `##`、画面の見出し） */
+  --font-serif: var(--font-zen-old-mincho);
+  /* 本文・和文のラベル・画面の地 */
+  --font-sans: var(--font-zen-kaku-gothic-new);
+  /* 欧文のラベル（月・曜日の略記、導線の日付、ピル、一覧への導線） */
+  --font-ui: var(--font-instrument-sans), var(--font-zen-kaku-gothic-new);
 
   /*
-   * 角丸。囲み・ボタン・入力欄・ピル・写真・フォーカス環のすべてがこれ1つを
-   * 使う。丸みが強いほど印象が柔らかくなるので、紙面に近い硬さの残る値に
-   * とどめている。
+   * 本文の大きさ。スマートフォンで 15px、本文の列が最大幅（--page）に達する
+   * 幅から 15.5px にする。切り替える幅は下の media query の 42.5rem で、
+   * --page に左右の余白（base.css の body、1.25rem ずつ）を足したもの。
+   */
+  --text-prose: 0.9375rem;
+
+  /*
+   * 角丸。押せるもの（ピル・ボタン・一覧への導線）は丸く、囲むもの（囲み・
+   * 入力欄・pre・写真の縮小画像）は角を立てる。形で役割を分ける。
    */
   --radius: 2px;
+  --radius-pill: 999px;
 }
 
-@media (prefers-color-scheme: dark) {
+@media (min-width: 42.5rem) {
   :root {
-    --fg: #f5f6f4; /* Cloud White */
-    --fg-muted: #a9bdd9; /* Mist Blue */
-    --bg: #172d4f; /* Midnight Sirka */
-    --surface: #243b5a; /* Blue Shadow */
-    --accent: #8fb4e2; /* Sirka Blue を明るく寄せたもの */
-    --border: #355073;
+    --text-prose: 0.96875rem;
   }
 }

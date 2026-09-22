@@ -1,5 +1,6 @@
 ---
 import EntryList from '../components/EntryList.astro'
+import PageHead from '../components/PageHead.astro'
 import Base from '../layouts/Base.astro'
 import { recentEntries, years } from '../lib/site-data.js'
 
@@ -9,19 +10,31 @@ const yearList = await years()
 ---
 
 <Base title="apkas-diary" description="個人の日記">
-  <h1>最近の日記</h1>
+  <PageHead word="Recent" title="最近の日記" />
 
   <EntryList entries={entries} />
 
   {
     yearList.length > 0 && (
       <>
-        <h2 class="section-title">年別</h2>
+        {/* Archive は飾りの英字。見出しとして読まれるのは「年別」だけにする。 */}
+        <h2 class="section-title archive-title">
+          <span class="section-title-word" aria-hidden="true">
+            Archive
+          </span>
+          年別
+        </h2>
+        {/*
+          年は数字だけを見せ、「年」は読み上げにだけ残す。読み上げる語は「2026年」を
+          まるごと持たせる。数字に「年」だけを足す形にすると、読み上げ用の要素が
+          ブロックとして扱われ、「2026 年」と間の空いた名前になる。
+        */}
         <ul class="year-list">
           {yearList.map((year) => (
             <li>
               <a class="pill" href={`/${year}`}>
-                {year}年
+                <span aria-hidden="true">{year}</span>
+                <span class="visually-hidden">{year}年</span>
               </a>
             </li>
           ))}
@@ -32,6 +45,10 @@ const yearList = await years()
 </Base>
 
 <style>
+  .archive-title {
+    margin: 3.6rem 0 1.1rem;
+  }
+
   .year-list {
     display: flex;
     flex-wrap: wrap;
