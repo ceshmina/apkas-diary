@@ -6,9 +6,13 @@
  * というファイルツリーで持っており、日付はファイル名だけが持っている。本文中の情報から
  * 日付を推定する余地を残さないよう、日付はファイル名からのみ決める。
  *
- * 旧サイトの frontmatter には `title` / `status` / `location` が現れる。`location` は
- * 旧サイトの表示のための属性で、この日記は場所を扱わないため取り込まない。元のファイルは
- * 残るので、必要になったときに読み直せる。
+ * 旧サイトの frontmatter には `title` / `status` / `location` が現れる。
+ *
+ * `location` は当初、この日記は場所を扱わないとして取り込まなかった。元のファイルが
+ * 残るので読み直せる、という前提だったが、旧サイトのリポジトリは公開されておらず、
+ * その前提が細っていた。日記の本文と写真が保全の内側にあるのに、どこで過ごした日かの
+ * 記録だけが外にある状態だったため、`add-entry-location` で扱うことにした。
+ * 値は書かれたまま1つの文字列として持つ（`Entry.location`）。
  */
 
 import { readdir, readFile } from 'node:fs/promises'
@@ -28,6 +32,13 @@ export interface LegacyArticle {
   body: string
   /** frontmatter に `status` があればその値。なければ未指定。 */
   status?: EntryStatus
+  /**
+   * frontmatter に `location` があればその値。なければ未指定。
+   *
+   * **旧サイトが未指定を `Tokyo, Japan` として表示・集計していたことは持ち込まない。**
+   * 書いていないことと、東京にいたことは別の事実であり、ここでは書かれたものだけを返す。
+   */
+  location?: string
   /** 読み取り元。取り違えを追えるように残す。 */
   path: string
 }
@@ -116,12 +127,18 @@ export function parseArticle(path: string, fileName: string, text: string): Pars
     }
   }
 
+  // 空白しか書かれていない `location` は、書かれていないものとして扱う。取り込みの
+  // 側で「場所を持つ記事」を数えるときに、中身のない値が1件として混ざらないように
+  // するため。保存の側の正規化（putEntry）とは別に、ここでも数が合うようにしておく。
+  const location = attrs.get('location')?.trim()
+
   return {
     article: {
       date,
       title: attrs.get('title') ?? typo ?? '',
       body: normalizeBody(body),
       status: status as EntryStatus | undefined,
+      location: location === '' ? undefined : location,
       path,
     },
     warnings,

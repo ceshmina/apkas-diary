@@ -23,6 +23,18 @@ export interface Entry {
   /** 本文。Markdown のまま保持し、HTML には変換しない。 */
   body: string
   status: EntryStatus
+  /**
+   * その日を過ごした場所。任意。
+   *
+   * 旧サイトの `Osaka, Japan` のような表記を、解釈せず1つの文字列として持つ。
+   * 都市と国に分けないのは、集計の都合を保存の形に持ち込まないため。33地点すべてが
+   * `<都市>, <国>` の形をしていたのは書き手がそう書いていたというだけで、将来も
+   * そうとは限らない。分解が要るとなったときに、そのときの必要に合わせて分解する。
+   *
+   * **持たないときは `undefined`。空文字は取らない。** 空文字と不在の2つの表現を
+   * 作ると、読む側が毎回どちらかを判断することになる。正規化は `putEntry()` が行う。
+   */
+  location?: string
   /** UTC の ISO 8601。 */
   createdAt: string
   /** UTC の ISO 8601。 */
@@ -80,6 +92,13 @@ export function toItem(entry: Entry): EntryItem {
     item.gsi1sk = entry.date
   }
 
+  // 場所を持つときだけ属性を書く。持たないことを空文字で表さない。下書きのあいだ
+  // gsi1pk / gsi1sk を書かないのと同じ流儀で、不在は不在のまま置く。読む側に
+  // 「空文字は持っていないという意味だ」という解釈を求めずに済む。
+  if (entry.location !== undefined) {
+    item.location = entry.location
+  }
+
   return item
 }
 
@@ -94,7 +113,7 @@ export function fromItem(item: Record<string, unknown>): Entry {
     throw new Error(`アイテムの status が不正です: ${JSON.stringify(status)}（date=${date}）`)
   }
 
-  return {
+  const entry: Entry = {
     date,
     title: typeof item.title === 'string' ? item.title : '',
     body: typeof item.body === 'string' ? item.body : '',
@@ -102,6 +121,14 @@ export function fromItem(item: Record<string, unknown>): Entry {
     createdAt: typeof item.createdAt === 'string' ? item.createdAt : '',
     updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : '',
   }
+
+  // 空文字は持っていないものとして読む。書き込みの側では入らない形にしてあるが、
+  // 手で直したアイテムや古い書き込みが混じっても、読み取りの結果が2通りにならない。
+  if (typeof item.location === 'string' && item.location !== '') {
+    entry.location = item.location
+  }
+
+  return entry
 }
 
 /** 日付の昇順。文字列比較で足りる。 */
