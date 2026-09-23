@@ -21,10 +21,10 @@
 
 import { mkdir, readdir, stat, writeFile } from 'node:fs/promises'
 import { dirname, extname, join, relative } from 'node:path'
+import { mapWithConcurrency } from '../lib/parallel.js'
 import { LEGACY_PHOTO_HOST } from './legacy-photo.js'
 import type { PhotoOrigin, PhotoRecord } from './manifest.js'
 import { sourceDir } from './manifest.js'
-import { mapWithConcurrency } from './parallel.js'
 
 /**
  * 元写真として探す拡張子。見つかった時点で打ち切るので、多い順に並べる。

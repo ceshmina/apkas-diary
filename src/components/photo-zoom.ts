@@ -52,12 +52,15 @@ interface Photo {
   button: HTMLButtonElement
   /** その1枚に添えられた説明。無ければ空文字。 */
   caption: string
+  /** その1枚を撮った機材。生成時に本文へ載っている。無ければ空文字。 */
+  equipment: string
 }
 
 interface Cell {
   root: HTMLElement
   img: HTMLImageElement
   caption: HTMLElement
+  equipment: HTMLElement
 }
 
 interface Drag {
@@ -109,6 +112,17 @@ function captionOf(img: HTMLImageElement): string {
   return caption?.textContent?.trim() ?? ''
 }
 
+/**
+ * 画像を撮った機材。生成の時点で本文の `img` に載っている（`src/lib/markdown.ts`）。
+ *
+ * **ここでは組み立てない。** 機種とレンズをどう並べるかはビルド時に1度決めてあり、
+ * 出来上がった1行がそのまま属性に入っている。説明を `figure` から読むのと同じ扱いで、
+ * 拡大の側は受け取って置くだけにする。記録の無い写真には属性が無く、空文字になる。
+ */
+function equipmentOf(img: HTMLImageElement): string {
+  return img.dataset.equipment?.trim() ?? ''
+}
+
 interface Parts {
   dialog: HTMLDialogElement
   scrim: HTMLElement
@@ -126,7 +140,8 @@ function setup(dialog: HTMLDialogElement, body: Element): void {
     (root) => {
       const img = root.querySelector('img')
       const caption = root.querySelector<HTMLElement>('.photo-zoom-caption')
-      return img && caption ? [{ root, img, caption }] : []
+      const equipment = root.querySelector<HTMLElement>('.photo-zoom-equipment')
+      return img && caption && equipment ? [{ root, img, caption, equipment }] : []
     },
   )
   if (!scrim || !track || cells.length !== 3) return
@@ -164,6 +179,7 @@ function mount({ dialog, scrim, track, cells, photos }: Parts): void {
     cell.root.classList.add(role)
     cell.root.style.transform = ''
     cell.caption.style.opacity = ''
+    cell.equipment.style.opacity = ''
   }
 
   function fill(cell: Cell | undefined, photo: Photo | undefined): void {
@@ -171,6 +187,7 @@ function mount({ dialog, scrim, track, cells, photos }: Parts): void {
     if (!photo) {
       cell.root.hidden = true
       cell.caption.textContent = ''
+      cell.equipment.textContent = ''
       return
     }
     cell.root.hidden = false
@@ -178,6 +195,7 @@ function mount({ dialog, scrim, track, cells, photos }: Parts): void {
     if (cell.img.src !== photo.img.src) cell.img.src = photo.img.src
     cell.img.alt = photo.img.alt
     cell.caption.textContent = photo.caption
+    cell.equipment.textContent = photo.equipment
   }
 
   /** 3つのセルに前・現在・次を入れ、役割を割り当て直す。 */
@@ -266,9 +284,11 @@ function mount({ dialog, scrim, track, cells, photos }: Parts): void {
 
     // 縦のドラッグの途中で閉じることがある。そのときセルが持っている動きを、
     // 見た目を変えないまま img 側へ移し替えてから、本文の位置へ向ける。
-    // 説明はここで消す。写真が本文へ帰るなら、その文も本文にある。
+    // 説明はここで消す。写真が本文へ帰るなら、その文も本文にある。機材は本文には
+    // 出ないが、**拡大していないあいだ出るものではない**ので同じく消す。
     const visual = cell.img.getBoundingClientRect()
     cell.caption.style.opacity = '0'
+    cell.equipment.style.opacity = '0'
     cell.root.style.transform = ''
     const base = cell.img.getBoundingClientRect()
 
@@ -285,6 +305,7 @@ function mount({ dialog, scrim, track, cells, photos }: Parts): void {
     photo.button.focus({ preventScroll: true })
     cell.img.style.transform = ''
     cell.caption.style.opacity = ''
+    cell.equipment.style.opacity = ''
     track.style.transform = ''
     index = -1
     busy = false
@@ -474,6 +495,7 @@ function wrap(body: Element): Photo[] {
     if (img.closest('a')) continue
     const inline = getComputedStyle(img).display === 'inline'
     const caption = captionOf(img)
+    const equipment = equipmentOf(img)
 
     const button = document.createElement('button')
     button.type = 'button'
@@ -482,7 +504,7 @@ function wrap(body: Element): Photo[] {
     img.replaceWith(button)
     button.append(img)
 
-    photos.push({ img, button, caption })
+    photos.push({ img, button, caption, equipment })
   }
   return photos
 }

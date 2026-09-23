@@ -11,6 +11,11 @@
  * すべて一致するので、1つのサイズの URL からその写真の他のサイズを導ける。
  * 日別ページの拡大表示（`src/components/photo-zoom.ts`）が既にこの形に依存している。
  *
+ * 組み立てた URL から**目録の記録を引き当てる**ための道もここに置く（`photoPathOf` /
+ * `photoPathFromUrl` / `photoDateOf`）。本文が写真について知っているのは配信 URL だけ
+ * なので、突き合わせはその1本を両側から組み立てて行う。**逆に URL から元写真のキーを
+ * 導く関数は無い。導けないためである**（`photoPathFromUrl` のコメント）。
+ *
  * 同じ規約を `lambda/photo-resize/src/index.ts` も持っている。あちらは派生画像を
  * 書く側、こちらは URL を組み立てて見せる側で、パッケージが分かれているため共有して
  * いない。**どちらかを変えるときは両方を直す。**
@@ -77,13 +82,28 @@ export function photoSourceOf(sourceKey: string): PhotoSource | undefined {
 }
 
 /**
- * 元写真のキーから、配信される派生画像のキーを組み立てる。
+ * 元写真のキーから、**配信パス**——配信キーからサイズ名を除いた部分——を組み立てる。
+ *
+ *   2026/08/13/DSCF1234.JPG  ->  2026/08/13/DSCF1234.webp
+ *
+ * サイズによらず同じ1つの値になるので、**同じ写真を指すかどうかの突き合わせに使える**。
+ * 本文に貼られた URL がどのサイズであっても、サイズ名を落とせばここに揃う。
  *
  * 拡張子の置換が最後の区切りより後ろだけを見るのは、`2026/08.old/a` のように
  * ディレクトリ名に点があっても壊さないため。
  */
+export function photoPathOf(sourceKey: string): string {
+  return `${sourceKey.replace(/\.[^./]*$/, '')}.webp`
+}
+
+/**
+ * 元写真のキーから、配信される派生画像のキーを組み立てる。
+ *
+ * サイズ名と配信パスの2つでできている。**この形を1箇所で決めておく**ことで、URL を
+ * 読む側（`photoPathFromUrl`）が同じ切れ目を別に覚えずに済む。
+ */
 export function photoKeyOf(size: PhotoSize, sourceKey: string): string {
-  return `${size}/${sourceKey.replace(/\.[^./]*$/, '')}.webp`
+  return `${size}/${photoPathOf(sourceKey)}`
 }
 
 /**
@@ -94,6 +114,67 @@ export function photoKeyOf(size: PhotoSize, sourceKey: string): string {
 export function photoUrlOf(base: string, size: PhotoSize, sourceKey: string): string {
   const path = photoKeyOf(size, sourceKey).split('/').map(encodeURIComponent).join('/')
   return `${base.replace(/\/+$/, '')}/${path}`
+}
+
+/**
+ * 配信 URL から**配信パス**を取り出す。`photoUrlOf` が組み立てたものを解く。
+ *
+ *   https://photos.apkas.net/medium/2026/08/13/DSCF1234.webp
+ *                            ~~~~~~ サイズ名（捨てる）
+ *   -> 2026/08/13/DSCF1234.webp
+ *
+ * 基点が一致しないもの、サイズ名が知らないもの、サイズ名より後ろが無いものは
+ * `undefined`。本文には外のサイトの画像も書かれうるので、**形から外れたものを
+ * 黙って通さない**。
+ *
+ * 各段を `decodeURIComponent` で戻すのは、`photoUrlOf` が段ごとに符号化している
+ * ため。空白を含むファイル名はここで元に戻る。壊れた符号化は例外になるので、
+ * 「読めなかった」に倒す——本文の1箇所のためにビルドを止めるものではない。
+ *
+ * **URL から元写真のキー（`sourceKey`）を導く関数はここに無い。導けないためである。**
+ * 配信キーは元写真の拡張子を `webp` に替えたもので（`photoKeyOf`）、`.jpg` から
+ * 入れても `.JPG` から入れても `.HEIC` から入れても同じ URL になる。目録の `sk` は
+ * 拡張子を含むファイル名なので、URL から `sk` は組み立てられない。
+ *
+ * 「`.jpg` だろう」と当てて引く形にはしない。**当たっているうちは動き、外れたときに
+ * その写真だけ静かに機材が出ない**。それは記録を持たない写真と見分けがつかないので、
+ * 壊れていることに気づけない。突き合わせは配信パスで行い、両側とも `photoPathOf` から
+ * 前向きに組み立てる（`src/lib/site-data.ts`）。
+ */
+export function photoPathFromUrl(base: string, url: string): string | undefined {
+  const prefix = `${base.replace(/\/+$/, '')}/`
+  if (!url.startsWith(prefix)) return undefined
+
+  const rest = url.slice(prefix.length)
+  const slash = rest.indexOf('/')
+  if (slash <= 0) return undefined
+
+  const size = rest.slice(0, slash)
+  if (!PHOTO_SIZES.includes(size as PhotoSize)) return undefined
+
+  const encoded = rest.slice(slash + 1)
+  if (encoded === '') return undefined
+
+  try {
+    return encoded.split('/').map(decodeURIComponent).join('/')
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * 配信パスから、その写真が属する日付を取り出す。
+ *
+ * 配信パスは元写真のキーと同じ形（日付の3段と、区切りを含まないファイル名）を
+ * しているので、`photoSourceOf` の規約がそのまま使える。暦上実在しない日付を外す
+ * ことも同じで、**目録を引くための値がエントリの日付と突き合わせられない**という
+ * 状態を作らない。
+ *
+ * 取り出すのは日付だけである。ファイル名は拡張子が `webp` に替わっており、元写真の
+ * ファイル名——目録の `sk`——とは別物なので返さない。
+ */
+export function photoDateOf(path: string): string | undefined {
+  return photoSourceOf(path)?.date
 }
 
 /**

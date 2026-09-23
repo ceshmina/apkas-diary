@@ -19,12 +19,12 @@
 import { readFile } from 'node:fs/promises'
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { nowUtcIso } from '../lib/date.js'
+import { mapWithConcurrency } from '../lib/parallel.js'
 import { photoContentTypeOf } from '../lib/photo.js'
 import { putPhoto } from '../lib/store/photo.js'
 import { originExtension } from './fetch.js'
 import { migratedSourceKey } from './legacy-photo.js'
 import type { PhotoRecord } from './manifest.js'
-import { mapWithConcurrency } from './parallel.js'
 
 export interface IngestOptions {
   bucket: string

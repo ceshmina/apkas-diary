@@ -16,10 +16,10 @@
 
 import { HeadObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { nowUtcIso } from '../lib/date.js'
+import { mapWithConcurrency } from '../lib/parallel.js'
 import { PHOTO_SIZES, photoKeyOf } from '../lib/photo.js'
 import { listPhotosByDate, type Photo } from '../lib/store/photo.js'
 import type { PhotoCheck, PhotoRecord } from './manifest.js'
-import { mapWithConcurrency } from './parallel.js'
 
 export interface VerifyOptions {
   deliveryBucket: string

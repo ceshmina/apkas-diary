@@ -8,6 +8,10 @@
  * セルは3つ。真ん中が今見ている写真で、両隣に並びの前後が入る。横のドラッグで
  * 指に追従して隣が見えている必要があるため、隣も実体として持つ。
  *
+ * 1つのセルは写真・説明・撮影機材の3段。説明は著者の書いた文、機材は元写真から読んだ
+ * 記録で、**出どころが違うものを1つの行にまとめない**。どちらも持たない写真では、
+ * その段の要素が消えて写真だけになる。
+ *
  * 暗幕は `::backdrop` ではなく自前の要素に置いている。ドラッグの量に応じて濃さを
  * 変えるので、要素として掴めるほうが素直に書ける。
  */
@@ -19,14 +23,17 @@
     <figure class="photo-zoom-cell is-prev">
       <div class="photo-zoom-frame"><img alt="" draggable="false" /></div>
       <figcaption class="photo-zoom-caption"></figcaption>
+      <p class="photo-zoom-equipment"></p>
     </figure>
     <figure class="photo-zoom-cell is-current">
       <div class="photo-zoom-frame"><img alt="" draggable="false" /></div>
       <figcaption class="photo-zoom-caption"></figcaption>
+      <p class="photo-zoom-equipment"></p>
     </figure>
     <figure class="photo-zoom-cell is-next">
       <div class="photo-zoom-frame"><img alt="" draggable="false" /></div>
       <figcaption class="photo-zoom-caption"></figcaption>
+      <p class="photo-zoom-equipment"></p>
     </figure>
   </div>
 </dialog>
@@ -81,6 +88,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    /* 写真・説明・機材のあいだ。消えた段のぶんは詰まる。 */
     gap: 0.6rem;
     margin: 0;
     padding: 1.25rem 1rem;
@@ -137,6 +145,36 @@
   }
 
   .photo-zoom-caption:empty {
+    display: none;
+  }
+
+  /*
+   * 撮影機材。説明の下に、説明より控えめに置く。
+   *
+   * 書体を `--font-ui`（欧文のラベル）にしているのは、`X-T5` や `XF33mmF1.4 R LM WR`
+   * が月・曜日の略記や前後の導線の日付と同じ役目の字だからである。説明は本文系の字の
+   * ままなので、**書体の違いがそのまま「著者の言葉」と「機械の記録」の違いに重なる**。
+   *
+   * 大きさと字間は前後の導線の日付から借りた。ここに新しい寸法を作らない。色は白の
+   * 不透明度を説明（0.72）より下げて 0.48 にしてある。暗幕の上での contrast は 4.89 で、
+   * 文字に求められる 4.5 を上回る。**説明は読ませるために置いてあるが、機材は探した
+   * ときに見つかれば足りる。**
+   */
+  .photo-zoom-equipment {
+    flex: 0 0 auto;
+    max-width: 42rem;
+    margin: 0;
+    color: rgb(255 255 255 / 0.48);
+    font-family: var(--font-ui);
+    font-weight: 500;
+    font-size: 0.74rem;
+    line-height: 1.6;
+    letter-spacing: 0.08em;
+    text-align: center;
+  }
+
+  /* 記録の無い写真では要素ごと消す。説明と同じ扱いで、空の行を残さない。 */
+  .photo-zoom-equipment:empty {
     display: none;
   }
 </style>

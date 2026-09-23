@@ -15,9 +15,9 @@
  */
 
 import { CopyObjectCommand, ListObjectsV2Command, type S3Client } from '@aws-sdk/client-s3'
+import { mapWithConcurrency } from '../lib/parallel.js'
 import { photoContentTypeOf, photoSourceOf } from '../lib/photo.js'
 import { listPhotosByDate } from '../lib/store/photo.js'
-import { mapWithConcurrency } from './parallel.js'
 
 export interface BackfillTarget {
   sourceKey: string

@@ -1,9 +1,10 @@
 /**
  * 公開サイトの生成に使うデータ。
  *
- * **この モジュールが、公開サイトのビルドにおける唯一のデータ入力である。**
+ * **このモジュールが、公開サイトのビルドにおけるデータ入力のすべてである。**
+ * 入力は2つある。日記のエントリと、写真の目録。
  *
- * 入力は `listAllPublished()`（GSI1 の Query）だけに限る。GSI1 は下書きを
+ * エントリの入力は `listAllPublished()`（GSI1 の Query）だけに限る。GSI1 は下書きを
  * 載せない（sparse index）ため、ここから先に下書きは一切流れてこない。
  * 年別・月別・月日別といった切り口はすべて、この1回の取得結果をメモリ上で
  * まとめ直して作る。
@@ -11,11 +12,26 @@
  * ベーステーブルを引く `listByYear` などをサイト生成から呼んではならない。
  * それらは下書きを含むため、公開状態でのフィルタが必要になり、
  * 「フィルタが存在しないから下書きが漏れない」という保証が失われる。
+ *
+ * 写真の目録は、拡大表示に撮影機材を出すために読む（`photoEquipment()`）。**入力が2つに
+ * なっても、下書きが漏れうる経路は1本のままである。**
+ *
+ *   - エントリの取得は `listAllPublished()` の1本だけで、ここは1文字も変わっていない。
+ *   - 写真は公開・下書きの区別を持たない。写真は日記に属するのであって、公開状態を
+ *     持たない。
+ *   - 目録を引く日付は、**公開済みエントリの本文に現れた写真のもの**だけである。下書きの
+ *     本文はこの経路に入らないので、下書きにしか貼られていない写真の日付は引かれない。
+ *     仮に引いたとしても、引き当ては本文の URL で行うので、公開ページに現れない写真の
+ *     記録が生成物に出ることはない。
  */
 
 import { monthDayOf, yearMonthOf, yearOf } from './date.js'
-import { recentCount } from './env.js'
+import { photoUrl, recentCount } from './env.js'
+import { equipmentOf } from './equipment.js'
+import { mapWithConcurrency } from './parallel.js'
+import { photoDateOf, photoPathFromUrl, photoPathOf } from './photo.js'
 import { byDateAsc, byDateDesc, type Entry } from './store/entry.js'
+import { listPhotosByDate } from './store/photo.js'
 import { listAllPublished } from './store/queries.js'
 
 let cached: Promise<Entry[]> | undefined
@@ -30,6 +46,82 @@ export function publishedEntries(): Promise<Entry[]> {
     cached = listAllPublished()
   }
   return cached
+}
+
+/**
+ * 目録を引くとき、同時に走らせる本数。
+ *
+ * 写真のある日の数だけ往復が要る（数百本）。順に回すと1本あたりの待ちがそのまま総時間に
+ * なり、全部並べると1回のビルドで数百の接続を一度に開くことになる。待ち時間だけを重ねる
+ * ちょうどの幅にする。
+ */
+const PHOTO_CONCURRENCY = 8
+
+/** 本文に現れる写真の URL。Markdown の `![](...)` も、本文に直接書かれた `<img src="...">` も拾う。 */
+const PHOTO_URL_PATTERN = /https?:\/\/[^\s)"'<>]+/g
+
+let equipment: Promise<(src: string) => string | undefined> | undefined
+
+/**
+ * 本文の `img` の `src` から、拡大表示に出す撮影機材の1行を引く関数。
+ *
+ * **Map ではなく関数を返す。** 整形（`src/lib/markdown.ts`）は本文の `src` しか持って
+ * おらず、そこから何を鍵にして引くかは写真の URL の規約の話である。関数にしておけば、
+ * 規約を知っているのはここと `src/lib/photo.ts` だけで済み、整形は「引ければ付ける」
+ * だけを知っていればよい。
+ *
+ * ビルド中に1度だけ作り、1,000を超える日別ページのすべてが同じものを見る
+ * （`publishedEntries()` と同じ流儀）。
+ *
+ * 引くのは**公開済みエントリの本文に写真が現れた日**だけである。全件の走査はしない。
+ * `src/lib/store/queries.ts` が「走査は公開サイトの生成の経路には現れない」「写真が
+ * 増えるほどサイトの生成が重くなる、という結び付きは生じない」と書いているとおりで、
+ * **日付ごとに引けば、増えるのは写真のある日の数であって枚数ではない。** 1日に何枚
+ * 貼っても往復は1回で済む。
+ *
+ * 日付を**エントリの日付ではなく URL から**取るのは、本文が別の日の写真を指せるため。
+ * いまは投入も移行も「日記の日付に置く」規約で動いているので実際には一致するが、一致を
+ * 前提にすると、**一致しなくなった日に機材が静かに出なくなる**。URL から取れば前提が要らない。
+ *
+ * 突き合わせに配信パスを使う理由は `photoPathFromUrl` のコメントを参照（URL から元写真の
+ * キーは導けない）。**両側とも `photoPathOf` から前向きに組み立てる。**
+ */
+export function photoEquipment(): Promise<(src: string) => string | undefined> {
+  if (!equipment) {
+    equipment = buildPhotoEquipment()
+  }
+  return equipment
+}
+
+async function buildPhotoEquipment(): Promise<(src: string) => string | undefined> {
+  const base = photoUrl()
+  const entries = await publishedEntries()
+
+  const dates = new Set<string>()
+  for (const entry of entries) {
+    for (const url of entry.body.match(PHOTO_URL_PATTERN) ?? []) {
+      const path = photoPathFromUrl(base, url)
+      const date = path ? photoDateOf(path) : undefined
+      if (date) dates.add(date)
+    }
+  }
+
+  const found = new Map<string, string>()
+  const days = await mapWithConcurrency([...dates], PHOTO_CONCURRENCY, (date) =>
+    listPhotosByDate(date),
+  )
+
+  for (const photos of days) {
+    for (const photo of photos) {
+      const label = equipmentOf(photo.exif)
+      if (label) found.set(photoPathOf(photo.sourceKey), label)
+    }
+  }
+
+  return (src) => {
+    const path = photoPathFromUrl(base, src)
+    return path ? found.get(path) : undefined
+  }
 }
 
 function groupBy(entries: Entry[], keyOf: (entry: Entry) => string): Map<string, Entry[]> {

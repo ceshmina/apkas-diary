@@ -90,14 +90,38 @@ data "aws_iam_policy_document" "publish" {
   # PutItem も UpdateItem も DeleteItem も与えない。ビルドがデータを壊す経路が
   # 権限の側に存在しない。
   #
-  # サイトの生成が読むのは GSI1 だけ（listAllPublished）なので、Query は索引の
-  # ARN に限る。ベーステーブルへの Query は与えない。
+  # **エントリを読む経路は GSI1 だけ**（listAllPublished）なので、そちらの Query は
+  # 索引の ARN に限る。エントリのパーティション（ENTRY#<年>）への Query は与えない。
+  # 下書きはこの索引に載らないので、生成の入力に下書きが流れ込む経路が権限の側にも
+  # 存在しない。
   statement {
     sid     = "QueryPublishedEntries"
     effect  = "Allow"
     actions = ["dynamodb:Query"]
 
     resources = ["${var.table_arn}/index/${var.gsi1_name}"]
+  }
+
+  # 写真の目録（pk = PHOTO#<日付>）はベーステーブルにあり、GSI キー属性を書かないので
+  # 索引には載らない（sparse index）。拡大表示に撮影機材を出すために、サイトの生成が
+  # 本文に現れた日付ぶんだけこれを引く（show-photo-equipment の design.md 決定4）。
+  #
+  # **ベーステーブルへの Query を無条件で開くことはしない。** LeadingKeys の条件で
+  # パーティションキーを PHOTO# の側に限り、ENTRY#<年> は引けないままにする。上の
+  # statement が索引に限っていることと合わせて、**下書きを含むエントリの取得経路は
+  # コードだけでなく IAM でも閉じている。**
+  statement {
+    sid     = "QueryPhotoCatalog"
+    effect  = "Allow"
+    actions = ["dynamodb:Query"]
+
+    resources = [var.table_arn]
+
+    condition {
+      test     = "ForAllValues:StringLike"
+      variable = "dynamodb:LeadingKeys"
+      values   = ["PHOTO#*"]
+    }
   }
 
   # export/ への書き出し（scanAllIncludingDrafts）はベーステーブルを走査する。
