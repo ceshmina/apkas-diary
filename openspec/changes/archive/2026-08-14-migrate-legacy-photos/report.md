@@ -47,3 +47,24 @@
 **投入の側の記録を飛ばしていた**（design.md 決定1）。当初は「PutObject だけを行い目録には触れない」としていたが、配信 URL（`url`）を書くのは投入の側だけで、変換 Lambda は書かない。staging の 59 枚がすべて `url` を持たない記録になり、「記録は配信 URL と元写真のキーを持つ」（`photo-catalog`、MUST）を満たさなかった。移行は新しい経路ではなく投入そのものなので、`putPhoto()` を通すよう直した。照合の条件にも `url` の存在を加えてある。**staging を通していなければ、production の 2,365 枚が同じ形で欠けたまま本文の書き換えまで進んでいた。**
 
 **部分的な棚卸しが台帳を消していた**。`plan --only` が走査した日の行だけを書き戻しており、他の日の行——と、そこに記録された投入済みの印——を落としていた。手元の DynamoDB Local での通しで見つけ、既存の台帳へのマージに直した。
+
+## 追記（2026-09-23）: 旧ホストを廃止した
+
+上の「やり残し」を片付けた。旧アカウント（703602958317）から次をすべて削除した。
+
+| もの | 中身 |
+|---|---|
+| S3 `apkas-photos` | 2,429 オブジェクト・19.6 GB（元写真・派生画像・EXIF の JSON） |
+| CloudFront `E3A5VKM6J676D5` + OAC | `photos.old.apkas.net` の配信 |
+| ACM の証明書（us-east-1） | `photos.old.apkas.net` |
+| Lambda `photos-pipeline` + IAM ロール・ポリシー・ロググループ | 旧ホストの変換処理 |
+| Route 53 の2レコード | `photos.old.apkas.net` の CNAME と ACM の検証用（production の `apkas.net` ゾーン） |
+| S3 `apkas-tfstate` | 迷子の state 50KB |
+
+削除後、旧アカウントに残っているリソースは無い。
+
+**消す前に確かめたこと。** 日記の本文からの参照は0件、旧サイト（`ceshmina.github.io`）は 404。元写真 2,378 枚のうち 2,365 枚は新基盤の upload バケットに既にあり、**旧バケットにしか無かったのは 13 枚だった**——2024-10-27 の 9 枚（この日に日記のエントリは無い）と、`test/` の 4 枚。
+
+**9 枚は削除の前に移した。** `npm run photo -- production --date 2024-10-27` で通常の投入経路を通し、派生画像4サイズと目録の記録（url・寸法・EXIF）ができたこと、配信されることを確認した。`test/` の 4 枚は旧サイトの動作確認用なので破棄した。手元の控え（`~/apkas-old-originals/`、2,378 ファイル・19 GB）はそのまま残してある。
+
+**`apkas.tfstate` は迷子だった。** 対応する Terraform の設定はどのリポジトリにも無く、中身も実物とずれていた（既に消えている ECS/VPC が残り、CloudFront の別名は `photos.apkas.net` のまま、参照するホストゾーン `Z02953928R3I1VC2Z0KS` も現存しない）。そのため `terraform destroy` ではなく CLI で消した。state のファイルは記録として `~/apkas-old-originals/apkas.tfstate.deleted-2026-09-23.json` に控えてある。
