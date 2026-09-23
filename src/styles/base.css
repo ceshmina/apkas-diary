@@ -264,9 +264,18 @@ a.pill:not([aria-current]):hover {
  *
  * 添えたときは、英字と和文のラベルを字の並びの線で揃え、罫線もその線の上に
  * 引く。真ん中で揃えると、大きな英字の中ほどにラベルが浮く。
+ *
+ * 和文は、ページの見出し（PageHead の「最近の日記」など）と同じく本文の字面
+ * （大きさ・太さ・字間）で組み、色だけ淡くする。飾りの英字に添える和文は、どこでも
+ * 同じ字面にそろえる。英字を添えない節の題（編集アプリケーションの「直近の実行」
+ * など）は、字間を広げた小さなラベルのまま変えない。
  */
 .section-title:has(> .section-title-word) {
   align-items: baseline;
+  font-weight: 400;
+  font-size: var(--text-prose);
+  letter-spacing: 0.04em;
+  font-feature-settings: normal;
 }
 
 .section-title-word {

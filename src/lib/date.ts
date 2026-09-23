@@ -202,7 +202,8 @@ export interface DatePartsEn {
  *
  * `2026-09-20` -> `{ day: '20', monthYear: 'Sep 2026', weekday: 'Sun' }`
  *
- * 年の中の一覧では年を省く（`{ year: false }` で `monthYear` が `Sep`）。
+ * `{ year: false }` で年を省くと `monthYear` が `Sep` になる。前後の導線の1行の日付
+ * （`formatDateEn`）が、年を末尾に置き直すために使う。一覧も日別ページの頭も年を見せる。
  */
 export function datePartsEn(date: string, { year = true }: { year?: boolean } = {}): DatePartsEn {
   const month = monthAbbrOf(monthOf(date))

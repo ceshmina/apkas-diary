@@ -105,6 +105,30 @@ function withEquipmentInRaw(html: string, equipment: EquipmentOf): string {
   })
 }
 
+/**
+ * 整形した本文の HTML から、`img` の `src` を現れる順に返す。エントリの一覧に並べる
+ * 縮小画像を、本文のどの写真から作るかを決めるのに使う（`src/lib/site-data.ts`）。
+ *
+ * **整形の前の Markdown からは拾わない。** 本文には、画面に写真として出ない URL も
+ * 書かれうる。production には `!` の抜けた `[](https://…/medium/….webp)` が1件あり、
+ * これは空のリンクとして整形され、日別ページに写真は出ていない。何が画像として出るかを
+ * 決めているのは整形なので、その結果から読めば、一覧と日別ページが食い違わない。
+ *
+ * 整形の結果は、Markdown 由来の `img` と、素通りした生の `<img>`（旧サイトから
+ * 引き継いだ `table` の中の写真）が混ざったものである。どちらも `RAW_IMG` /
+ * `RAW_SRC` で読める。コードブロックの中の `<img` は整形で `&lt;img` になるので
+ * 拾わない。
+ */
+export function imageSourcesOf(html: string): string[] {
+  const sources: string[] = []
+  for (const [tag] of html.matchAll(RAW_IMG)) {
+    const found = RAW_SRC.exec(tag)
+    const src = found?.[1] ?? found?.[2] ?? found?.[3]
+    if (src) sources.push(src.replace(/&amp;/gi, '&'))
+  }
+  return sources
+}
+
 function imagePlugin(equipment?: EquipmentOf): HastPlugin {
   return {
     name: 'image',

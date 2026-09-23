@@ -14,7 +14,8 @@
  * 組み立てた URL から**目録の記録を引き当てる**ための道もここに置く（`photoPathOf` /
  * `photoPathFromUrl` / `photoDateOf`）。本文が写真について知っているのは配信 URL だけ
  * なので、突き合わせはその1本を両側から組み立てて行う。**逆に URL から元写真のキーを
- * 導く関数は無い。導けないためである**（`photoPathFromUrl` のコメント）。
+ * 導く関数は無い。導けないためである**（`photoPathFromUrl` のコメント）。配信パスからは、
+ * 同じ写真の別のサイズの URL を組み立て直せる（`photoUrlOfPath`）。
  *
  * 同じ規約を `lambda/photo-resize/src/index.ts` も持っている。あちらは派生画像を
  * 書く側、こちらは URL を組み立てて見せる側で、パッケージが分かれているため共有して
@@ -103,7 +104,12 @@ export function photoPathOf(sourceKey: string): string {
  * 読む側（`photoPathFromUrl`）が同じ切れ目を別に覚えずに済む。
  */
 export function photoKeyOf(size: PhotoSize, sourceKey: string): string {
-  return `${size}/${photoPathOf(sourceKey)}`
+  return deliveryKeyOf(size, photoPathOf(sourceKey))
+}
+
+/** サイズ名と配信パスから、配信キーを組み立てる。`photoKeyOf` と `photoUrlOfPath` が共に通る。 */
+function deliveryKeyOf(size: PhotoSize, path: string): string {
+  return `${size}/${path}`
 }
 
 /**
@@ -112,8 +118,23 @@ export function photoKeyOf(size: PhotoSize, sourceKey: string): string {
  * 各段を符号化するのは、空白を含むファイル名でもそのまま本文に貼れるようにするため。
  */
 export function photoUrlOf(base: string, size: PhotoSize, sourceKey: string): string {
-  const path = photoKeyOf(size, sourceKey).split('/').map(encodeURIComponent).join('/')
-  return `${base.replace(/\/+$/, '')}/${path}`
+  return photoUrlOfPath(base, size, photoPathOf(sourceKey))
+}
+
+/**
+ * **配信パス**とサイズ名から、配信される URL を組み立てる。`photoUrlOf` の後ろ半分で、
+ * 元写真のキーを持たず配信パスだけを持つ側が使う。
+ *
+ * エントリの一覧の縮小画像がこれを使う。本文に貼られた URL から配信パスを取り出し
+ * （`photoPathFromUrl`）、サイズ名を `thumbnail` にして組み立て直す。
+ *
+ * URL の文字列の `/medium/` を `/thumbnail/` に置き換える形は採らない。本文が
+ * `medium` 以外のサイズで書かれた日に黙って壊れるうえ、サイズ名と配信パスの切れ目
+ * （`deliveryKeyOf`）を、このファイルの外にもう1つ書き写すことになる。
+ */
+export function photoUrlOfPath(base: string, size: PhotoSize, path: string): string {
+  const encoded = deliveryKeyOf(size, path).split('/').map(encodeURIComponent).join('/')
+  return `${base.replace(/\/+$/, '')}/${encoded}`
 }
 
 /**
