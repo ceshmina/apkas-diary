@@ -5,7 +5,8 @@
 - [x] 1.1 `terraform/modules/publish/main.tf` に、目録のパーティションに限ったベーステーブルへの Query を足す（design.md 決定4）
   - `dynamodb:LeadingKeys` を `ForAllValues:StringLike` で `PHOTO#*` に限る。`ENTRY#<年>` は権限の側で引けないままにする
   - 既存の `QueryPublishedEntries` のコメント（「ベーステーブルへの Query は与えない」）を、**なぜ目録だけは与えるのか**が読める形に書き足す。消して書き換えるのではなく、条件付きで開いたことが分かるように残す
-- [ ] 1.2 staging に terraform apply して、増えたのが statement 1つだけであることを plan の差分で確かめる
+- [x] 1.2 staging に terraform apply して、増えたのが statement 1つだけであることを plan の差分で確かめる
+  - `Plan: 0 to add, 1 to change, 0 to destroy`。増えたのは `QueryPhotoCatalog` の1つで、`dynamodb:LeadingKeys` が `PHOTO#*` に効いていることを plan の出力で確かめた
   - この時点では誰も使わない権限が1つ増えるだけで、既存の公開手続きの動きは変わらない
 
 ## 2. 配信パスの規約（`src/lib/photo.ts`）
@@ -111,7 +112,9 @@
 
 ## 8. staging での確認
 
-- [ ] 8.1 コードを staging に反映する
+- [x] 8.1 コードを staging に反映する
+  - 409ページを生成して同期し、CloudFront を無効化（I99WVCSG2U1LEF1R5LK6XFA3S6）
+  - 配信されているものを確かめた。`/2024/08/30/` に `iPhone 15 Pro` が2つ、`/2024/09/29/` に `ILCE-7RM5, FE 24-70mm F2.8 GM II` が15と `…FE 70-200mm F2.8 GM OSS II` が4
 - [ ] 8.2 **公開手続きをボタンから起動する。** 権限が足りていることはここでしか確かめられない（手元は admin の profile で動く）
 - [ ] 8.3 staging のサイトで目視する
   - 機材のある写真・ない写真・スマートフォンの写真・説明と併せて出る写真の4通り
