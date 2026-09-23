@@ -15,10 +15,13 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 source scripts/lib/load-env.sh
 
 load_env "${1:-}"
-require_env_vars DIARY_TABLE_NAME
+# PHOTO_URL は、本文に貼られた写真の URL から目録の記録を引き当てるために要る
+# （拡大表示に出す撮影機材）。欠けていると生成の途中で落ちるので、ここで止める。
+require_env_vars DIARY_TABLE_NAME PHOTO_URL
 
 echo "環境: $DIARY_ENV"
 echo "テーブル: $DIARY_TABLE_NAME"
+echo "写真の配信: $PHOTO_URL"
 echo "書き出し先: $DIARY_EXPORT_DIR"
 echo
 

@@ -8,6 +8,11 @@
  *
  * 結果は入力と同じ並びで返す。台帳の行と結果を突き合わせる側が、並びの入れ替わりを
  * 気にせずに済むようにする。
+ *
+ * **もとは `src/migrate/` にあったものを、そのまま移した。** あのディレクトリは移行が
+ * 済めば消える前提で書かれており（`src/migrate/legacy-photo.ts` の冒頭）、公開サイトの
+ * 生成がそこに依存してはいけない。いまは目録の取得（`src/lib/site-data.ts`）も同じ
+ * 事情——往復が数百本になるので、束ねて待つ——でこれを使う。中身は変えていない。
  */
 export async function mapWithConcurrency<T, R>(
   items: readonly T[],

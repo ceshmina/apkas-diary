@@ -13,7 +13,7 @@ import {
   yearOf,
 } from '../../../lib/date.js'
 import { renderMarkdown } from '../../../lib/markdown.js'
-import { type EntryLink, entriesWithNeighbors } from '../../../lib/site-data.js'
+import { type EntryLink, entriesWithNeighbors, photoEquipment } from '../../../lib/site-data.js'
 import type { Entry } from '../../../lib/store/entry.js'
 
 // 入力は公開済みエントリのみ。下書きの日付はパスとして生成されないため、
@@ -39,7 +39,10 @@ const { entry, newer, older } = Astro.props as {
   newer?: EntryLink
   older?: EntryLink
 }
-const html = await renderMarkdown(entry.body)
+// 本文の写真に、その写真の撮影機材を `data-equipment` として載せる。引き当ては
+// ビルド中に1度だけ作られ、すべての日別ページが同じものを見る。記録のない写真には
+// 属性が付かないので、拡大表示にも何も出ない。
+const html = await renderMarkdown(entry.body, await photoEquipment())
 const monthDay = monthDayOf(entry.date)
 const dateJa = formatDateJa(entry.date)
 const year = yearOf(entry.date)
