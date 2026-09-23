@@ -21,8 +21,10 @@ const SEPARATOR = ', '
  * | 記録 | 出るもの |
  * | --- | --- |
  * | 機種のみ | `X-T5` |
- * | 機種 + レンズ（レンズが機種名を含まない） | `X-T5, XF33mmF1.4 R LM WR` |
- * | 機種 + レンズ（レンズが機種名を含む） | `iPhone 15 Pro` |
+ * | 機種 + レンズ | `X-T5, XF33mmF1.4 R LM WR` |
+ * | 機種 + レンズ（レンズを出さない機種） | `iPhone 15 Pro` |
+ * | 機種 + レンズ（レンズが機種名を含む） | `X100V` |
+ * | 機種 + レンズ（名称と呼べる字を含まない） | `ILCE-7CM2` |
  * | レンズのみ | `XF33mmF1.4 R LM WR` |
  * | どちらも無い | `undefined` |
  *
@@ -39,26 +41,59 @@ export function equipmentOf(exif: PhotoExif | undefined): string | undefined {
   const model = textOf(exif?.model)
   const lens = textOf(exif?.lensModel)
 
-  if (!model) return lens
-  if (!lens || saysModel(lens, model)) return model
+  if (!model) return isName(lens) ? lens : undefined
+  if (!lens || !isName(lens) || hidesLens(model) || saysModel(lens, model)) return model
 
   return `${model}${SEPARATOR}${lens}`
 }
 
 /**
- * レンズの名称が機種の名称を言い直しているか。
+ * レンズの名称を出さない機種。機種名がこれで始まるものが当たる（大文字小文字は無視）。
  *
- * スマートフォンの `LensModel` は `iPhone 15 Pro back triple camera 6.86mm f/1.78` の
- * ように機種名を含む。機材が一体である以上、レンズの名称は機種の別名でしかないので、
- * 同じ名前を1行のうちに2度出さない。固定レンズの機種（`X100V` など）も同じ形で落ちる。
+ * **一覧を持つことは避けたかったが、値だけでは分けられない。** レンズを選べない機材の
+ * 多くは、レンズの名称に焦点距離と絞りしか書かない（`35.0 mm f/2.0`）。ところが
+ * **レンズを交換する機材にもまったく同じ字面を書くものがある**——`NIKON D5600` の
+ * `18.0-55.0 mm f/3.5-5.6` / `70.0-300.0 mm f/4.5-6.3` / `35.0 mm f/1.8` は、3本を
+ * 使い分けた記録である。字面が同じで、望ましい結果が逆になる。
  *
- * **メーカーや機種の一覧は持たない。** `Apple` / `Google` / … と並べる形も考えたが、
- * 一覧に載っていない端末が来た日に、レンズ名として長い文字列がそのまま出る——しかも
- * 気づくのは、その写真を拡大して見たときである。記録された値どうしの関係で決めるなら、
- * 知らない機材にも同じ規則が働く。
+ * だから「どういう字面か」ではなく「どの機材か」で決める。一覧に載せるのは、**レンズの
+ * 名称がその機材について何も言っていない機種**に限る。レンズを交換する機材をここに
+ * 載せてはならない。
+ *
+ * 代償は、そういう機材を新しく使いはじめた日に1行足す必要があることである。足すまでは
+ * レンズの名称が出るだけで、誤った機材名が出ることはない。
+ */
+const MODELS_WITHOUT_LENS_NAME = [
+  // レンズは3つあるが、名称は機種名を言い直したうえに画角の数字が続くだけである。
+  'iPhone',
+  // 固定レンズ。名称は `35.0 mm f/2.0` で、機種から分かること以上を言っていない。
+  'DSC-RX1RM3',
+] as const
+
+function hidesLens(model: string): boolean {
+  const lowered = model.toLowerCase()
+  return MODELS_WITHOUT_LENS_NAME.some((name) => lowered.startsWith(name.toLowerCase()))
+}
+
+/**
+ * レンズの名称が機種の名称を言い直しているか。**一覧の取りこぼしを受け止める側。**
+ *
+ * 一覧に無い機材でも、レンズの名称が機種名を含んでいれば同じ名前を2度出すことになる。
+ * 一覧に載っていない端末を使った日に長い文字列がそのまま出る——しかも気づくのは、その
+ * 写真を拡大して見たときである——という形の失敗を、ここで浅くしておく。
  */
 function saysModel(lens: string, model: string): boolean {
   return lens.toLowerCase().includes(model.toLowerCase())
+}
+
+/**
+ * 名称と呼べるものか。字も数字も含まないものは名称ではない。
+ *
+ * レンズの接点を持たない機材を付けたとき、`----` とだけ書かれることがある（実際に
+ * ある）。**「読めなかった」を書き写したものであって、レンズの名前ではない。**
+ */
+function isName(text: string | undefined): text is string {
+  return text !== undefined && /[\p{L}\p{N}]/u.test(text)
 }
 
 /**
