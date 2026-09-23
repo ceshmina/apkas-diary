@@ -121,5 +121,7 @@ design.md 決定6。見本（https://claude.ai/artifact/84EXkG9ECFwMhiSHTRJ878 �
   - 題のない日の見出し（日付の部品）は変わらない
 - [x] 5.3 staging に反映し、2024-09-29 を確かめる
   - CloudFront の無効化 `I4E8HVYHGPVUVYIQ93UFUPB8IV`。393px で「錦帯橋/マチュピチュ・｜エン・ハポン/山口遠征2｜日目」と、各行が列の 93〜99% まで埋まる（Chromium・WebKit とも）。PC 幅では2行で、1行目が 98〜99% まで埋まる
-- [ ] 5.4 production に反映する
+- [x] 5.4 production に反映する
+  - `1060f36` からビルドし（1,556 ページ）、反映した。CloudFront の無効化 `IDM8Q1VV45WG1J3WJINE67L91P`
+  - https://diary.apkas.net で、2024-09-29 と 2024-03-04 の題が 393px・1024px のどちらでも列の 93〜100% まで埋まることを、Chromium と WebKit で確かめた。一覧の縮小画像は変わらず出ている
 
