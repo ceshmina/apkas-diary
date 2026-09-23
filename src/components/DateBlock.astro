@@ -14,14 +14,14 @@
  * 使うのは一覧の行（EntryList）と日別ページの頭。ここの体裁は日別ページの頭の
  * ものである。一覧は、題を添え書きの下に置くため、この箱を外して（`display:
  * contents`）数字と添え書きを行の grid に直接並べ、大きさもそちらで決める。
+ *
+ * 年はどちらでも見せる。一覧も、年別・月別を含めて `Sep 2026` の形で揃えている。
  */
 import { datePartsEn, formatDateJa } from '../lib/date.js'
 
 interface Props {
   /** `YYYY-MM-DD` */
   date: string
-  /** 見た目から年を省く。年の中の一覧で使う。読み上げの和文には常に年を含める。 */
-  showYear?: boolean
   /**
    * 朱の丸を添える。日別ページの頭でだけ使う。一覧で行ごとに付けると、朱が行の数
    * だけ並んで印でなくなる。
@@ -29,8 +29,8 @@ interface Props {
   mark?: boolean
 }
 
-const { date, showYear = true, mark = false } = Astro.props
-const { day, monthYear, weekday } = datePartsEn(date, { year: showYear })
+const { date, mark = false } = Astro.props
+const { day, monthYear, weekday } = datePartsEn(date)
 ---
 
 <time class:list={['date-block', { 'has-mark': mark }]} datetime={date}>

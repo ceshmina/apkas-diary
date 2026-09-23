@@ -23,13 +23,19 @@
  *     本文はこの経路に入らないので、下書きにしか貼られていない写真の日付は引かれない。
  *     仮に引いたとしても、引き当ては本文の URL で行うので、公開ページに現れない写真の
  *     記録が生成物に出ることはない。
+ *
+ * 一覧に並べる縮小画像（`thumbnailsOf()`）は、**入力を増やさない**。受け取ったエントリの
+ * 本文を整形して、そこに写真として出るものを拾うだけである。一覧に渡るエントリはどれも
+ * `publishedEntries()` から切り出したものなので、下書きの本文に貼られた写真が一覧に
+ * 現れることはない。目録も引かない。URL を組み立てるのに要るものは本文の URL だけで揃う。
  */
 
 import { monthDayOf, yearMonthOf, yearOf } from './date.js'
 import { photoUrl, recentCount } from './env.js'
 import { equipmentOf } from './equipment.js'
+import { imageSourcesOf, renderMarkdown } from './markdown.js'
 import { mapWithConcurrency } from './parallel.js'
-import { photoDateOf, photoPathFromUrl, photoPathOf } from './photo.js'
+import { photoDateOf, photoPathFromUrl, photoPathOf, photoUrlOfPath } from './photo.js'
 import { byDateAsc, byDateDesc, type Entry } from './store/entry.js'
 import { listPhotosByDate } from './store/photo.js'
 import { listAllPublished } from './store/queries.js'
@@ -122,6 +128,41 @@ async function buildPhotoEquipment(): Promise<(src: string) => string | undefine
     const path = photoPathFromUrl(base, src)
     return path ? found.get(path) : undefined
   }
+}
+
+const thumbnails = new Map<string, Promise<string[]>>()
+
+/**
+ * エントリの一覧に並べる縮小画像（`thumbnail`）の URL。本文に写真として出る順に並び、
+ * 同じ写真は1度だけ現れる。写真のないエントリでは空の配列。
+ *
+ * 拾うのは、日別ページと同じ整形を通した HTML の `img` である（`imageSourcesOf` の
+ * コメント）。そのうち日記の写真の配信 URL だけを残し、配信パスで重複を除く。外部の
+ * サイトの画像は `photoPathFromUrl` が `undefined` を返すので落ちる。
+ *
+ * 整形は機材の引き当てを渡さずに行う。一覧が要るのは `src` だけで、引き当てを渡すと
+ * 目録を読み終えるまで待つことになる。
+ *
+ * **エントリの日付ごとに1度だけ作る。** トップ・年別・月別・月日ページは同じエントリを
+ * 繰り返し載せるが、整形は1件につき1度で済む。1日1件なので、日付で一意に決まる。
+ */
+export function thumbnailsOf(entry: Entry): Promise<string[]> {
+  let found = thumbnails.get(entry.date)
+  if (!found) {
+    found = buildThumbnails(entry.body)
+    thumbnails.set(entry.date, found)
+  }
+  return found
+}
+
+async function buildThumbnails(body: string): Promise<string[]> {
+  const base = photoUrl()
+  const paths = new Set<string>()
+  for (const src of imageSourcesOf(await renderMarkdown(body))) {
+    const path = photoPathFromUrl(base, src)
+    if (path) paths.add(path)
+  }
+  return [...paths].map((path) => photoUrlOfPath(base, 'thumbnail', path))
 }
 
 function groupBy(entries: Entry[], keyOf: (entry: Entry) => string): Map<string, Entry[]> {

@@ -29,7 +29,7 @@ const { entries } = Astro.props as { entries: Entry[] }
     count={entries.length}
   />
 
-  <EntryList entries={entries} showYear={false} />
+  <EntryList entries={entries} />
 
   <ListLinks links={[{ href: `/${year}`, label: year ?? '', spoken: `${year}年の一覧` }]} />
 </Base>
