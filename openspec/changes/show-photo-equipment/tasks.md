@@ -115,7 +115,21 @@
 - [x] 8.1 コードを staging に反映する
   - 409ページを生成して同期し、CloudFront を無効化（I99WVCSG2U1LEF1R5LK6XFA3S6）
   - 配信されているものを確かめた。`/2024/08/30/` に `iPhone 15 Pro` が2つ、`/2024/09/29/` に `ILCE-7RM5, FE 24-70mm F2.8 GM II` が15と `…FE 70-200mm F2.8 GM OSS II` が4
-- [ ] 8.2 **公開手続きをボタンから起動する。** 権限が足りていることはここでしか確かめられない（手元は admin の profile で動く）
+- [x] 8.2 権限が足りていることを確かめる（手元のビルドは admin の profile で動くので、そのままでは確かめられない）
+  - **ボタンからの起動はここではできない。** CodeBuild の `source_version` は `refs/heads/main` 固定で（`source_branch` の既定、staging でも上書きしていない）、**いま押すと `main` の内容——この change の入っていないサイト——が配信される**。`site-publishing` の「公開手続きが用いるサイトの定義は共有された版に由来する」がそのとおり効いている
+  - 代わりに IAM のポリシーシミュレータで、実行ロールそのものを評価した。ボタンを押さずに、権限だけを確かめられる
+
+    | 主体 | 操作 | 対象 | 結果 |
+    | --- | --- | --- | --- |
+    | `apkas-diary-publish-staging` | `Query` | ベーステーブル + `LeadingKeys = PHOTO#2025-06-26` | **allowed** |
+    | 同上 | `Query` | ベーステーブル + `LeadingKeys = ENTRY#2025` | **implicitDeny** |
+    | 同上 | `Query` | GSI1 | allowed（従来どおり） |
+    | 同上 | `Scan` | ベーステーブル | allowed（従来どおり） |
+    | 同上 | `PutItem` / `UpdateItem` / `DeleteItem` | ベーステーブル | implicitDeny（従来どおり） |
+
+  - **エントリのパーティションは権限の側で引けないまま**であることが、設計の意図どおり確かめられた
+- [ ] 8.5 main に取り込んだあと、staging の公開手続きをボタンから起動して通しで確かめる
+  - ボタンが配るのは `main` の最新なので、**この change が main に入るまで押さない**
 - [ ] 8.3 staging のサイトで目視する
   - 機材のある写真・ない写真・スマートフォンの写真・説明と併せて出る写真の4通り
   - 説明のない写真で、機材が説明の位置を占めていないこと
@@ -124,6 +138,8 @@
 - [ ] 8.4 スクリプトを止めた状態でページを表示し、姿がこの変更の前と変わらないことを確かめる
 
 ## 9. production への適用
+
+**ボタンが配るのは `main` の最新である**（`source_version = refs/heads/main`）。9.3 を押すのは main に取り込んだあとにする。
 
 - [ ] 9.1 production に terraform apply する（コードより先）
 - [ ] 9.2 コードを production に反映する
