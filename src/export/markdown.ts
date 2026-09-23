@@ -43,6 +43,11 @@ function render(entry: Entry): string {
     '---',
     `date: ${entry.date}`,
     `status: ${entry.status}`,
+    // 場所を持たないエントリでは行そのものを出さない。`location: ""` と書くと、
+    // 空の値を持つエントリと持たないエントリがファイル上で同じ見た目になり、
+    // 書き出しから読み直したときに区別が失われる。属性が無いことは、項目が
+    // 無いことで表す（DynamoDB のアイテムで属性を書かないのと同じ）。
+    ...(entry.location === undefined ? [] : [`location: ${JSON.stringify(entry.location)}`]),
     // title だけは任意の文字列で、`: ` を含む・`#` で始まる・引用符で始まる・改行を
     // 含むといった場合に素で書くと壊れる。YAML 1.2 は JSON のスーパーセットなので、
     // JSON の文字列リテラルをそのまま二重引用符スカラーとして書ける。

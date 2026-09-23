@@ -11,6 +11,13 @@
  *
  * 既定は下見（--dry-run 相当ではなく）ではなく実行だが、対象の絞り込みを明示しない限り
  * 見つかった記事をすべて対象にする。まず --dry-run で件数と警告を確かめること。
+ *
+ * `--location-only` は、旧サイトの frontmatter の `location` だけを既存のエントリに
+ * 埋める。**本文・タイトル・公開状態を渡さない。** 日記の取り込みのあとに
+ * `migrate-legacy-photos` が本文の写真 URL を書き換えており（production で 2,365箇所）、
+ * 旧サイトのファイルはその書き換えの前の本文を持っている。通常の取り込みで上書きすると
+ * それがそのまま巻き戻る。**同じでないと分かっているものを、同じだと仮定して
+ * 通常の経路を使い回さない。**
  */
 
 import { collectArticles, type LegacyArticle } from '../legacy/source.js'
@@ -27,6 +34,8 @@ interface Args {
   only?: string
   status?: string
   dryRun: boolean
+  /** 場所だけを埋める。本文・タイトル・公開状態には触れない。 */
+  locationOnly: boolean
 }
 
 const USAGE = `使い方:
@@ -40,14 +49,18 @@ const USAGE = `使い方:
   --status <draft|published>   取り込み時の公開状態。既定は published。
                                元の frontmatter に status があればそちらを優先する。
   --dry-run                    書き込まず、対象と警告だけを表示する。
+  --location-only              frontmatter の location だけを既存のエントリに埋める。
+                               本文・タイトル・公開状態には触れない。location を
+                               書いていない記事は対象にしない。
 
 例:
   npm run import-legacy -- staging --source ../../apkas/eskarun/_articles --dry-run
   npm run import-legacy -- staging --source ../../apkas/eskarun/_articles --only 2023-11-01
+  npm run import-legacy -- staging --source ../../apkas/eskarun/_articles --location-only --dry-run
 `
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { dryRun: false }
+  const args: Args = { dryRun: false, locationOnly: false }
 
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i]
@@ -58,6 +71,10 @@ function parseArgs(argv: string[]): Args {
     }
     if (key === '--dry-run') {
       args.dryRun = true
+      continue
+    }
+    if (key === '--location-only') {
+      args.locationOnly = true
       continue
     }
 
@@ -123,6 +140,92 @@ function selectArticles(articles: LegacyArticle[], args: Args): LegacyArticle[] 
   )
 }
 
+/**
+ * 場所だけを埋める。
+ *
+ * **`putEntry()` に渡すのは日付と場所だけである。** 本文・タイトル・公開状態を
+ * 渡さなければ、既存の値がそのまま保たれる（`putEntry` の据え置き）。この経路が
+ * 本文に触れないことが、この change で最も守るべきところになる（冒頭のコメント）。
+ *
+ * 場所を書いていない記事は対象にしない。旧サイトは未指定を `Tokyo, Japan` として
+ * 見せていたが、それは表示の都合であって、書かれた事実ではない。既にある場所を
+ * 取り除く動きもしない。この経路が行うのは「埋める」ことだけである。
+ *
+ * エントリの無い日付が混ざっていたら、1件も書かずに止める。場所だけの更新は
+ * 新規作成にならない（本文が無いため `putEntry` が失敗する）ので、途中まで書いた
+ * ところで初めて気づく、という形にしない。
+ */
+async function runLocationOnly(targets: LegacyArticle[], dryRun: boolean): Promise<void> {
+  const withLocation = targets.filter((article) => article.location !== undefined)
+
+  console.log(`場所を持つ記事: ${withLocation.length} 件 / 対象 ${targets.length} 件`)
+  console.log()
+
+  if (withLocation.length === 0) {
+    console.log('場所を持つ記事がありません。何もしていません。')
+    return
+  }
+
+  // 地点の一覧。表記の揺れ（同じ場所の別の書き方）は、この並びを目で見て気づく。
+  const places = new Map<string, number>()
+  for (const article of withLocation) {
+    const place = article.location as string
+    places.set(place, (places.get(place) ?? 0) + 1)
+  }
+
+  const missing: string[] = []
+  const changes: { date: string; from?: string; to: string }[] = []
+
+  for (const article of withLocation) {
+    const existing = await getEntry(article.date)
+    if (!existing) {
+      missing.push(article.date)
+      continue
+    }
+    changes.push({ date: article.date, from: existing.location, to: article.location as string })
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `エントリの無い日付が ${missing.length} 件あります（1件も書いていません）: ${missing.join(', ')}`,
+    )
+  }
+
+  const updates = changes.filter((change) => change.from !== change.to)
+
+  for (const change of changes) {
+    const mark = change.from === undefined ? '追加' : change.from === change.to ? '同じ' : '変更'
+    const from = change.from === undefined ? '(なし)' : change.from
+    console.log(`  ${mark} ${change.date} ${from} -> ${change.to}`)
+  }
+  console.log()
+
+  console.log(`地点 ${places.size} 種:`)
+  for (const [place, count] of [...places].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))) {
+    console.log(`  ${String(count).padStart(4)} ${place}`)
+  }
+  console.log()
+
+  if (dryRun) {
+    console.log(
+      `下見のみ。書き込みは行っていません（書き換わる ${updates.length} 件 / 変わらない ${changes.length - updates.length} 件）。`,
+    )
+    return
+  }
+
+  let written = 0
+  for (const change of updates) {
+    await putEntry({ date: change.date, location: change.to })
+    written++
+
+    if (written % 50 === 0) {
+      console.log(`  ${written} / ${updates.length} 件`)
+    }
+  }
+
+  console.log(`場所を埋めました: ${written} 件（本文・タイトル・公開状態は触れていません）`)
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2))
 
@@ -143,7 +246,11 @@ async function main(): Promise<void> {
   console.log(`読み取り元: ${args.source}`)
   console.log(`テーブル  : ${tableName()}`)
   console.log(`記事      : ${articles.length} 件（うち対象 ${targets.length} 件）`)
-  console.log(`既定の状態: ${defaultStatus}`)
+  if (args.locationOnly) {
+    console.log('動作      : 場所だけを埋める（本文・タイトル・公開状態には触れない）')
+  } else {
+    console.log(`既定の状態: ${defaultStatus}`)
+  }
   console.log()
 
   if (warnings.length > 0) {
@@ -152,6 +259,11 @@ async function main(): Promise<void> {
       console.log(`  - ${warning}`)
     }
     console.log()
+  }
+
+  if (args.locationOnly) {
+    await runLocationOnly(targets, args.dryRun)
+    return
   }
 
   if (args.dryRun) {

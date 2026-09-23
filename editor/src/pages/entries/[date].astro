@@ -24,6 +24,8 @@ const existing = isValidDate(date) ? await getEntry(date) : undefined
 let title = existing?.title ?? ''
 let body = existing?.body ?? ''
 let status = existing?.status ?? 'draft'
+// 持たないエントリでは空。他の日の場所や既定の場所を補わない（`entry-editing`）。
+let location = existing?.location ?? ''
 
 let error: string | undefined
 const saved = Astro.url.searchParams.has('saved')
@@ -34,6 +36,7 @@ if (isValidDate(date) && Astro.request.method === 'POST') {
   // 保存に失敗しても入力を捨てない。以降の描画はフォームから読んだ値で行う。
   title = String(form.get('title') ?? '')
   body = String(form.get('body') ?? '')
+  location = String(form.get('location') ?? '')
   const rawStatus = String(form.get('status') ?? '')
   status = isEntryStatus(rawStatus) ? rawStatus : 'draft'
 
@@ -45,7 +48,11 @@ if (isValidDate(date) && Astro.request.method === 'POST') {
     try {
       // 書き込みは CLI と同じ経路を通す。GSI キー属性の付け外しも作成日時の
       // 引き継ぎも putEntry が持っており、ここでは持たない。
-      await putEntry({ date, title, body, status })
+      //
+      // 場所も、フォームから来た文字列をそのまま渡す。未入力は空文字として届くが、
+      // それを「持たない」に倒す判断は putEntry が持っている。ここで空文字を
+      // 弾くと、判断が CLI・取り込みと合わせて3箇所に散る。
+      await putEntry({ date, title, body, status, location })
 
       // POST の結果をそのまま描画すると、再読み込みで二重に保存される。
       //
@@ -176,6 +183,24 @@ if (isValidDate(date)) {
             <label class="title-field">
               タイトル
               <input type="text" name="title" value={title} autocomplete="off" />
+            </label>
+
+            {/*
+              場所。任意で、入力を促さない（`entry-editing`）。日記の大半は場所を
+              伴わないので、空のまま保存できることが既定の姿である。
+
+              空にして保存すれば場所は外れる。その判断は putEntry が持っており、
+              ここでは空文字をそのまま送る。
+            */}
+            <label class="location-field">
+              場所
+              <input
+                type="text"
+                name="location"
+                value={location}
+                autocomplete="off"
+                placeholder="Osaka, Japan"
+              />
             </label>
 
             {/*
@@ -532,6 +557,7 @@ if (isValidDate(date)) {
       grid-template-columns: 1fr;
       grid-template-areas:
         'title'
+        'location'
         'tabs'
         'edit'
         'preview'
@@ -542,6 +568,10 @@ if (isValidDate(date)) {
 
     .title-field {
       grid-area: title;
+    }
+
+    .location-field {
+      grid-area: location;
     }
 
     .tabs {
@@ -701,8 +731,13 @@ if (isValidDate(date)) {
     @media (min-width: 60rem) {
       .editor {
         grid-template-columns: 1fr 1fr;
+        /*
+         * 広い画面では、題と場所を同じ行に並べる。場所は `Osaka, Japan` ほどの
+         * 短い1行なので、題の下に行を足すより、空いている右の列に置くほうが、
+         * 2つの面の上端が上がる。
+         */
         grid-template-areas:
-          'title title'
+          'title location'
           'edit preview'
           'status status'
           'actions actions';

@@ -2,61 +2,72 @@
 
 属性を知る5経路のうち、最初に通る1箇所を先に作る。ここでは呼び出す側にまだ手を入れない。
 
-- [ ] 1.1 `src/lib/store/entry.ts` の `Entry` に `location?: string` を足す（design.md 決定1）
+- [x] 1.1 `src/lib/store/entry.ts` の `Entry` に `location?: string` を足す（design.md 決定1）
   - `toItem()` は**場所を持つときだけ** `location` 属性を書く。空文字を書いて「無い」を表さない
   - `status` が `draft` のとき `gsi1pk` / `gsi1sk` を書かないのと同じ流儀であることをコメントに残す。不在を不在として表すほうが、読む側に解釈を求めない
   - `fromItem()` は文字列でないものを `undefined` にする。空文字も `undefined` に倒す
   - 都市と国に分けない理由（集計の都合を保存の形に持ち込まない、決定1）を書き残す
-- [ ] 1.2 `src/lib/store/put.ts` の `PutEntryInput` に `location?: string | null` を足す（決定2）
+- [x] 1.2 `src/lib/store/put.ts` の `PutEntryInput` に `location?: string | null` を足す（決定2）
   - 据え置き（`undefined`）・設定（文字列）・削除（`null` / 空文字 / 空白のみ）の3つに倒す。表は design.md 決定2
   - **正規化（trim して空なら持たない）はこの関数の中だけに置く。** 呼び出し側それぞれで空文字を弾く形にしない理由（弾き漏らした経路からだけ空文字が入る）をコメントに残す
   - `title` / `body` / `status` が `??` だけで足りるのに対し、場所だけが削除を表す値を持つ理由（「持たない」が正当な状態である）を書き残す
-- [ ] 1.3 `npm run check` を通す
+- [x] 1.3 `npm run check` を通す
 
 ## 2. 書き出し（content-export）
 
-- [ ] 2.1 `src/export/markdown.ts` の frontmatter に `location` を足す（決定4）
+- [x] 2.1 `src/export/markdown.ts` の frontmatter に `location` を足す（決定4）
   - `title` と同じく `JSON.stringify()` で書く。値は自由入力であり、`: ` を含みうる
   - **持たないエントリでは行そのものを出さない。** `location: ""` と書くと空文字を持つエントリと区別できなくなることをコメントに残す
   - 並びは固定で `status` の次。実行ごとに変われば内容が同じでも差分が出る
-- [ ] 2.2 場所を持たないエントリの書き出し結果が、この変更の前後でバイト単位で同一になることを手元で確かめる（書き出しの冪等性）
+- [x] 2.2 場所を持たないエントリの書き出し結果が、この変更の前後でバイト単位で同一になることを手元で確かめる（書き出しの冪等性）
 
 ## 3. 公開サイトの表示（diary-site-pages）
 
-- [ ] 3.1 `src/pages/[year]/[month]/[day].astro` に場所の表示を足す（決定3）
+- [x] 3.1 `src/pages/[year]/[month]/[day].astro` に場所の表示を足す（決定3）
   - **タイトルの有無の分岐の中に入れない。** 頭のまとまりの最後に独立した1行として置き、2つの形に場所ありなしが掛かって4通りになるのを避ける
   - 値はそのまま出す。和訳も整形もしない
   - `DateBlock` には触れない。日付がページに1度だけ現れることは変えない
-- [ ] 3.2 場所を持たないエントリで、場所に関わる要素・余白・区切りが一切出ないことを確かめる。空の行や空の欄が残らないこと
-- [ ] 3.3 見た目を既存の体裁に合わせる（`visual-identity` の色と字の扱いに従う。新しい色や字の大きさを増やさない）
-- [ ] 3.4 `npm run check` を通す
+- [x] 3.2 場所を持たないエントリで、場所に関わる要素・余白・区切りが一切出ないことを確かめる。空の行や空の欄が残らないこと
+  - DynamoDB Local のデータで生成し、この変更の前後の `<article>` を突き合わせた。差分は `<header class="entry-head">` の追加と、場所を持つ日の `<p class="location">` だけ。空の要素は出ていない
+  - 間隔は `h1` の `margin-bottom: 2.6rem` を `.entry-head` へ移したもので、場所を持たない日の字面は変わらない
+- [x] 3.3 見た目を既存の体裁に合わせる（`visual-identity` の色と字の扱いに従う。新しい色や字の大きさを増やさない）
+  - 欧文のラベルの字面（`--font-ui` / 0.74rem / 0.14em / `--fg-muted`）を `DateBlock` の月・曜日から借りた。新しい値は増やしていない。朱も使っていない（tokens.css が数え上げている朱の使い道を増やさないため）
+  - **描画そのものの確認はこの環境ではできない**（ブラウザが無い）。7.5 / 8.4 の目視に残す
+- [x] 3.4 `npm run check` を通す
+  - 副作用として、日別ページの CSS が 4KB のしきい値を越え、ページ内に埋め込まれる形から `/_astro/_day_.*.css` への参照に変わった（Astro の `inlineStylesheets: 'auto'`）。日別ページだけが読む1ファイルで、ページの HTML は約4KB小さくなる
 
 ## 4. 編集アプリケーション（entry-editing）
 
-- [ ] 4.1 `editor/src/pages/entries/[date].astro` に場所の入力欄を足す（決定6）
+- [x] 4.1 `editor/src/pages/entries/[date].astro` に場所の入力欄を足す（決定6）
   - 1行のテキスト入力。`title` と同じ行に置き、grid の領域を1つ足す
   - 初期値は現在の値。持たないエントリでは空。**他の日の場所や既定の場所を補わない**
-- [ ] 4.2 POST の処理で場所を読み、`putEntry()` にそのまま渡す。編集画面側で空文字の判定をしない（決定2の正規化に任せる）
-- [ ] 4.3 保存が1回で本文・タイトル・公開状態・場所のすべてに及ぶことを確かめる。プレビューの経路（`/api/preview`）には手を入れない——場所は本文ではない
-- [ ] 4.4 `npm run check` を通す
+- [x] 4.2 POST の処理で場所を読み、`putEntry()` にそのまま渡す。編集画面側で空文字の判定をしない（決定2の正規化に任せる）
+- [x] 4.3 保存が1回で本文・タイトル・公開状態・場所のすべてに及ぶことを確かめる。プレビューの経路（`/api/preview`）には手を入れない——場所は本文ではない
+  - フォームは1つのままで、`putEntry({ date, title, body, status, location })` の1回の呼び出しに4つとも乗る。`/api/preview` は触っていない
+  - **画面を動かしての確認はここではできない**（編集アプリケーションの起動には SSM の設定と Google のログインが要り、この環境の SSO は失効している）。7.2 に残す
+- [x] 4.4 `npm run check` を通す
 
 ## 5. CLI からの入力
 
-- [ ] 5.1 `src/cli/put-entry.ts` に `--location <text>` と、場所を取り除く `--no-location` を足す
+- [x] 5.1 `src/cli/put-entry.ts` に `--location <text>` と、場所を取り除く `--no-location` を足す
   - `--no-location` は `putEntry()` に `null` を渡す。指定しなければ据え置き
   - USAGE に両方を書く。省略時に既存値を引き継ぐことも書く
-- [ ] 5.2 `npm run check` を通す
+- [x] 5.2 `npm run check` を通す
+  - DynamoDB Local に向けて3通り（設定・据え置き・`--no-location` での削除）を実際に走らせ、出力の `location` 欄で確かめた
 
 ## 6. 旧サイトからの取り込み
 
-- [ ] 6.1 `src/legacy/source.ts` が frontmatter の `location` を読むようにする。`LegacyArticle` に足す
+- [x] 6.1 `src/legacy/source.ts` が frontmatter の `location` を読むようにする。`LegacyArticle` に足す
   - 「`location` は取り込まない」と書いてある冒頭のコメントを、扱うようになった経緯を含めて書き換える
-- [ ] 6.2 `src/cli/import-legacy.ts` に `--location-only` を足す（決定5）
+- [x] 6.2 `src/cli/import-legacy.ts` に `--location-only` を足す（決定5）
   - このモードでは `putEntry({ date, location })` だけを呼ぶ。`title` / `body` / `status` を**渡さない**
   - **本文を巻き戻さないことがこの change で最も壊しやすいところである**こと（`migrate-legacy-photos` が本文の写真 URL 2,365箇所を書き換え済み）をコメントに残す。通常の取り込みモードを使い回さない理由をここに書く
   - 場所を持たない記事は対象にしない。既存の場所を取り除く動きはしない
-- [ ] 6.3 `--location-only --dry-run` で、対象の日付・入る値・現在の値・地点の一覧（重複を畳んだもの）を出す。表記の揺れに取り込み前に気づけるようにする
-- [ ] 6.4 `npm run check` を通す
+- [x] 6.3 `--location-only --dry-run` で、対象の日付・入る値・現在の値・地点の一覧（重複を畳んだもの）を出す。表記の揺れに取り込み前に気づけるようにする
+- [x] 6.4 `npm run check` を通す
+  - 手元の DynamoDB Local に旧サイト 1,089 件を取り込んだうえで通しの予行をした。下見は **107件・33地点**（別途数えた値と一致）、実行は106件（1件は既に同じ値）
+  - 実行の前後で全1,090件の属性を突き合わせた。**変わったのは `location`（106件）と `updatedAt`（106件）だけで、本文・タイトル・公開状態・`createdAt` の差分は0件**
+  - 生成したサイトは1,503ページ、うち場所が出るのは108ページ。書き出しも108ファイルに `location` を持つ
 
 ## 7. staging での確認
 

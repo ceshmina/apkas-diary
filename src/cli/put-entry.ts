@@ -19,6 +19,8 @@ interface Args {
   file?: string
   title?: string
   status?: string
+  /** `--location` の値。`--no-location` は null になり、場所を取り除く。 */
+  location?: string | null
 }
 
 const USAGE = `使い方:
@@ -28,10 +30,15 @@ const USAGE = `使い方:
   --date <YYYY-MM-DD>          対象の日付（必須）。JST の暦日。
   --file <path>                本文の Markdown ファイル。新規作成時は必須。
   --title <text>               タイトル。
+  --location <text>            場所。"Osaka, Japan" のように書かれたまま保持する。
+                               省略時は既存の値を引き継ぐ。
+  --no-location                場所を取り除く。
   --status <draft|published>   公開状態。省略時は新規なら draft、更新なら現状維持。
 
 例:
   npm run entry -- staging --date 2026-08-01 --file ~/notes/today.md --title "散歩"
+  npm run entry -- staging --date 2026-08-01 --location "Osaka, Japan"
+  npm run entry -- staging --date 2026-08-01 --no-location
   npm run entry -- staging --date 2026-08-01 --status published
 `
 
@@ -45,6 +52,12 @@ function parseArgs(argv: string[]): Args {
       console.log(USAGE)
       process.exit(0)
     }
+    // 値を取らない。場所の「取り除く」は指定の有無では表せないため、
+    // 専用の引数にしてある（putEntry の location に null を渡す）。
+    if (key === '--no-location') {
+      args.location = null
+      continue
+    }
 
     const value = argv[i + 1]
 
@@ -52,6 +65,7 @@ function parseArgs(argv: string[]): Args {
       case '--date':
       case '--file':
       case '--title':
+      case '--location':
       case '--status': {
         if (value === undefined || value.startsWith('--')) {
           throw new Error(`${key} に値が指定されていません`)
@@ -89,12 +103,14 @@ async function main(): Promise<void> {
     title: args.title,
     body,
     status: args.status,
+    location: args.location,
   })
 
   const action = created ? '作成' : '更新'
   console.log(`${action}しました: ${entry.date}（${entry.status}）`)
   console.log(`  table   : ${tableName()}`)
   console.log(`  title   : ${entry.title || '(なし)'}`)
+  console.log(`  location: ${entry.location ?? '(なし)'}`)
   console.log(`  body    : ${entry.body.length} 文字`)
 
   if (entry.status === 'published') {

@@ -56,24 +56,35 @@ function hrefOf(date: string): string {
 // 同じ日付が1ページに2度現れないため、形を変えて見分けさせる必要がない。
 // タイトルの有無によらず、日付の部品（DateBlock）の1つの形・1つの大きさで通す。
 // 文書の題（`<title>`）は、読み上げと検索に使われる文字なので和文のままにする。
+//
+// 場所は**この分岐の中に入れない**。頭のまとまり（.entry-head）の最後に、独立した
+// 1行として置く。分岐の中に入れると、2つの形それぞれに場所のありなしが掛かって
+// 4通りになる。外に出せば、タイトルの有無によらず同じ位置・同じ字面で出る。
+//
+// 場所を持たない日は行そのものを出さない。タイトルの不在と同じ扱いで、欠落として
+// 示さない。日記の大半は場所を伴わない。
 ---
 
 <Base title={entry.title || dateJa}>
   <article>
-    {
-      entry.title ? (
-        <>
-          <p class="dateline">
+    <header class="entry-head">
+      {
+        entry.title ? (
+          <>
+            <p class="dateline">
+              <DateBlock date={entry.date} mark />
+            </p>
+            <h1>{entry.title}</h1>
+          </>
+        ) : (
+          <h1>
             <DateBlock date={entry.date} mark />
-          </p>
-          <h1>{entry.title}</h1>
-        </>
-      ) : (
-        <h1>
-          <DateBlock date={entry.date} mark />
-        </h1>
-      )
-    }
+          </h1>
+        )
+      }
+
+      {entry.location && <p class="location">{entry.location}</p>}
+    </header>
 
     <div class="body prose" set:html={html} />
   </article>
@@ -140,16 +151,40 @@ function hrefOf(date: string): string {
 </Base>
 
 <style>
+  /*
+   * 頭のまとまり。日付・題・場所をここに収め、本文との間はこのまとまりが空ける。
+   * 間隔を持つのが最後の子ではなくまとまりの側なので、場所の行が増えても減っても
+   * 本文までの間隔は変わらない。
+   */
+  .entry-head {
+    margin-bottom: 2.6rem;
+  }
+
   .dateline {
     margin: 0 0 1.7rem;
   }
 
   /* 記事の題。タイトルのない日は、日付の部品を包む見出しになる。 */
   h1 {
-    margin-bottom: 2.6rem;
+    margin-bottom: 0;
     font-size: 1.85rem;
     line-height: 1.5;
     text-wrap: balance;
+  }
+
+  /*
+   * 場所。`Osaka, Japan` のような欧文のラベルなので、日付の添え書き（DateBlock の
+   * 月・曜日）と同じ字面で組む。新しい大きさも色も増やさない。書かれたとおりに
+   * 出し、和訳も整形もしない。
+   */
+  .location {
+    margin: 0.95rem 0 0;
+    color: var(--fg-muted);
+    font-family: var(--font-ui);
+    font-weight: 500;
+    font-size: 0.74rem;
+    line-height: 1.65;
+    letter-spacing: 0.14em;
   }
 
   .body {
